@@ -222,6 +222,23 @@
   /* Help overlay */
   .help-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.45);color:#fff;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;}
   .help-btn:active{background:rgba(255,255,255,0.35);}
+  /* Golf Buddies overlay */
+  .buddies-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:3100;display:none;align-items:flex-end;justify-content:center;}
+  .buddies-sheet{background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:480px;max-height:82vh;display:flex;flex-direction:column;overflow:hidden;}
+  .buddies-head{display:flex;align-items:center;padding:16px 18px 12px;border-bottom:1px solid #eee;flex-shrink:0;}
+  .buddies-head h2{flex:1;margin:0;font-size:17px;font-weight:700;color:var(--green-dark);}
+  .buddies-close{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;padding:0 4px;color:#888;}
+  .buddies-body{overflow-y:auto;flex:1;padding:12px 16px 8px;}
+  .buddy-row{display:flex;align-items:center;padding:10px 12px;border:1.5px solid var(--border,#eee);border-radius:8px;margin-bottom:8px;background:#fff;}
+  .buddy-info{flex:1;min-width:0;}
+  .buddy-name{font-weight:600;font-size:14px;}
+  .buddy-meta{font-size:12px;color:var(--muted,#888);margin-top:2px;}
+  .buddy-select-btn{padding:5px 12px;border-radius:6px;border:1.5px solid var(--green-dark,#1a5c36);background:transparent;color:var(--green-dark,#1a5c36);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;margin-right:6px;flex-shrink:0;}
+  .buddy-del-btn{background:none;border:none;color:#ccc;font-size:20px;line-height:1;cursor:pointer;padding:2px 4px;flex-shrink:0;}
+  .buddy-del-btn:active{color:#e53;}
+  .buddies-add-bar{padding:10px 16px 16px;border-top:1px solid #eee;flex-shrink:0;}
+  .buddies-empty{text-align:center;color:var(--muted,#999);font-size:13px;padding:28px 0 12px;}
+  .buddy-add-form{margin-top:4px;border-top:1px solid #eee;padding-top:14px;}
   .help-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:0 0 40px;max-height:85vh;overflow-y:auto;}
   .help-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff;z-index:1;}
   .help-sheet-title{font-size:17px;font-weight:700;color:var(--green-dark);}
@@ -1506,6 +1523,9 @@
       <button class="fb-btn" id="fb-join-btn" onclick="fbJoinRound()">Join Round</button>
       <div class="fb-err" id="fb-join-err"></div>
     </div>
+    <div style="margin-top:18px;border-top:1px solid rgba(0,0,0,0.08);padding-top:14px;">
+      <button onclick="showBuddies()" style="width:100%;padding:10px;background:transparent;border:1.5px solid var(--green-dark,#1a5c36);color:var(--green-dark,#1a5c36);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">&#128101; My Buddies</button>
+    </div>
   </div>
 </div>
 
@@ -1618,6 +1638,20 @@
 <div id="holeCardOverlay" class="holecard-overlay" style="display:none;"></div>
 <div id="smartPayoutOverlay" class="smart-payout-overlay" style="display:none;"></div>
 <div id="settleUpOverlay" class="smart-payout-overlay" style="display:none;"></div>
+
+<!-- ===== Golf Buddies Overlay ===== -->
+<div id="buddiesOverlay" class="buddies-overlay">
+  <div class="buddies-sheet">
+    <div class="buddies-head">
+      <h2>&#128101; My Buddies</h2>
+      <button class="buddies-close" onclick="closeBuddies()">&#10005;</button>
+    </div>
+    <div class="buddies-body" id="buddiesBody"></div>
+    <div class="buddies-add-bar">
+      <button id="buddiesAddBtn" onclick="showBuddyAddForm()" style="width:100%;padding:10px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">+ Add New Buddy</button>
+    </div>
+  </div>
+</div>
 
 <!-- ===== Help Overlay ===== -->
 <div id="helpOverlay" class="smart-payout-overlay" style="display:none;" onclick="if(event.target===this)closeHelp()">
@@ -2714,7 +2748,12 @@ function buildRcMatchBannerHtml(day, gn, course, tee, idxs, sc) {
 
 // ================= PLAYERS (shared by both branches) =================
 function renderPlayersInto(containerId){
-  var html = '<div class="card"><div id="playerListInner"></div><button class="btn-add-player" id="addPlayerBtn">+ Add Player</button></div>';
+  var html = '<div class="card"><div id="playerListInner"></div>' +
+    '<div style="display:flex;gap:8px;margin-top:4px;">' +
+      '<button class="btn-add-player" id="addPlayerBtn" style="flex:1;">+ Add Player</button>' +
+      '<button id="addFromBuddiesBtn" style="flex:1;padding:8px 10px;border:1.5px solid var(--green-dark,#1a5c36);border-radius:8px;background:transparent;color:var(--green-dark,#1a5c36);font-size:13px;font-weight:600;cursor:pointer;">&#128101; From Buddies</button>' +
+    '</div>' +
+  '</div>';
   $(containerId).innerHTML = html;
   renderPlayerRows();
   $('addPlayerBtn').addEventListener('click', function(){
@@ -2723,6 +2762,19 @@ function renderPlayersInto(containerId){
     state.players.push({name:'Player '+(state.players.length+1), hi:'', ghin:'', ghinName:'', ghinUpdated:'', tee: joinTee});
     renderPlayerRows();
     updateNextButton();
+  });
+  $('addFromBuddiesBtn').addEventListener('click', function(){
+    showBuddies(function(buddy) {
+      var joinTee = window.fbJoiningTee || '';
+      state.players.push({
+        name: buddy.name || '',
+        hi:   buddy.hi   || '',
+        ghin: buddy.ghin || '',
+        ghinName: '', ghinUpdated: '', tee: joinTee
+      });
+      renderPlayerRows();
+      updateNextButton();
+    });
   });
 }
 
@@ -2858,7 +2910,9 @@ window.npsEditPlayer = function(idx) {
   f += 'style="flex-shrink:0;height:38px;width:38px;border-radius:6px;border:1.5px solid '+(_hiIsPlus?'var(--green-dark,#1a5c36)':'#d0d0d0')+';background:'+(_hiIsPlus?'var(--green-dark,#1a5c36)':'#f0f0f0')+';color:'+(_hiIsPlus?'#fff':'#aaa')+';font-size:16px;font-weight:800;cursor:pointer;">+</button>';
   f += '</div>';
   // Lookup result message
-  f += '<div id="nps-gm-'+idx+'" style="font-size:12px;min-height:16px;margin-bottom:8px;"></div>';
+  f += '<div id="nps-gm-'+idx+'" style="font-size:12px;min-height:16px;margin-bottom:6px;"></div>';
+  // From Buddies button
+  f += '<button type="button" onclick="npsPickFromBuddies('+idx+')" style="width:100%;padding:8px;margin-bottom:8px;border:1.5px solid var(--border,#ddd);border-radius:6px;background:#f7f7f7;font-size:12px;font-weight:600;cursor:pointer;color:var(--green-dark,#1a5c36);">&#128101; From Buddies</button>';
   // Save / Cancel
   f += '<div style="display:flex;gap:8px;">';
   f += '<button onclick="npsSavePlayer('+idx+')" style="flex:1;padding:9px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">Save</button>';
@@ -2900,6 +2954,39 @@ window.npsSavePlayer = function(idx) {
   };
   if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
   renderNetworkedPlayersStep();
+  // Prompt to save as buddy if they have a real name (skip placeholder pattern)
+  if (newName && !/^player\s*\d+$/i.test(newName)) {
+    maybePromptSaveBuddy(newName, newGhin, state.players[idx].hi);
+  }
+};
+
+// Pick a buddy from the overlay and populate the npsEditPlayer form
+window.npsPickFromBuddies = function(idx) {
+  showBuddies(function(buddy) {
+    // Re-open the edit form for this slot (in case overlay closed it)
+    if (typeof window.npsEditPlayer === 'function') window.npsEditPlayer(idx);
+    // Fill in the fields after a short delay to let the form render
+    setTimeout(function() {
+      var nameEl = document.getElementById('nps-fn-'+idx);
+      var ghinEl = document.getElementById('nps-fg-'+idx);
+      var hiEl   = document.getElementById('nps-fh-'+idx);
+      var plusBtn = document.getElementById('nps-fp-'+idx);
+      if (nameEl && buddy.name) nameEl.value = buddy.name;
+      if (ghinEl && buddy.ghin) ghinEl.value = buddy.ghin;
+      if (hiEl && buddy.hi != null && buddy.hi !== '') {
+        var _hi = String(buddy.hi);
+        var _isPlus = _hi.charAt(0) === '+' || parseFloat(_hi) < 0;
+        var _mag = _isPlus ? String(Math.abs(parseFloat(_hi)||0)) : _hi;
+        hiEl.value = _mag;
+        if (plusBtn) {
+          plusBtn.setAttribute('data-plus', _isPlus ? '1' : '0');
+          plusBtn.style.background  = _isPlus ? 'var(--green-dark,#1a5c36)' : '#f0f0f0';
+          plusBtn.style.borderColor = _isPlus ? 'var(--green-dark,#1a5c36)' : '#d0d0d0';
+          plusBtn.style.color       = _isPlus ? '#fff' : '#aaa';
+        }
+      }
+    }, 50);
+  });
 };
 
 // GHIN lookup for manager's player roster — auto-populates name + HCI
@@ -4869,6 +4956,174 @@ function toggleHelpSection(headEl){
 }
 
 // ============================================================
+// GOLF BUDDIES
+// ============================================================
+var _buddiesCache = [];       // local cache, refreshed on open
+var _buddiesSelectCb = null;  // set when opened from a player slot
+
+function fbLoadBuddies(cb) {
+  var uid = window.fbUser && window.fbUser.uid;
+  if (!uid || !window.db) { if (cb) cb([]); return; }
+  window.db.collection('managers').doc(uid).collection('buddies').orderBy('name').get()
+    .then(function(snap) {
+      _buddiesCache = [];
+      snap.forEach(function(doc) {
+        _buddiesCache.push(Object.assign({ id: doc.id }, doc.data()));
+      });
+      if (cb) cb(_buddiesCache);
+    })
+    .catch(function() { if (cb) cb([]); });
+}
+
+function fbSaveBuddy(buddy, cb) {
+  var uid = window.fbUser && window.fbUser.uid;
+  if (!uid || !window.db) { if (cb) cb(null); return; }
+  var doc = { name: buddy.name || '', ghin: buddy.ghin || '', hi: buddy.hi || '' };
+  window.db.collection('managers').doc(uid).collection('buddies').add(doc)
+    .then(function(ref) { if (cb) cb(ref.id); })
+    .catch(function() { if (cb) cb(null); });
+}
+
+function fbDeleteBuddy(id, cb) {
+  var uid = window.fbUser && window.fbUser.uid;
+  if (!uid || !window.db) { if (cb) cb(); return; }
+  window.db.collection('managers').doc(uid).collection('buddies').doc(id).delete()
+    .then(function() { if (cb) cb(); }).catch(function() { if (cb) cb(); });
+}
+
+function showBuddies(onSelectCb) {
+  _buddiesSelectCb = onSelectCb || null;
+  document.getElementById('buddiesOverlay').style.display = 'flex';
+  fbLoadBuddies(function(list) { renderBuddiesList(list); });
+}
+
+function closeBuddies() {
+  document.getElementById('buddiesOverlay').style.display = 'none';
+  _buddiesSelectCb = null;
+}
+
+function renderBuddiesList(list) {
+  var body = document.getElementById('buddiesBody');
+  var addBtn = document.getElementById('buddiesAddBtn');
+  if (!body) return;
+  var inSelect = !!_buddiesSelectCb;
+  var html = '';
+  if (inSelect) {
+    html += '<div style="font-size:12px;color:var(--muted,#888);margin-bottom:10px;text-align:center;">Tap a buddy to add them to this slot</div>';
+  }
+  if (!list || list.length === 0) {
+    html += '<div class="buddies-empty">No buddies saved yet.<br>Add someone below to get started.</div>';
+  } else {
+    list.forEach(function(b) {
+      var meta = [];
+      if (b.ghin) meta.push('GHIN ' + escapeHtml(String(b.ghin)));
+      if (b.hi != null && b.hi !== '') meta.push('HI ' + escapeHtml(String(b.hi)));
+      html += '<div class="buddy-row">';
+      html += '<div class="buddy-info"><div class="buddy-name">'+escapeHtml(b.name)+'</div>';
+      if (meta.length) html += '<div class="buddy-meta">'+meta.join(' · ')+'</div>';
+      html += '</div>';
+      if (inSelect) {
+        html += '<button class="buddy-select-btn" onclick="buddySelectPick(\''+escapeHtml(b.id||'')+'\')">Add &#8594;</button>';
+      }
+      html += '<button class="buddy-del-btn" onclick="buddyDelete(\''+escapeHtml(b.id||'')+'\')">&#10005;</button>';
+      html += '</div>';
+    });
+  }
+  body.innerHTML = html;
+  if (addBtn) { addBtn.style.display = ''; addBtn.textContent = '+ Add New Buddy'; }
+}
+
+window.buddySelectPick = function(id) {
+  var buddy = _buddiesCache.find(function(b){ return b.id === id; });
+  if (!buddy || !_buddiesSelectCb) return;
+  _buddiesSelectCb(buddy);
+  closeBuddies();
+};
+
+window.buddyDelete = function(id) {
+  fbDeleteBuddy(id, function() {
+    fbLoadBuddies(function(list) { renderBuddiesList(list); });
+  });
+};
+
+window.showBuddyAddForm = function() {
+  var body = document.getElementById('buddiesBody');
+  var addBtn = document.getElementById('buddiesAddBtn');
+  if (!body) return;
+  if (addBtn) addBtn.style.display = 'none';
+  var formHtml = '<div class="buddy-add-form" id="buddyAddFormArea">' +
+    '<div style="font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted,#666);margin-bottom:10px;">NEW BUDDY</div>' +
+    '<input id="baf-name" type="text" placeholder="Full Name" style="width:100%;padding:8px 10px;border:1.5px solid var(--border,#ddd);border-radius:6px;font-size:14px;margin-bottom:8px;box-sizing:border-box;">' +
+    '<div style="display:flex;gap:6px;margin-bottom:10px;">' +
+      '<input id="baf-ghin" type="text" inputmode="numeric" placeholder="GHIN (optional)" style="flex:1;padding:8px 10px;border:1.5px solid var(--border,#ddd);border-radius:6px;font-size:13px;box-sizing:border-box;">' +
+      '<input id="baf-hi" type="text" inputmode="decimal" placeholder="HI (optional)" style="flex:1;padding:8px 10px;border:1.5px solid var(--border,#ddd);border-radius:6px;font-size:13px;box-sizing:border-box;">' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;">' +
+      '<button onclick="buddyAddSave()" style="flex:1;padding:9px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">Save Buddy</button>' +
+      '<button onclick="fbLoadBuddies(renderBuddiesList);document.getElementById(\'buddiesAddBtn\').style.display=\'\';" style="padding:9px 16px;border:1.5px solid var(--border,#ddd);background:#fff;border-radius:6px;font-size:13px;cursor:pointer;">Cancel</button>' +
+    '</div>' +
+  '</div>';
+  body.innerHTML += formHtml;
+  var ni = document.getElementById('baf-name');
+  if (ni) ni.focus();
+};
+
+window.buddyAddSave = function() {
+  var nameEl = document.getElementById('baf-name');
+  var ghinEl = document.getElementById('baf-ghin');
+  var hiEl   = document.getElementById('baf-hi');
+  var name = nameEl ? nameEl.value.trim() : '';
+  if (!name) {
+    if (nameEl) { nameEl.style.borderColor = '#e53'; nameEl.focus(); }
+    return;
+  }
+  fbSaveBuddy({
+    name: name,
+    ghin: ghinEl ? ghinEl.value.trim() : '',
+    hi:   hiEl   ? hiEl.value.trim()   : ''
+  }, function() {
+    fbLoadBuddies(renderBuddiesList);
+    var addBtn = document.getElementById('buddiesAddBtn');
+    if (addBtn) addBtn.style.display = '';
+  });
+};
+
+// Prompt to save a newly entered player as a buddy
+function maybePromptSaveBuddy(name, ghin, hi) {
+  if (!name) return;
+  // Skip if already in cache
+  var alreadyIn = _buddiesCache.some(function(b) {
+    return (b.name || '').trim().toLowerCase() === name.trim().toLowerCase();
+  });
+  if (alreadyIn) return;
+  // Store for the save callback
+  window._pendingBuddySave = { name: name, ghin: ghin || '', hi: hi || '' };
+  var existing = document.getElementById('buddy-save-prompt');
+  if (existing) existing.remove();
+  var el = document.createElement('div');
+  el.id = 'buddy-save-prompt';
+  el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#fff;border:1.5px solid var(--green-dark,#1a5c36);border-radius:10px;padding:12px 16px;font-size:13px;z-index:3200;box-shadow:0 4px 18px rgba(0,0,0,.18);max-width:300px;width:90%;text-align:center;';
+  el.innerHTML = '<div style="font-weight:600;margin-bottom:8px;">Save <em>'+escapeHtml(name)+'</em> as a Buddy?</div>' +
+    '<div style="display:flex;gap:8px;justify-content:center;">' +
+      '<button onclick="doSavePendingBuddy()" style="padding:6px 18px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">Save</button>' +
+      '<button onclick="document.getElementById(\'buddy-save-prompt\').remove();" style="padding:6px 14px;border:1.5px solid var(--border,#ddd);background:#fff;border-radius:6px;font-size:13px;cursor:pointer;">Skip</button>' +
+    '</div>';
+  document.body.appendChild(el);
+  setTimeout(function(){ if (el && el.parentNode) el.remove(); }, 8000);
+}
+
+window.doSavePendingBuddy = function() {
+  var b = window._pendingBuddySave;
+  if (!b) return;
+  fbSaveBuddy(b, function() {
+    fbLoadBuddies(function(list) { _buddiesCache = list; });
+  });
+  var el = document.getElementById('buddy-save-prompt');
+  if (el) el.remove();
+  window._pendingBuddySave = null;
+};
+
+// ============================================================
 // SETTLE UP OVERLAY
 // ============================================================
 
@@ -6234,6 +6489,8 @@ document.addEventListener('click', function(e){
   if (e.target === spOverlay){ closeSmartPayout(); return; }
   var suOverlay = $('settleUpOverlay');
   if (suOverlay && e.target === suOverlay){ closeSettleUp(); return; }
+  var bdOverlay = $('buddiesOverlay');
+  if (bdOverlay && e.target === bdOverlay){ closeBuddies(); return; }
   var hlOverlay = $('hammerLogOverlay');
   if (hlOverlay && e.target === hlOverlay){ closeHammerLog(); return; }
   var spBtn = e.target.closest && e.target.closest('[data-smart-payout]');
@@ -7248,6 +7505,9 @@ fbAuth.onAuthStateChanged(function(user) {
       }
       return;
     }
+
+    // Preload buddies cache for non-anonymous (registered) users
+    if (typeof fbLoadBuddies === 'function') fbLoadBuddies();
 
     // A pending join code (from a ?join= deep link or share link) always takes
     // priority over a stale saved round — the user explicitly clicked a link
