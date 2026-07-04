@@ -1672,8 +1672,8 @@
           <li><strong>Manager opens the app</strong> and taps <em>Start a Round</em>.</li>
           <li>Choose a <strong>round type</strong>: Stroke Play, Match Play, or Golf Event.</li>
           <li>Select a <strong>scoring method</strong> (e.g. Net Stroke Play).</li>
-          <li>Pick a <strong>course and tee</strong> — search by name, or enter manually if it's not listed.</li>
-          <li>Enter each <strong>player's name and Handicap Index</strong> (HI). Tap 🔍 to look up via GHIN.</li>
+          <li>Pick a <strong>course and tee</strong> — tap <em>📍 Near Me</em> to auto-find courses at your location, or search by name.</li>
+          <li>Enter each <strong>player's name and Handicap Index</strong> (HI). Tap 🔍 to look up via GHIN, or use <em>👥 From Buddies</em> to quickly add saved players.</li>
           <li>Add <strong>side games</strong> with stakes (Nassau, Wolf, Skins, etc.).</li>
           <li>Review the summary and tap <em>Start Round</em>.</li>
         </ul>
@@ -1855,6 +1855,42 @@
           <li>80% = recommended for Wolf and team games.</li>
           <li>0% = scratch play, no strokes given.</li>
         </ul>
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-sec-head" onclick="toggleHelpSection(this)">
+        <span class="help-sec-icon">👥</span>
+        <span class="help-sec-label">My Buddies</span>
+        <span class="help-sec-arrow">▼</span>
+      </div>
+      <div class="help-body">
+        Save your regular playing partners so you can add them to a round in one tap.
+        <ul>
+          <li>Tap <em>👥 My Buddies</em> on the home screen to manage your list — add, view, or delete buddies.</li>
+          <li>Each buddy stores their <strong>name, GHIN number, and Handicap Index</strong>.</li>
+          <li>On the player entry step, tap <em>👥 From Buddies</em> to pick a saved player and auto-fill their slot.</li>
+          <li>When you manually enter a player with a GHIN, the app will prompt you to <strong>save them as a buddy</strong> for next time.</li>
+        </ul>
+        <div class="help-tip">💡 Your buddy list is tied to your account and available every round — no re-entering names and handicaps.</div>
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-sec-head" onclick="toggleHelpSection(this)">
+        <span class="help-sec-icon">📍</span>
+        <span class="help-sec-label">Course Search &amp; GPS</span>
+        <span class="help-sec-arrow">▼</span>
+      </div>
+      <div class="help-body">
+        <ul>
+          <li>Tap <em>📍 Near Me</em> on the course step to automatically search for courses at your current location.</li>
+          <li>Your browser will ask for <strong>location permission</strong> — tap Allow for GPS to work.</li>
+          <li>The app detects your city and searches <strong>GolfCourseAPI</strong> for nearby courses with real tee data (rating, slope, par, stroke index).</li>
+          <li>You can also <strong>search by name</strong> (e.g. "Barton Creek") if you prefer.</li>
+          <li>Selecting a course from search <strong>loads real tee data</strong> so handicap strokes are calculated correctly.</li>
+        </ul>
+        <div class="help-tip">💡 GPS works best when you're at or near the course. If Near Me returns too many results, search by the course name directly.</div>
       </div>
     </div>
 
