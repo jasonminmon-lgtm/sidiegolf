@@ -2092,8 +2092,9 @@ function mapApiCourseToLocal(apiCourse){
 function courseSearchHtml(ns){
   return '<div class="card">'+
     '<label class="field-label">Search Real Courses (GolfCourseAPI)</label>'+
+    '<button id="nearMeBtn-'+ns+'" type="button" style="width:100%;padding:9px;margin-bottom:8px;border:1.5px solid var(--green-dark,#1a5c36);border-radius:8px;background:transparent;color:var(--green-dark,#1a5c36);font-size:13px;font-weight:600;cursor:pointer;">&#128205; Near Me — Find Courses at My Location</button>'+
     '<div style="display:flex;gap:8px;">'+
-      '<input type="text" id="courseSearchInput-'+ns+'" placeholder="e.g. Pebble Beach">'+
+      '<input type="text" id="courseSearchInput-'+ns+'" placeholder="or search by name…">'+
       '<button class="btn-primary-sm" id="courseSearchBtn-'+ns+'" type="button">Search</button>'+
     '</div>'+
     '<div id="courseSearchResults-'+ns+'"></div>'+
@@ -2149,6 +2150,56 @@ function wireCourseSearch(ns, onPicked){
 
   btn.addEventListener('click', runSearch);
   input.addEventListener('keydown', function(e){ if (e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
+
+  // ── Near Me (GPS) ──────────────────────────────────────────────────────────
+  var nearMeBtn = document.getElementById('nearMeBtn-'+ns);
+  if (nearMeBtn) {
+    nearMeBtn.addEventListener('click', function() {
+      if (!navigator.geolocation) {
+        setStatus('GPS is not available on this device.');
+        return;
+      }
+      nearMeBtn.disabled = true;
+      nearMeBtn.textContent = '📍 Locating…';
+      setStatus('');
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          var lat = pos.coords.latitude;
+          var lon = pos.coords.longitude;
+          setStatus('Got location — finding nearby courses…');
+          fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lon, {
+            headers: { 'Accept': 'application/json', 'Accept-Language': 'en' }
+          })
+          .then(function(r){ return r.json(); })
+          .then(function(data){
+            var addr = data.address || {};
+            var city = addr.city || addr.town || addr.village || addr.suburb || addr.county || '';
+            var state = addr.state || '';
+            var q = city || state;
+            nearMeBtn.disabled = false;
+            nearMeBtn.innerHTML = '&#128205; Near Me — Find Courses at My Location';
+            if (!q) { setStatus('Could not determine city from your location.'); return; }
+            input.value = q + (state && city ? ', '+state : '');
+            runSearch();
+          })
+          .catch(function(){
+            nearMeBtn.disabled = false;
+            nearMeBtn.innerHTML = '&#128205; Near Me — Find Courses at My Location';
+            setStatus('Could not reverse geocode location. Try searching by name.');
+          });
+        },
+        function(err){
+          nearMeBtn.disabled = false;
+          nearMeBtn.innerHTML = '&#128205; Near Me — Find Courses at My Location';
+          var msg = err.code === 1 ? 'Location access denied — please allow GPS in your browser settings.'
+                  : err.code === 3 ? 'Location timed out — try again or search by name.'
+                  : 'Could not get location. Search by name instead.';
+          setStatus(msg);
+        },
+        { timeout: 10000, maximumAge: 300000, enableHighAccuracy: false }
+      );
+    });
+  }
 }
 
 // ================= STATE =================
