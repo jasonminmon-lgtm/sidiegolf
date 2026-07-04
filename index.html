@@ -6551,6 +6551,7 @@ try {
   fbApp = firebase.initializeApp(FB_CONFIG);
   fbAuth = firebase.auth();
   fbDb   = firebase.firestore();
+  window.db = fbDb; // expose globally so buddy functions (in outer scope) can reach Firestore
 } catch(e) {
   console.error('Firebase init failed:', e);
 }
