@@ -4963,8 +4963,8 @@ var _buddiesSelectCb = null;  // set when opened from a player slot
 
 function fbLoadBuddies(cb) {
   var uid = window.fbUser && window.fbUser.uid;
-  if (!uid || !window.db) { if (cb) cb([]); return; }
-  window.db.collection('managers').doc(uid).collection('buddies').orderBy('name').get()
+  if (!uid || !window.fbDb) { if (cb) cb([]); return; }
+  window.fbDb.collection('managers').doc(uid).collection('buddies').orderBy('name').get()
     .then(function(snap) {
       _buddiesCache = [];
       snap.forEach(function(doc) {
@@ -4977,17 +4977,17 @@ function fbLoadBuddies(cb) {
 
 function fbSaveBuddy(buddy, cb) {
   var uid = window.fbUser && window.fbUser.uid;
-  if (!uid || !window.db) { if (cb) cb(null); return; }
+  if (!uid || !window.fbDb) { if (cb) cb(null); return; }
   var doc = { name: buddy.name || '', ghin: buddy.ghin || '', hi: buddy.hi || '' };
-  window.db.collection('managers').doc(uid).collection('buddies').add(doc)
+  window.fbDb.collection('managers').doc(uid).collection('buddies').add(doc)
     .then(function(ref) { if (cb) cb(ref.id); })
     .catch(function() { if (cb) cb(null); });
 }
 
 function fbDeleteBuddy(id, cb) {
   var uid = window.fbUser && window.fbUser.uid;
-  if (!uid || !window.db) { if (cb) cb(); return; }
-  window.db.collection('managers').doc(uid).collection('buddies').doc(id).delete()
+  if (!uid || !window.fbDb) { if (cb) cb(); return; }
+  window.fbDb.collection('managers').doc(uid).collection('buddies').doc(id).delete()
     .then(function() { if (cb) cb(); }).catch(function() { if (cb) cb(); });
 }
 
@@ -6551,6 +6551,7 @@ try {
   fbApp = firebase.initializeApp(FB_CONFIG);
   fbAuth = firebase.auth();
   fbDb   = firebase.firestore();
+  window.fbDb = fbDb;
 } catch(e) {
   console.error('Firebase init failed:', e);
 }
