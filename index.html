@@ -2916,7 +2916,7 @@ function renderNetworkedPlayersStep(){
   html += '<div style="margin-bottom:16px;">';
   html += '<label style="font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted,#666);display:block;margin-bottom:6px;">NUMBER OF PLAYERS</label>';
   html += '<select id="nps-count-sel" onchange="npsSetPlayerCount(this.value)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border,#ddd);border-radius:8px;font-size:14px;background:#fff;">';
-  for (var _ci = 2; _ci <= 8; _ci++) {
+  for (var _ci = 2; _ci <= 20; _ci++) {
     html += '<option value="'+_ci+'"'+(_ci===total?' selected':'')+'>'+_ci+' players</option>';
   }
   html += '</select>';
@@ -2955,7 +2955,7 @@ window.renderNetworkedPlayersStep = renderNetworkedPlayersStep;
 
 window.npsSetPlayerCount = function(count) {
   var n = parseInt(count, 10);
-  if (!n || n < 2 || n > 8) return;
+  if (!n || n < 2 || n > 20) return;
   while (state.players.length < n) {
     state.players.push({ name: 'Player '+(state.players.length+1), hi: '', ghin: '', ghinName: '', ghinUpdated: '', tee: state.tee || '' });
   }
@@ -3160,7 +3160,8 @@ function buildCompactLobbyHtml(){
 // Called by fbListenToRound and fbRemoveJoinedPlayer.
 function refreshLobbySection(){
   if (state.step === 4 && isCurrentUserHost()) {
-    renderNetworkedPlayersStep(); // refresh Who's Playing view
+    if (!isEvent()) renderNetworkedPlayersStep(); // refresh Who's Playing view (non-event rounds only)
+    // For events, step 4 is Event Schedule — no auto-refresh needed
     return;
   }
   if (state.step === 5 && isCurrentUserHost()) {
@@ -3606,6 +3607,7 @@ function addDay(){
 if (state.days.length===0) addDay();
 
 function renderEventSchedule(){
+  if (state.days.length === 0) addDay(); // always start with at least one day
   var html = '';
   state.days.forEach(function(d, dIdx){
     var course = d.courseIdx!=null ? MOCK_COURSES[d.courseIdx] : null;
