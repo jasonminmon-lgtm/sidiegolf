@@ -1147,6 +1147,65 @@
     return deltas;
   };
 
+  // ---------------- 9 POINT (BASEBALL / 5-3-1) ----------------
+  // Strictly a three-player game. Each hole's 9 points are split by NET score:
+  // low = 5, middle = 3, high = 1. Ties split the tied spots' combined points
+  // evenly (two players tie for low → each gets (5+3)/2 = 4; a three-way tie →
+  // 3 each). If the low player beats the field by 2+ net strokes they "sweep"
+  // all 9. With birdiesDouble on, a net birdie (or better) by the low player
+  // doubles EVERY point on the hole — so a birdie against two bogeys is a sweep
+  // worth 9 × 2 = 18. Money settles on the point differential: each player nets
+  // (theirPoints − averagePoints) × $/point, which is always exactly zero-sum
+  // (same settlement model as Bingo Bango Bongo).
+  SidieGolfEngine.ninePointHolePoints = function (entries, birdieDouble, par) {
+    // entries: [{id, net}] for exactly the 3 players (all must have a score).
+    // Returns { id: points }.
+    var pts = {};
+    var sorted = entries.slice().sort(function (a, b) { return a.net - b.net; });
+    var posPoints = [5, 3, 1];
+    if (sorted.length === 3 && (sorted[1].net - sorted[0].net) >= 2) {
+      // Outright win by 2+ strokes — the low player sweeps all 9 points.
+      pts[sorted[0].id] = 9;
+      pts[sorted[1].id] = 0;
+      pts[sorted[2].id] = 0;
+    } else {
+      var i = 0;
+      while (i < sorted.length) {
+        var j = i;
+        while (j < sorted.length && sorted[j].net === sorted[i].net) j++;
+        var sum = 0;
+        for (var k = i; k < j; k++) sum += (posPoints[k] || 0);
+        var share = sum / (j - i);
+        for (var k2 = i; k2 < j; k2++) pts[sorted[k2].id] = share;
+        i = j;
+      }
+    }
+    // Birdies double: a net birdie (or better) by the low player doubles the
+    // whole hole (every player's points), keeping the split proportional.
+    if (birdieDouble && sorted.length && sorted[0].net <= par - 1) {
+      Object.keys(pts).forEach(function (id) { pts[id] *= 2; });
+    }
+    return pts;
+  };
+
+  games['9 Point'] = function (game, ctx) {
+    var deltas = zero(game.participants);
+    if (game.participants.length !== 3) return deltas; // strictly a threesome
+    var value = parseFloat(game.stakes.amount) || 0;
+    if (!value) return deltas;
+    var birdieDouble = (game.stakes.birdiesDouble === 'On');
+    for (var h = 1; h <= 18; h++) {
+      var entries = game.participants.map(function (id) { return { id: id, net: netFor(ctx, id, h) }; });
+      if (entries.some(function (e) { return e.net == null; })) continue; // whole group must be in
+      var pts = SidieGolfEngine.ninePointHolePoints(entries, birdieDouble, holePar(ctx.course, h));
+      var totalPts = 0;
+      game.participants.forEach(function (id) { totalPts += (pts[id] || 0); });
+      var avg = totalPts / game.participants.length;
+      game.participants.forEach(function (id) { deltas[id] += ((pts[id] || 0) - avg) * value; });
+    }
+    return deltas;
+  };
+
   // ---------------- VEGAS ----------------
   games['Vegas'] = function (game, ctx) {
     var deltas = zero(game.participants);
@@ -1832,6 +1891,24 @@
 
     <div class="help-section">
       <div class="help-sec-head" onclick="toggleHelpSection(this)">
+        <span class="help-sec-icon">⚾</span>
+        <span class="help-sec-label">9 Point (Baseball)</span>
+        <span class="help-sec-arrow">▼</span>
+      </div>
+      <div class="help-body">
+        A <strong>threesome</strong> game — 9 points are handed out every hole based on net score.
+        <ul>
+          <li>Lowest score = <strong>5</strong>, middle = <strong>3</strong>, highest = <strong>1</strong>.</li>
+          <li><strong>Ties</strong> split the tied spots evenly — two players tie for low → 4 each; a three-way tie → 3 each.</li>
+          <li><strong>Win by 2+ net strokes</strong> and you sweep all <strong>9</strong> points that hole.</li>
+          <li><strong>Birdies double:</strong> if the low score is a net birdie or better, every point on the hole doubles (a birdie vs. two bogeys = 9 × 2 = <strong>18</strong>).</li>
+          <li>Settle up on <strong>$ Per Point</strong> — you win/lose based on your point total vs. the group average.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-sec-head" onclick="toggleHelpSection(this)">
         <span class="help-sec-icon">🎯</span>
         <span class="help-sec-label">Quota</span>
         <span class="help-sec-arrow">▼</span>
@@ -2043,6 +2120,13 @@ var SIDE_GAME_DEFS = {
   'Bingo Bango Bongo': {
     desc:'Points for first on green, closest to pin, first in the hole.',
     fields:[ {key:'amount', label:'$ Per Point', type:'number', placeholder:'1'} ]
+  },
+  '9 Point': {
+    desc:'Baseball / 5-3-1 for a threesome. Each hole 9 points are split by net score: low = 5, middle = 3, high = 1 (ties share the tied spots evenly). Win a hole by 2+ net strokes and you sweep all 9. "Birdies double" doubles every point on a hole when the low score is a net birdie or better.',
+    fields:[
+      {key:'amount', label:'$ Per Point', type:'number', placeholder:'1'},
+      {key:'birdiesDouble', label:'Birdies Double the Hole', type:'select', options:['Off','On']}
+    ]
   },
   'Vegas': {
     desc:'Team scores combined into a 2-digit number; low # mismatches pay big.',
@@ -3822,6 +3906,10 @@ function summarizeStakes(g){
     if (g.stakes.buyin) parts.push('$'+g.stakes.buyin+' buy-in');
     return parts.join(' + ');
   }
+  if (g.type==='9 Point'){
+    if (!g.stakes.amount) return '';
+    return '$'+g.stakes.amount+'/pt'+(g.stakes.birdiesDouble==='On' ? ' + Birdies 2x' : '');
+  }
   if (g.stakes.amount){
     var unit = (g.type==='Wolf' || g.type==='Hammer Wolf') ? '/man' : (g.stakes.structure ? ' '+g.stakes.structure : '');
     var be = g.stakes.birdieEagle==='On' ? ' + Birdie 2x/Eagle 3x ('+(g.stakes.birdieEagleBasis==='Net'?'Net':'Gross')+')' : '';
@@ -3994,6 +4082,9 @@ function buildGameCardHtml(g, scope){
   }
   if ((g.type==='Nassau') && n < 2 && n > 0){
     html += '<div class="player-count-warn">⚠️ Nassau needs at least 2 players.</div>';
+  }
+  if (g.type==='9 Point' && n !== 3 && n > 0){
+    html += '<div class="player-count-warn">⚠️ 9 Point is a 3-player game. Currently '+n+'.</div>';
   }
 
   // Team picker for Nassau / Vegas / Round Robin
