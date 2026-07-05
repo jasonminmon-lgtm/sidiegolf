@@ -207,6 +207,10 @@
   .tee-order-btn{width:28px;height:28px;border:1px solid #d8ddd8;border-radius:6px;background:#fff;cursor:pointer;font-size:14px;line-height:1;}
   /* Wolf auto-rotation indicator in per-hole table */
   table.sc-table select.auto-wolf{background:#f0f9f4;}
+  /* Coin Flip Wolf per-player Heads/Tails cells — team-tinted */
+  table.sc-table select.flip-sel{min-width:44px;text-align:center;font-weight:600;}
+  table.sc-table select.flip-h{background:#dde9ff;color:#1a5ca8;}
+  table.sc-table select.flip-t{background:#ffe9d6;color:#a8551a;}
   .sp-subtitle{font-size:12px;color:var(--muted);margin-bottom:14px;}
   .sp-tx{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding:12px 0;}
   .sp-tx:last-of-type{border-bottom:none;}
@@ -330,6 +334,8 @@
   .hl-side-sel,.hl-out-sel{padding:4px 7px;border:1px solid #ddd;border-radius:5px;font-size:12px;cursor:pointer;background:#fafafa;}
   .hl-side-sel.wolf{background:#dde9ff;border-color:#4a90d9;color:#1a5ca8;}
   .hl-side-sel.opp{background:#f0f0f0;border-color:#999;color:#444;}
+  .hl-side-sel.H{background:#dde9ff;border-color:#4a90d9;color:#1a5ca8;}
+  .hl-side-sel.T{background:#ffe9d6;border-color:#d98a4a;color:#a8551a;}
   .hl-out-sel.accepted{background:#d4edda;border-color:#28a745;color:#155724;}
   .hl-out-sel.declined{background:#f8d7da;border-color:#dc3545;color:#721c24;}
   .hl-running{font-size:11px;color:#555;margin-left:auto;white-space:nowrap;font-weight:600;}
@@ -988,6 +994,168 @@
 
   games['Wolf'] = function (game, ctx) { return wolfFamilyGame(game, ctx, false); };
   games['Hammer Wolf'] = function (game, ctx) { return wolfFamilyGame(game, ctx, true); };
+
+  // ---------------- COIN FLIP WOLF ----------------
+  // A Wolf variation with NO tee order and NO rotating wolf. On each hole,
+  // every player flips a coin (Heads/Tails). Same flip = partners:
+  //   4 players -> 2v2 or 1v3   (or all-same flip = everyone for themselves)
+  //   5 players -> 2v3 or 1v4   (or all-same flip = everyone for themselves)
+  // Money conventions (this group's house rules):
+  //  * Uneven/solo teams pay a FLAT $X per man — no Lone-Wolf 2x, no 5-player
+  //    ratio. settleWolfMoney already does exactly this (X per opponent, the
+  //    winning side splits the pot), so even AND uneven splits reuse it.
+  //  * Ghost Partner (optional toggle): a solo player (a side of exactly one)
+  //    gets a phantom partner who always scores NET PAR — the solo's team score
+  //    becomes the better of the solo's own net and par. Throwing a hammer
+  //    forfeits the ghost for that hole.
+  //  * Everyone-for-themselves (all flip the same): the base bet DOUBLES, the
+  //    hammer is fully open (each accepted hammer just doubles again — no sides,
+  //    no alternation), and LOW NET wins $X from every other player. ANY tie
+  //    for low = the whole hole is a push (and carries if carry is on).
+  //  * Hammers on two-team holes: same stacking/alternate/decline model as
+  //    Hammer Wolf, but the sides are Heads/Tails. The solo side "holds the
+  //    hammer" (the other side may not throw first) — a violation is flagged.
+  //    If the solo side throws a hammer, its ghost partner is forfeited.
+  //  * Auto-carry + birdie/eagle carry over from the Wolf engine. No Blind
+  //    Wolf, Cry Baby, or tee order.
+  function coinFlipWolfGame(game, ctx) {
+    var deltas = zero(game.participants);
+    var n = game.participants.length;
+    if (n < 4) return deltas; // coin-flip wolf is a 4- or 5-player game
+    var baseAmount = parseFloat(game.stakes.amount) || 0;
+    var ghostOn = (game.stakes.ghostPartner === 'On');
+    var birdieEagleOn = (game.stakes.birdieEagle === 'On');
+    var carryRule = game.stakes.carryRule || 'None';
+    var maxCarry;
+    if (carryRule === 'None') maxCarry = 0;
+    else if (carryRule === 'Carry (unlimited)') maxCarry = 999;
+    else { var _cm = carryRule.match(/(\d+)/); maxCarry = _cm ? parseInt(_cm[1], 10) : 0; }
+    var holeBaseStake = baseAmount; // current stake — elevated when a carry chain is active
+    var activeCarries = 0;
+
+    // Shared push/carry bookkeeping used by both branches below.
+    function registerPush(h) {
+      ctx.holePush = ctx.holePush || {};
+      ctx.holePush[h] = true;
+      if (maxCarry > 0) {
+        ctx.holeCarry = ctx.holeCarry || {};
+        ctx.holeCarry[h] = true;
+        if (activeCarries < maxCarry) { holeBaseStake *= 2; activeCarries++; }
+        // at/above cap: elevated stake just carries forward without compounding
+      } else {
+        holeBaseStake = baseAmount; activeCarries = 0; // carry off — reset to base
+      }
+    }
+
+    for (var h = 1; h <= 18; h++) {
+      var ev = (game.events && game.events[h]) || {};
+      var flips = ev.flips || {};
+      var heads = [], tails = [], missingFlip = false;
+      game.participants.forEach(function (id) {
+        var f = flips[String(id)];
+        if (f === 'H') heads.push(String(id));
+        else if (f === 'T') tails.push(String(id));
+        else missingFlip = true;
+      });
+      if (missingFlip) continue; // not every player has recorded a flip — hole doesn't settle yet
+
+      var hammerLog = Array.isArray(ev.hammerLog) ? ev.hammerLog : [];
+      var thisHoleStake = holeBaseStake;
+      var par = holePar(ctx.course, h);
+
+      // ---- Everyone for themselves (all flipped the same) ----
+      if (!heads.length || !tails.length) {
+        var Xffa = thisHoleStake * 2; // bet doubles
+        for (var fi = 0; fi < hammerLog.length; fi++) { if (hammerLog[fi].accepted) Xffa *= 2; } // fully-open hammer
+        var bestVal = null, bestIds = [], missingScore = false;
+        game.participants.forEach(function (id) {
+          var v = netFor(ctx, id, h);
+          if (v == null) { missingScore = true; return; }
+          if (bestVal == null || v < bestVal) { bestVal = v; bestIds = [id]; }
+          else if (v === bestVal) bestIds.push(id);
+        });
+        if (missingScore || bestVal == null) continue; // wait for all scores
+        if (bestIds.length !== 1) { registerPush(h); continue; } // any tie for low = whole-hole push
+        var winnerId = bestIds[0];
+        if (birdieEagleOn) {
+          var basisFfa = game.stakes.birdieEagleBasis === 'Net' ? 'Net' : 'Gross';
+          var sFfa = basisFfa === 'Net' ? netFor(ctx, winnerId, h) : (ctx.scores[winnerId] ? ctx.scores[winnerId][h] : null);
+          if (sFfa != null) { var dFfa = sFfa - par; if (dFfa <= -2) Xffa *= 3; else if (dFfa === -1) Xffa *= 2; }
+        }
+        Xffa = Math.round(Xffa);
+        if (Xffa) {
+          game.participants.forEach(function (id) {
+            if (id === winnerId) return;
+            deltas[id] = (deltas[id] || 0) - Xffa;
+            deltas[winnerId] = (deltas[winnerId] || 0) + Xffa;
+          });
+        }
+        holeBaseStake = baseAmount; activeCarries = 0; // decisive hole clears the carry chain
+        continue;
+      }
+
+      // ---- Two teams: Heads vs Tails ----
+      var soloSide = heads.length === 1 ? 'H' : (tails.length === 1 ? 'T' : null);
+      var X = thisHoleStake; // flat $X per man — no 2x, no 5-player ratio
+
+      // Hammer processing (Heads/Tails sides; stacking + alternate + decline).
+      var declWinnerSide = null; // 'H' | 'T' — set when a decline ends the chain
+      var soloThrewHammer = false;
+      if (hammerLog.length) {
+        var hFlags = [];
+        var lastSide = null, chainEnded = false;
+        // "Solo holds the hammer" — the non-solo side may not throw first.
+        if (soloSide && hammerLog[0] && hammerLog[0].side && hammerLog[0].side !== soloSide) {
+          hFlags.push({ type: 'hammer-solo-first', msg: 'Hole ' + h + ': the solo player holds the hammer — the other side cannot hammer first.' });
+        }
+        for (var ci = 0; ci < hammerLog.length; ci++) {
+          var hE = hammerLog[ci];
+          if (soloSide && hE.side === soloSide) soloThrewHammer = true;
+          if (chainEnded) { hFlags.push({ type: 'hammer-after-decline', msg: 'Hole ' + h + ': hammer entry #' + (ci + 1) + ' appears after a decline — chain already ended.' }); continue; }
+          if (lastSide && hE.side === lastSide) { hFlags.push({ type: 'hammer-sequence', msg: 'Hole ' + h + ': ' + (hE.side === 'H' ? 'Heads' : 'Tails') + ' threw two hammers in a row — teams must alternate.' }); }
+          if (hE.accepted) { X *= 2; lastSide = hE.side; }
+          else { declWinnerSide = hE.side; chainEnded = true; }
+          if (!chainEnded) lastSide = hE.side;
+        }
+        if (hFlags.length) { ctx.holeFlags = ctx.holeFlags || {}; ctx.holeFlags[h] = (ctx.holeFlags[h] || []).concat(hFlags); }
+      }
+
+      var headsWins;
+      if (declWinnerSide) {
+        headsWins = (declWinnerSide === 'H'); // decline: thrower wins the forfeit
+      } else {
+        var headsBest = bestBallNet(ctx, heads, h);
+        var tailsBest = bestBallNet(ctx, tails, h);
+        if (headsBest == null || tailsBest == null) continue; // wait for scores
+        // Ghost partner: solo side (size 1) gets a phantom net-par partner,
+        // unless the solo forfeited the ghost by throwing a hammer.
+        if (ghostOn && !soloThrewHammer) {
+          if (soloSide === 'H') headsBest = Math.min(headsBest, par);
+          else if (soloSide === 'T') tailsBest = Math.min(tailsBest, par);
+        }
+        if (headsBest < tailsBest) headsWins = true;
+        else if (tailsBest < headsBest) headsWins = false;
+        else { registerPush(h); continue; } // tie = push/carry
+      }
+
+      // Birdie/eagle bonus — winning side's own card (a ghost never birdies).
+      if (birdieEagleOn) {
+        var winSide = headsWins ? heads : tails;
+        var wBest = bestBallNetWithId(ctx, winSide, h);
+        if (wBest) {
+          var basis = game.stakes.birdieEagleBasis === 'Net' ? 'Net' : 'Gross';
+          var scoreForBonus = basis === 'Net' ? wBest.net : (ctx.scores[wBest.id] ? ctx.scores[wBest.id][h] : null);
+          if (scoreForBonus != null) { var diff = scoreForBonus - par; if (diff <= -2) X *= 3; else if (diff === -1) X *= 2; }
+        }
+      }
+
+      settleWolfMoney(deltas, heads, tails, X, headsWins);
+      holeBaseStake = baseAmount; activeCarries = 0; // decisive hole clears the carry chain
+    }
+    return deltas;
+  }
+
+  games['Coin Flip Wolf'] = function (game, ctx) { return coinFlipWolfGame(game, ctx); };
 
   // ---------------- NASSAU ----------------
   // A Nassau segment (front 9 / back 9 / total 18) only pays out once every
@@ -1911,6 +2079,25 @@
 
     <div class="help-section">
       <div class="help-sec-head" onclick="toggleHelpSection(this)">
+        <span class="help-sec-icon">🪙</span>
+        <span class="help-sec-label">Coin Flip Wolf</span>
+        <span class="help-sec-arrow">▼</span>
+      </div>
+      <div class="help-body">
+        A Wolf variation for <strong>4 or 5 players</strong> with <strong>no tee order and no rotating wolf</strong>. On every tee box, each player flips a coin (Heads or Tails) — recorded in the per-hole info grid.
+        <ul>
+          <li><strong>Same flip = partners.</strong> All Heads are one team, all Tails the other — so teams can be 2v2 / 1v3 (4 players) or 2v3 / 1v4 (5 players).</li>
+          <li><strong>Solo (1v3 / 2v3 / 1v4):</strong> pays a <strong>flat $ per man</strong> — no Lone-Wolf 2× and no 5-player ratio. The solo player <strong>holds the hammer</strong> (the other side can't throw first).</li>
+          <li><strong>Ghost Partner</strong> (optional toggle): a solo player gets a phantom partner who always scores <strong>net par</strong> — they use the better of their own net and par. Throwing a hammer <strong>forfeits the ghost</strong> for that hole.</li>
+          <li><strong>Everyone for themselves</strong> (all flip the same): the bet <strong>doubles</strong>, the hammer is <strong>fully open</strong> from the start, and <strong>low net wins</strong> from every other player. Any tie for low = the whole hole is a <strong>push</strong>.</li>
+          <li>Auto-carry and birdie 2× / eagle 3× (winning side) carry over. No Blind Wolf, Cry Baby, or tee order.</li>
+        </ul>
+        <div class="help-tip">💡 Recommend 80% handicap allowance, same as regular Wolf.</div>
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-sec-head" onclick="toggleHelpSection(this)">
         <span class="help-sec-icon">💰</span>
         <span class="help-sec-label">Skins</span>
         <span class="help-sec-arrow">▼</span>
@@ -2120,6 +2307,16 @@ var SIDE_GAME_DEFS = {
       {key:'cryBaby', label:'Cry Baby Rule', type:'select', options:['Off','On']},
       {key:'cryBabyStartHole', label:'Cry Baby Starts On Hole', type:'select', options:['16','17','18']},
       {key:'cryBabyRaise', label:'Cry Baby Raise (% of $ down)', type:'select', options:['25%','50%','75%','100%','125%','150%','175%','200%']}
+    ]
+  },
+  'Coin Flip Wolf': {
+    desc:'Wolf with no tee order and no rotating wolf — for 4 or 5 players. On every tee box each player flips a coin (Heads/Tails); same flip = partners. Teams can be 2v2 / 1v3 (4 players) or 2v3 / 1v4 (5 players), and if everyone flips the same it\'s every player for themselves. Solo teams pay a FLAT $ per man (no 2×, no 5-player ratio) and the solo player holds the hammer. Everyone-for-themselves doubles the bet, opens the hammer fully, and pays low net — any tie for low is a push. Optional Ghost Partner (net-par phantom for the solo, forfeited by a hammer), birdie/eagle bonus, and auto-carry.',
+    fields:[
+      {key:'amount', label:'$ Per Man', type:'number', placeholder:'5'},
+      {key:'ghostPartner', label:'Ghost Partner for Solo (net-par phantom; lost if solo hammers)', type:'select', options:['Off','On']},
+      {key:'carryRule', label:'Carry Rule', type:'select', options:['None','Carry (unlimited)','Carry (max 1)','Carry (max 2)','Carry (max 3)']},
+      {key:'birdieEagle', label:'Birdie 2x / Eagle 3x (winning side only)', type:'select', options:['Off','On']},
+      {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Gross','Net']}
     ]
   },
   'Nassau': {
@@ -3943,7 +4140,7 @@ function summarizeStakes(g){
     return parts9.join(' + ');
   }
   if (g.stakes.amount){
-    var unit = (g.type==='Wolf' || g.type==='Hammer Wolf') ? '/man' : (g.stakes.structure ? ' '+g.stakes.structure : '');
+    var unit = (g.type==='Wolf' || g.type==='Hammer Wolf' || g.type==='Coin Flip Wolf') ? '/man' : (g.stakes.structure ? ' '+g.stakes.structure : '');
     var be = g.stakes.birdieEagle==='On' ? ' + Birdie 2x/Eagle 3x ('+(g.stakes.birdieEagleBasis==='Net'?'Net':'Gross')+')' : '';
     var cb = g.stakes.cryBaby==='On' ? ' + Cry Baby (h'+(g.stakes.cryBabyStartHole||16)+'+)' : '';
     return '$'+g.stakes.amount+unit+be+cb;
@@ -4105,6 +4302,9 @@ function buildGameCardHtml(g, scope){
   var n = g.participants.length;
   if ((g.type==='Wolf' || g.type==='Hammer Wolf') && n < 3 && n > 0){
     html += '<div class="player-count-warn">⚠️ Wolf needs at least 3 players — add one more.</div>';
+  }
+  if (g.type==='Coin Flip Wolf' && (n < 4 || n > 5) && n > 0){
+    html += '<div class="player-count-warn">⚠️ Coin Flip Wolf is a 4- or 5-player game. Currently '+n+'.</div>';
   }
   if (g.type==='Vegas' && n !== 4 && n > 0){
     html += '<div class="player-count-warn">⚠️ Vegas requires exactly 4 players (2 per team). Currently '+n+'.</div>';
@@ -4397,6 +4597,7 @@ function wireGameCardEvents(scope){
 var EVENT_GAME_FIELDS = {
   'Wolf': ['wolf','partner','alone','blind'],
   'Hammer Wolf': ['wolf','partner','alone','blind','hammerLog'],
+  'Coin Flip Wolf': ['flips','hammerLog'],
   'Snake': ['snakeBite'],
   'Bingo Bango Bongo': ['firstOnGreen','closestToPin','firstIn']
 };
@@ -4464,7 +4665,7 @@ function renderSingleScorecard(){
   }
   var parByHole = tee.parByHole || PAR72_LAYOUT;
   var strokes = (state.scoringMethod === 'Stroke Play (Gross)') ? null : strokesForGroup(idxs, course, tee);
-  var wolfGames = (state.sideGames||[]).filter(function(g){ return g.type==='Wolf'||g.type==='Hammer Wolf'; });
+  var wolfGames = (state.sideGames||[]).filter(function(g){ return g.type==='Wolf'||g.type==='Hammer Wolf'||g.type==='Coin Flip Wolf'; });
   var html = '';
   html += '<div class="note-box">'+course.name+' — '+tee.name+' tees, Par '+tee.par+'.</div>';
   if (state.scoringMethod === 'Foursomes (Alternate Shot)'){
@@ -4536,7 +4737,7 @@ function renderEventScorecard(){
   var parByHole = tee.parByHole || PAR72_LAYOUT;
   var strokes2 = strokesForGroup(idxs2, course, tee);
   var groupGames = (day.groupGames && day.groupGames[gn2]) || [];
-  var wolfGames2 = groupGames.filter(function(g){ return g.type==='Wolf'||g.type==='Hammer Wolf'; });
+  var wolfGames2 = groupGames.filter(function(g){ return g.type==='Wolf'||g.type==='Hammer Wolf'||g.type==='Coin Flip Wolf'; });
   if (isRyderCup()) html += buildRcMatchBannerHtml(day, gn2, course, tee, idxs2, day.scorecards[gn2]);
   html += '<div class="note-box">'+course.name+' — '+tee.name+' tees, Par '+tee.par+'.</div>';
   html += buildScoreGridHtml(idxs2, parByHole, day.scorecards[gn2], 'sc-'+day.id+'-'+gn2, strokes2, wolfGames2);
@@ -4595,9 +4796,23 @@ function buildScoreGridHtml(idxs, parByHole, sc, ns, strokes, wolfGames){
         for (var wi=0; wi<wolfGames.length; wi++){
           var wg = wolfGames[wi];
           if (wg.participants.map(String).indexOf(sIdx) === -1) continue;
+          var wev = (sc.events && sc.events[h3]) || {};
+          if (wg.type==='Coin Flip Wolf'){
+            // Color by this player's recorded flip: Heads=blue, Tails=orange.
+            // A solo player (the only one on their side) gets a brighter tint.
+            var flips_wg = wev.flips || {};
+            var myFlip = flips_wg[sIdx];
+            if (myFlip === 'H' || myFlip === 'T'){
+              var sameCount = 0;
+              wg.participants.forEach(function(pid){ if (flips_wg[String(pid)] === myFlip) sameCount++; });
+              var isSolo = sameCount === 1;
+              if (myFlip === 'H') cellBg = isSolo ? '#bcd4ff' : '#dde9ff';
+              else cellBg = isSolo ? '#ffd4ad' : '#ffe9d6';
+            }
+            break;
+          }
           var n_wg = wg.participants.length;
           var to_wg = (wg.stakes.teeOrder && wg.stakes.teeOrder.length >= n_wg) ? wg.stakes.teeOrder : null;
-          var wev = (sc.events && sc.events[h3]) || {};
           var wDef = to_wg ? String(to_wg[(h3-1) % to_wg.length]) : String(wg.participants[(h3-1) % n_wg]);
           var effectiveWolf = wev.wolf != null ? String(wev.wolf) : wDef;
           var wPartner = wev.partner != null ? String(wev.partner) : null;
@@ -4717,6 +4932,16 @@ function buildEventTablesHtml(games, idxs, sc, ns){
         'Blind? — declared before anyone, including the wolf, tees off. Locks the wolf in alone at 3× the stake.',
         'Hammers — tap a cell to log the hammer sequence for that hole. Each accepted hammer doubles the bet; teams must alternate (wolf → opp → wolf…). A decline forfeits the hole at the current rate to the throwing side.'
       ];
+    } else if (g.type==='Coin Flip Wolf'){
+      participantIdxs.forEach(function(pidx){
+        html += buildFlipRow(g, pidx, participantIdxs, sc, ns);
+      });
+      html += buildHammerLogRow('Hammers', g, sc, ns);
+      legend = [
+        'Coin flip — each player picks Heads or Tails on the tee box. Same flip = partners. Leave a cell blank until the flip is recorded (the hole won\'t settle until every player has flipped).',
+        'Teams: all-Heads vs all-Tails. If everyone flips the same, it\'s every player for themselves — the bet doubles and low net wins (any tie for low = push).',
+        'Hammers — tap a cell to log the sequence. On a two-team hole the solo side holds the hammer (other side can\'t throw first) and a solo hammer forfeits the ghost partner; on an everyone-for-themselves hole the hammer is fully open and each one doubles the bet.'
+      ];
     } else if (g.type==='Snake'){
       html += buildSelectRow('Snake bite', g, participantIdxs, sc, ns, 'snakeBite', true);
       legend = ['Snake bite — optional; only set it on the hole where it changed hands.'];
@@ -4741,6 +4966,25 @@ function playerOptionsHtml(participantIdxs, selectedIdx, allowBlank){
     var short = name.length>8 ? name.slice(0,7)+'…' : name;
     html += '<option value="'+idx+'"'+(String(selectedIdx)===String(idx)?' selected':'')+'>'+escapeHtml(short)+'</option>';
   });
+  return html;
+}
+
+// Per-player Heads/Tails coin-flip row for Coin Flip Wolf. Each player's flip
+// is stored in sc.events[hole].flips[playerIdx] as 'H' | 'T' (blank = unset).
+function buildFlipRow(g, pidx, participantIdxs, sc, ns){
+  var name = state.players[pidx] ? state.players[pidx].name : ('P'+(pidx+1));
+  var short = name.length>8 ? name.slice(0,7)+'…' : name;
+  var html = '<tr><td class="sc-rowlabel">'+escapeHtml(short)+'</td>';
+  for (var h=1; h<=18; h++){
+    var ev = sc.events[h] || {};
+    var val = (ev.flips && ev.flips[String(pidx)]) || '';
+    html += '<td><select class="flip-sel'+(val?' flip-'+(val==='H'?'h':'t'):'')+'" data-sc-flip="'+ns+'|'+g.id+'|'+h+'|'+pidx+'">'+
+      '<option value=""'+(val===''?' selected':'')+'>—</option>'+
+      '<option value="H"'+(val==='H'?' selected':'')+'>H</option>'+
+      '<option value="T"'+(val==='T'?' selected':'')+'>T</option>'+
+      '</select></td>';
+  }
+  html += '</tr>';
   return html;
 }
 
@@ -4832,6 +5076,20 @@ function wireEventTablesEvents(games, idxs, sc, ns){
       else { sc.events[hole][key] = (key==='alone' || key==='blind' || key==='carry') ? (v==='true') : v; }
     });
   });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-sc-flip^="'+ns+'|"]'), function(el){
+    el.addEventListener('change', function(){
+      var parts = el.getAttribute('data-sc-flip').split('|');
+      var hole = parts[2], pidx = parts[3];
+      if (!sc.events[hole]) sc.events[hole] = {};
+      var flips = sc.events[hole].flips ? sc.events[hole].flips : {};
+      if (el.value === ''){ delete flips[pidx]; }
+      else { flips[pidx] = el.value; }
+      if (Object.keys(flips).length){ sc.events[hole].flips = flips; }
+      else { delete sc.events[hole].flips; }
+      // Recolor the flip cell to match its team; re-render is handled elsewhere on save.
+      el.className = 'flip-sel' + (el.value ? ' flip-'+(el.value==='H'?'h':'t') : '');
+    });
+  });
   Array.prototype.forEach.call(document.querySelectorAll('[data-sc-team^="'+ns+'|"]'), function(el){
     el.addEventListener('change', function(){
       var parts = el.getAttribute('data-sc-team').split('|');
@@ -4871,7 +5129,7 @@ function buildHammerLogRow(label, g, sc, ns){
     var ev = sc.events[h] || {};
     var log = Array.isArray(ev.hammerLog) ? ev.hammerLog : [];
     var summary = log.length
-      ? log.map(function(e){ return (e.side==='wolf'?'W':'O')+(e.accepted?'✓':'✗'); }).join(' ')
+      ? log.map(function(e){ return hammerSideShort(e.side)+(e.accepted?'✓':'✗'); }).join(' ')
       : '—';
     var hasCls = log.length ? ' has-hammers' : '';
     html += '<td><button class="hammer-log-btn'+hasCls+'" data-hammer-log="'+ns+'|'+g.id+'|'+h+'">'+summary+'</button></td>';
@@ -5657,6 +5915,23 @@ window.suShareLedger = function() {
   }
 };
 
+// Hammer "sides" differ by game: Wolf/Hammer Wolf use wolf/opp; Coin Flip Wolf
+// uses Heads/Tails. These helpers keep the shared hammer editor game-agnostic.
+function hammerSideMeta(game){
+  if (game && game.type === 'Coin Flip Wolf'){
+    return [ {v:'H', label:'Heads'}, {v:'T', label:'Tails'} ];
+  }
+  return [ {v:'wolf', label:'Wolf side'}, {v:'opp', label:'Opp side'} ];
+}
+function hammerSideShort(side){
+  return side === 'wolf' ? 'W' : side === 'opp' ? 'O' : (side || '?');
+}
+function hammerSideLabel(game, side){
+  var meta = hammerSideMeta(game);
+  for (var i=0;i<meta.length;i++){ if (meta[i].v === side) return meta[i].label; }
+  return side;
+}
+
 // ---- Hammer log bottom sheet ----
 function openHammerLog(ns, gid, hole, sc, game){
   state.__hammerLog = { ns: ns, gid: gid, hole: hole, sc: sc, game: game };
@@ -5677,7 +5952,7 @@ function updateHammerLogBtn(ns, gid, hole, sc){
   var ev = (sc.events && sc.events[hole]) || {};
   var log = Array.isArray(ev.hammerLog) ? ev.hammerLog : [];
   var summary = log.length
-    ? log.map(function(e){ return (e.side==='wolf'?'W':'O')+(e.accepted?'✓':'✗'); }).join(' ')
+    ? log.map(function(e){ return hammerSideShort(e.side)+(e.accepted?'✓':'✗'); }).join(' ')
     : '—';
   btn.textContent = summary;
   if (log.length){ btn.classList.add('has-hammers'); } else { btn.classList.remove('has-hammers'); }
@@ -5692,6 +5967,28 @@ function renderHammerLogSheet(){
   var log = Array.isArray(ev.hammerLog) ? ev.hammerLog : [];
   var baseAmount = parseFloat((e.game.stakes && e.game.stakes.amount)) || 0;
 
+  // Side labels/rules differ by game (Wolf/Opp vs Heads/Tails).
+  var sideMeta = hammerSideMeta(e.game);
+  var sideA = sideMeta[0].v, sideB = sideMeta[1].v;
+
+  // Coin Flip Wolf: derive this hole's teams from the recorded flips so the
+  // hammer editor can apply the right rule (solo holds the hammer, or — when
+  // it's everyone-for-themselves — the hammer is fully open, no alternation).
+  var cfwOpen = false, cfwSolo = null;
+  if (e.game.type === 'Coin Flip Wolf'){
+    var fl = ev.flips || {}, hc = 0, tc = 0, allFlipped = true;
+    (e.game.participants || []).forEach(function(pid){
+      var f = fl[String(pid)];
+      if (f === 'H') hc++; else if (f === 'T') tc++; else allFlipped = false;
+    });
+    if (allFlipped){
+      if (hc === 0 || tc === 0) cfwOpen = true; // everyone for themselves
+      else if (hc === 1) cfwSolo = 'H';
+      else if (tc === 1) cfwSolo = 'T';
+    }
+  }
+  var alternate = !cfwOpen; // free-for-all hammers don't alternate
+
   var running = baseAmount;
   var stakeAfter = [];
   var firstDeclineIdx = -1;
@@ -5700,15 +5997,20 @@ function renderHammerLogSheet(){
       running *= 2;
       stakeAfter.push('→ $' + running);
     } else {
-      stakeAfter.push('→ ' + (log[si].side === 'wolf' ? 'Wolf' : 'Opp') + ' wins at $' + running);
+      stakeAfter.push('→ ' + hammerSideLabel(e.game, log[si].side) + ' wins at $' + running);
       if (firstDeclineIdx < 0) firstDeclineIdx = si;
     }
   }
 
   var warnings = [];
-  for (var vi = 1; vi < log.length; vi++){
-    if (log[vi].side === log[vi-1].side){
-      warnings.push('Entry ' + (vi + 1) + ': same side as entry ' + vi + ' — teams must alternate.');
+  if (alternate){
+    for (var vi = 1; vi < log.length; vi++){
+      if (log[vi].side === log[vi-1].side){
+        warnings.push('Entry ' + (vi + 1) + ': same side as entry ' + vi + ' — teams must alternate.');
+      }
+    }
+    if (cfwSolo && log.length && log[0].side && log[0].side !== cfwSolo){
+      warnings.push('The solo player holds the hammer — the other side cannot throw the first hammer.');
     }
   }
   if (firstDeclineIdx >= 0 && firstDeclineIdx < log.length - 1){
@@ -5717,14 +6019,17 @@ function renderHammerLogSheet(){
 
   var canAdd = firstDeclineIdx < 0;
   var nextAllowed = null;
-  if (log.length > 0 && canAdd){
-    nextAllowed = log[log.length - 1].side === 'wolf' ? 'opp' : 'wolf';
+  if (alternate && log.length > 0 && canAdd){
+    nextAllowed = log[log.length - 1].side === sideA ? sideB : sideA;
   }
 
   var html = '<div class="hl-sheet">';
   html += '<div class="hl-head"><div class="hl-title">Hammers — Hole ' + e.hole + '</div>';
   html += '<button class="btn-link" id="hlClose">Close ✕</button></div>';
-  html += '<div class="hl-stake-info">Base stake: $' + baseAmount + '/man · Each accepted hammer doubles it · Teams must alternate</div>';
+  var stakeInfoTail = cfwOpen
+    ? 'Everyone for themselves — the hammer is fully open (any player) and each accepted hammer doubles it.'
+    : (cfwSolo ? 'The solo player holds the hammer — the other side cannot throw first. Teams alternate after that.' : 'Teams must alternate');
+  html += '<div class="hl-stake-info">Base stake: $' + baseAmount + '/man · Each accepted hammer doubles it · ' + escapeHtml(stakeInfoTail) + '</div>';
 
   if (log.length === 0){
     html += '<div class="hl-empty">No hammers on this hole — tap + Add to log one.</div>';
@@ -5734,9 +6039,10 @@ function renderHammerLogSheet(){
       var isPostDecline = firstDeclineIdx >= 0 && li > firstDeclineIdx;
       html += '<div class="hl-entry"' + (isPostDecline ? ' style="opacity:0.45"' : '') + '>';
       html += '<div class="hl-entry-num">' + (li + 1) + '.</div>';
-      html += '<select class="hl-side-sel ' + (entry.side || 'wolf') + '" data-hl-side="' + li + '">';
-      html += '<option value="wolf"' + (entry.side === 'wolf' ? ' selected' : '') + '>Wolf side</option>';
-      html += '<option value="opp"' + (entry.side === 'opp' ? ' selected' : '') + '>Opp side</option>';
+      html += '<select class="hl-side-sel ' + (entry.side || sideA) + '" data-hl-side="' + li + '">';
+      sideMeta.forEach(function(sm){
+        html += '<option value="' + sm.v + '"' + (entry.side === sm.v ? ' selected' : '') + '>' + escapeHtml(sm.label) + '</option>';
+      });
       html += '</select>';
       html += '<div class="hl-arrow">→</div>';
       html += '<select class="hl-out-sel ' + (entry.accepted ? 'accepted' : 'declined') + '" data-hl-outcome="' + li + '">';
@@ -5769,7 +6075,7 @@ function renderHammerLogSheet(){
   if (addBtn && canAdd){
     addBtn.addEventListener('click', function(){
       if (!ev.hammerLog) ev.hammerLog = [];
-      var defaultSide = nextAllowed || 'wolf';
+      var defaultSide = nextAllowed || cfwSolo || sideA;
       ev.hammerLog.push({ side: defaultSide, accepted: true });
       updateHammerLogBtn(e.ns, e.gid, e.hole, sc);
       renderHammerLogSheet();
