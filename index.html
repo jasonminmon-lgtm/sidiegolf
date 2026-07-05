@@ -1147,6 +1147,90 @@
     return deltas;
   };
 
+  // ---------------- 9 POINT (Baseball / 5-3-1) ----------------
+  // A strict-threesome points game. On every hole 9 points are split among the
+  // three players by their NET score: low = 5, middle = 3, high = 1. Ties split
+  // the combined points of the spots they occupy, divided evenly:
+  //   two tie low   → (5+3)/2 = 4 each, third gets 1
+  //   two tie high  → low gets 5, both high get (3+1)/2 = 2
+  //   three-way tie → (5+3+1)/3 = 3 each
+  // Always-on 2-stroke sweep: a player who wins the hole OUTRIGHT by 2+ net
+  // strokes takes all 9 points; the other two get 0. Optional house rules:
+  //   • Birdies Double — if ANY player birdies (or better) on the hole, every
+  //     point on that hole doubles (5-3-1 → 10-6-2). Stacks with the sweep, so a
+  //     birdie that also sweeps is worth 18 (exactly the issue's example).
+  //   • Cry Baby — from a chosen closing hole (16/17/18) through 18, the $/point
+  //     is raised by the chosen %, giving trailing players a comeback. 9-point
+  //     has no "wolf" role like Wolf/Hammer Wolf, so the raise scales the whole
+  //     hole's pot rather than reassigning a wolf.
+  // Money is zero-sum per hole: each player nets (theirPoints − avgPoints) × $/pt
+  // (same mean-centred settlement as Bingo Bango Bongo — points can be fractional
+  // after a tie split, so payouts may be fractional dollars). Requires exactly 3
+  // participants; returns zeros otherwise.
+  function ninePointBirdiePresent(game, ctx, h) {
+    var basis = game.stakes.birdieBasis === 'Net' ? 'Net' : 'Gross';
+    var par = holePar(ctx.course, h);
+    return game.participants.some(function (id) {
+      var score = basis === 'Net' ? netFor(ctx, id, h) : (ctx.scores[id] ? ctx.scores[id][h] : null);
+      return score != null && (score - par) <= -1;
+    });
+  }
+
+  games['9 Point'] = function (game, ctx) {
+    var deltas = zero(game.participants);
+    if (game.participants.length !== 3) return deltas; // 9-point is a strict threesome game
+    var baseAmount = parseFloat(game.stakes.amount) || 0;
+    var birdiesDouble = (game.stakes.birdiesDouble === 'On');
+
+    // Cry Baby: raise $/point on the closing holes so trailing players can catch up.
+    var cryOn = (game.stakes.cryBaby || 'Off') === 'On';
+    var cryStart = parseInt(game.stakes.cryBabyStartHole, 10) || 16;
+    var cryRaise = parseFloat(String(game.stakes.cryBabyRaise || '25%').replace('%', '')) / 100;
+    if (!cryRaise || isNaN(cryRaise)) cryRaise = 0.25;
+
+    var SPOTS = [5, 3, 1]; // points for 1st, 2nd, 3rd place on the hole
+
+    for (var h = 1; h <= 18; h++) {
+      var entries = game.participants.map(function (id) { return { id: id, net: netFor(ctx, id, h) }; });
+      if (entries.some(function (e) { return e.net == null; })) continue; // wait until all three have posted
+
+      var sorted = entries.slice().sort(function (a, b) { return a.net - b.net; });
+      var pts = {};
+
+      // 2-stroke sweep: a UNIQUE low scorer who beats the next-best by 2+ takes all 9.
+      if (sorted[0].net < sorted[1].net && (sorted[1].net - sorted[0].net) >= 2) {
+        game.participants.forEach(function (id) { pts[id] = 0; });
+        pts[sorted[0].id] = SPOTS[0] + SPOTS[1] + SPOTS[2]; // all 9
+      } else {
+        // Standard 5-3-1 with tie-splitting.
+        var i = 0, rank = 0;
+        while (i < sorted.length) {
+          var j = i;
+          while (j < sorted.length && sorted[j].net === sorted[i].net) j++;
+          var groupSize = j - i;
+          var sumSpots = 0;
+          for (var k = rank; k < rank + groupSize; k++) sumSpots += SPOTS[k];
+          var share = sumSpots / groupSize;
+          for (var m = i; m < j; m++) pts[sorted[m].id] = share;
+          rank += groupSize;
+          i = j;
+        }
+      }
+
+      // Birdies double: any birdie-or-better on the hole doubles every point.
+      if (birdiesDouble && ninePointBirdiePresent(game, ctx, h)) {
+        game.participants.forEach(function (id) { pts[id] *= 2; });
+      }
+
+      // Settle zero-sum against the hole's average points.
+      var totalPts = game.participants.reduce(function (s, id) { return s + pts[id]; }, 0);
+      var avg = totalPts / game.participants.length;
+      var holeAmount = baseAmount * ((cryOn && h >= cryStart) ? (1 + cryRaise) : 1);
+      game.participants.forEach(function (id) { deltas[id] += (pts[id] - avg) * holeAmount; });
+    }
+    return deltas;
+  };
+
   // ---------------- VEGAS ----------------
   games['Vegas'] = function (game, ctx) {
     var deltas = zero(game.participants);
@@ -2043,6 +2127,17 @@ var SIDE_GAME_DEFS = {
   'Bingo Bango Bongo': {
     desc:'Points for first on green, closest to pin, first in the hole.',
     fields:[ {key:'amount', label:'$ Per Point', type:'number', placeholder:'1'} ]
+  },
+  '9 Point': {
+    desc:'Baseball / 5-3-1 for a threesome. Each hole splits 9 points by net score — low 5, middle 3, high 1 (tied players split the combined points of their spots evenly). Win a hole outright by 2+ strokes and you sweep all 9. Optional: Birdies Double (any birdie on the hole doubles every point — a swept birdie is worth 18) and Cry Baby (raise the $/point on the closing holes so trailing players can catch up). Requires exactly 3 players.',
+    fields:[
+      {key:'amount', label:'$ Per Point', type:'number', placeholder:'1'},
+      {key:'birdiesDouble', label:'Birdies Double Points', type:'select', options:['Off','On']},
+      {key:'birdieBasis', label:'Birdie Basis', type:'select', options:['Gross','Net']},
+      {key:'cryBaby', label:'Cry Baby Rule', type:'select', options:['Off','On']},
+      {key:'cryBabyStartHole', label:'Cry Baby Starts On Hole', type:'select', options:['16','17','18']},
+      {key:'cryBabyRaise', label:'Cry Baby Raise (% of $/point)', type:'select', options:['25%','50%','75%','100%','125%','150%','175%','200%']}
+    ]
   },
   'Vegas': {
     desc:'Team scores combined into a 2-digit number; low # mismatches pay big.',
@@ -3822,6 +3917,12 @@ function summarizeStakes(g){
     if (g.stakes.buyin) parts.push('$'+g.stakes.buyin+' buy-in');
     return parts.join(' + ');
   }
+  if (g.type==='9 Point'){
+    if (!g.stakes.amount) return '';
+    var bd = g.stakes.birdiesDouble==='On' ? ' + Birdies Double' : '';
+    var cb9 = g.stakes.cryBaby==='On' ? ' + Cry Baby (h'+(g.stakes.cryBabyStartHole||16)+'+)' : '';
+    return '$'+g.stakes.amount+'/pt'+bd+cb9;
+  }
   if (g.stakes.amount){
     var unit = (g.type==='Wolf' || g.type==='Hammer Wolf') ? '/man' : (g.stakes.structure ? ' '+g.stakes.structure : '');
     var be = g.stakes.birdieEagle==='On' ? ' + Birdie 2x/Eagle 3x ('+(g.stakes.birdieEagleBasis==='Net'?'Net':'Gross')+')' : '';
@@ -3994,6 +4095,9 @@ function buildGameCardHtml(g, scope){
   }
   if ((g.type==='Nassau') && n < 2 && n > 0){
     html += '<div class="player-count-warn">⚠️ Nassau needs at least 2 players.</div>';
+  }
+  if (g.type==='9 Point' && n !== 3 && n > 0){
+    html += '<div class="player-count-warn">⚠️ 9 Point is a threesome game — needs exactly 3 players. Currently '+n+'.</div>';
   }
 
   // Team picker for Nassau / Vegas / Round Robin
