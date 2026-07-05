@@ -239,6 +239,27 @@
   .buddies-add-bar{padding:10px 16px 16px;border-top:1px solid #eee;flex-shrink:0;}
   .buddies-empty{text-align:center;color:var(--muted,#999);font-size:13px;padding:28px 0 12px;}
   .buddy-add-form{margin-top:4px;border-top:1px solid #eee;padding-top:14px;}
+  /* Nassau Manual Press overlay */
+  .nassau-press-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10200;display:none;align-items:flex-end;justify-content:center;}
+  .nassau-press-overlay.open{display:flex;}
+  .nassau-press-sheet{background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:480px;padding:22px 20px 28px;box-sizing:border-box;}
+  .np-title{font-size:18px;font-weight:800;color:var(--green-dark,#1a5c36);margin-bottom:3px;}
+  .np-sub{font-size:13px;color:#666;margin-bottom:16px;line-height:1.4;}
+  .np-option{display:flex;align-items:flex-start;gap:12px;padding:13px 14px;border:2px solid #e0e0e0;border-radius:12px;margin-bottom:10px;cursor:pointer;transition:border-color .15s,background .15s;}
+  .np-option.selected{border-color:var(--green-dark,#1a5c36);background:#f0f8f2;}
+  .np-option-title{font-weight:700;font-size:14px;margin-bottom:2px;}
+  .np-option-desc{font-size:12px;color:#666;}
+  .np-radio{width:20px;height:20px;border:2px solid #ccc;border-radius:50%;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;}
+  .np-option.selected .np-radio{border-color:var(--green-dark,#1a5c36);}
+  .np-option.selected .np-radio::after{content:'';width:10px;height:10px;border-radius:50%;background:var(--green-dark,#1a5c36);display:block;}
+  .np-btns{display:flex;gap:8px;margin-top:18px;}
+  .np-accept{flex:1;padding:13px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;}
+  .np-accept:disabled{background:#aaa;cursor:not-allowed;}
+  .np-decline{padding:13px 18px;background:#fff;color:#c00;border:1.5px solid #c00;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;}
+  .np-cancel-row{text-align:center;margin-top:10px;}
+  .np-cancel{background:none;border:none;color:#999;font-size:13px;cursor:pointer;padding:4px 8px;}
+  .press-btn{margin-left:8px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--green-dark,#1a5c36);border:1.5px solid var(--green-dark,#1a5c36);border-radius:6px;background:transparent;cursor:pointer;vertical-align:middle;white-space:nowrap;}
+  .press-result{font-size:12px;color:var(--green-dark,#1a5c36);margin:-2px 0 6px;padding-left:4px;}
   .help-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:0 0 40px;max-height:85vh;overflow-y:auto;}
   .help-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff;z-index:1;}
   .help-sheet-title{font-size:17px;font-weight:700;color:var(--green-dark);}
@@ -1032,7 +1053,19 @@
       Object.keys(seg.deltas).forEach(function (id) { combinedDeltas[id] = (combinedDeltas[id] || 0) + seg.deltas[id]; });
     });
 
-    return { sideA: sideA, sideB: sideB, front: frontSeg, back: backSeg, total: totalSeg, combinedDeltas: combinedDeltas };
+    // Manual presses — each accepted press is a new side match from startHole to hole 18
+    var manualPressResults = [];
+    (game.manualPresses || []).forEach(function(mp) {
+      if (!mp.accepted) return;
+      var pressHoles = range(mp.startHole, 18);
+      var pressRes = SidieGolfEngine.computeMatchPlayResult(ctx, sideA, sideB, pressHoles);
+      var pd = zero(game.participants);
+      settleMatch(pd, sideA, sideB, pressRes, mp.stake);
+      game.participants.forEach(function(id) { combinedDeltas[id] = (combinedDeltas[id] || 0) + (pd[id] || 0); });
+      manualPressResults.push({ mp: mp, res: pressRes, deltas: pd });
+    });
+
+    return { sideA: sideA, sideB: sideB, front: frontSeg, back: backSeg, total: totalSeg, combinedDeltas: combinedDeltas, manualPressResults: manualPressResults };
   };
 
   games['Nassau'] = function (game, ctx) {
@@ -1650,6 +1683,20 @@
     <div class="buddies-add-bar">
       <button id="buddiesAddBtn" onclick="showBuddyAddForm()" style="width:100%;padding:10px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">+ Add New Buddy</button>
     </div>
+  </div>
+</div>
+
+<!-- ===== Nassau Manual Press Overlay ===== -->
+<div id="nassauPressOverlay" class="nassau-press-overlay" onclick="if(event.target===this)nassauPressClose()">
+  <div class="nassau-press-sheet">
+    <div class="np-title" id="npTitle">Nassau Press</div>
+    <div class="np-sub" id="npSub"></div>
+    <div id="npOptions"></div>
+    <div class="np-btns">
+      <button class="np-decline" onclick="nassauPressClose()">Decline</button>
+      <button class="np-accept" id="npAcceptBtn" disabled onclick="nassauPressAccept()">Accept Press</button>
+    </div>
+    <div class="np-cancel-row"><button class="np-cancel" onclick="nassauPressClose()">Cancel</button></div>
   </div>
 </div>
 
@@ -4955,7 +5002,7 @@ function commonThruHoles(idxs, sc){
 // captures an explicit team-picker — flagged here as a known compromise.
 function buildEngineGame(g){
   var participants = g.participants.map(String);
-  var game = { id: g.id, type: g.type, participants: participants, stakes: g.stakes || {} };
+  var game = { id: g.id, type: g.type, participants: participants, stakes: g.stakes || {}, manualPresses: g.manualPresses || [] };
 
   // Team-based games: use explicit teamAssign if the picker has been used, else first-half/second-half fallback.
   if (g.type==='Nassau' || g.type==='Vegas' || g.type==='Round Robin (2-man teams)'){
@@ -5210,6 +5257,128 @@ window.doSavePendingBuddy = function() {
   var el = document.getElementById('buddy-save-prompt');
   if (el) el.remove();
   window._pendingBuddySave = null;
+};
+
+// ============================================================
+// NASSAU MANUAL PRESS
+// ============================================================
+
+var _npState = {}; // active press dialog state
+
+// Returns the first hole in the segment not yet fully scored — this is where the press starts
+function nassauPressStartHole(segKey, participants, sc) {
+  var start = segKey === 'front9' ? 1 : 10;
+  var end   = segKey === 'front9' ? 9 : 18;
+  for (var h = start; h <= end; h++) {
+    var anyMissing = participants.some(function(idx){
+      return !(sc.scores && sc.scores[idx] && sc.scores[idx][h] != null);
+    });
+    if (anyMissing) return h;
+  }
+  return null; // segment fully scored — too late
+}
+
+window.nassauPressOpen = function(gameId, segKey) {
+  var g = (state.sideGames || []).filter(function(x){ return x.id === gameId; })[0];
+  if (!g || g.type !== 'Nassau') return;
+
+  var sc = state.scorecard || { scores:{}, events:{} };
+  var startHole = nassauPressStartHole(segKey, g.participants, sc);
+  if (!startHole) { alert('This segment is already complete — no press available.'); return; }
+
+  // Build context + breakdown to determine current match status
+  var course = state.course != null ? MOCK_COURSES[state.course] : null;
+  var tee    = course && state.tee ? course.tees.filter(function(t){ return t.name===state.tee; })[0] : null;
+  var bd = null;
+  if (course && tee) {
+    try {
+      var gameCtx = buildCtx(g.participants, course, tee, sc, parseFloat(g.stakes.handicapPct)||100);
+      var eg = buildEngineGame(g);
+      bd = SidieGolfEngine.nassauBreakdown(eg, gameCtx);
+    } catch(e){}
+  }
+
+  var segStake   = segKey === 'front9' ? (parseFloat(g.stakes.front)||0) : (parseFloat(g.stakes.back)||0);
+  var totalStake = parseFloat(g.stakes.total) || 0;
+  var segName    = segKey === 'front9' ? 'Front 9' : 'Back 9';
+
+  // Status line
+  var statusLine = '';
+  if (bd) {
+    var seg = segKey === 'front9' ? bd.front : bd.back;
+    var nameA = namesForIdxs(bd.sideA.map(Number));
+    var nameB = namesForIdxs(bd.sideB.map(Number));
+    statusLine = liveMatchStatusText(seg, nameA, nameB) + ' — thru ' + seg.holesPlayed + '/' + seg.holes.length;
+  }
+
+  var holeRange = startHole === 18 ? 'hole 18 only' : 'holes ' + startHole + '–18';
+
+  _npState = { gameId: gameId, segKey: segKey, startHole: startHole, segStake: segStake, totalStake: totalStake, selection: null };
+
+  var titleEl   = document.getElementById('npTitle');
+  var subEl     = document.getElementById('npSub');
+  var optEl     = document.getElementById('npOptions');
+  var acceptBtn = document.getElementById('npAcceptBtn');
+
+  if (titleEl) titleEl.textContent = 'Nassau Press — ' + segName;
+  if (subEl)   subEl.textContent   = statusLine ? statusLine : ('Going into ' + holeRange);
+
+  var html = '';
+  if (segStake > 0) {
+    html += '<div class="np-option" id="npo-seg" onclick="nassauPressSelect(\'seg\')">' +
+      '<div class="np-radio"></div>' +
+      '<div><div class="np-option-title">Press the ' + segName + ' (+$' + segStake + ')</div>' +
+      '<div class="np-option-desc">New $' + segStake + ' bet running ' + holeRange + '</div></div></div>';
+  }
+  if (totalStake > 0) {
+    html += '<div class="np-option" id="npo-total" onclick="nassauPressSelect(\'total\')">' +
+      '<div class="np-radio"></div>' +
+      '<div><div class="np-option-title">Press the Total 18 (+$' + totalStake + ')</div>' +
+      '<div class="np-option-desc">New $' + totalStake + ' bet running ' + holeRange + '</div></div></div>';
+  }
+  if (optEl) optEl.innerHTML = html;
+  if (acceptBtn) { acceptBtn.disabled = true; acceptBtn.textContent = 'Accept Press'; }
+
+  document.getElementById('nassauPressOverlay').classList.add('open');
+};
+
+window.nassauPressSelect = function(type) {
+  _npState.selection = type;
+  document.querySelectorAll('.np-option').forEach(function(el){ el.classList.remove('selected'); });
+  var selEl = document.getElementById('npo-' + type);
+  if (selEl) selEl.classList.add('selected');
+  var stake = type === 'seg' ? _npState.segStake : _npState.totalStake;
+  var acceptBtn = document.getElementById('npAcceptBtn');
+  if (acceptBtn) { acceptBtn.disabled = false; acceptBtn.textContent = 'Accept — +$' + stake + ' Press'; }
+};
+
+window.nassauPressAccept = function() {
+  var st = _npState;
+  if (!st.selection) return;
+  var g = (state.sideGames || []).filter(function(x){ return x.id === st.gameId; })[0];
+  if (!g) return;
+  if (!g.manualPresses) g.manualPresses = [];
+
+  var finalSegKey = st.selection === 'seg' ? st.segKey : 'overall';
+  var stake       = st.selection === 'seg' ? st.segStake : st.totalStake;
+
+  g.manualPresses.push({
+    id: Date.now(),
+    segType:   finalSegKey,
+    startHole: st.startHole,
+    stake:     stake,
+    accepted:  true
+  });
+
+  nassauPressClose();
+  autoSave();
+  if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+  if (typeof renderReview === 'function') renderReview();
+};
+
+window.nassauPressClose = function() {
+  document.getElementById('nassauPressOverlay').classList.remove('open');
+  _npState = {};
 };
 
 // ============================================================
@@ -5967,8 +6136,8 @@ function nassauCardHtml(g, engineGame, ctx, context, scope, total){
   var title = 'Nassau'+(context?' ('+context+')':'')+' — '+nameA+' vs '+nameB;
   var html = '<div class="card"><div class="section-title">'+escapeHtml(title)+'</div>';
 
-  [['front','Front 9'],['back','Back 9'],['total','Total 18']].forEach(function(pair){
-    var key = pair[0], segName = pair[1];
+  [['front','Front 9','front9'],['back','Back 9','back9'],['total','Total 18','overall']].forEach(function(pair){
+    var key = pair[0], segName = pair[1], segKey = pair[2];
     var seg = bd[key];
     if (!seg.stake){
       html += '<div class="summary-row"><span class="lbl">'+segName+'</span><span class="val" style="color:var(--muted);font-weight:400;">no bet set</span></div>';
@@ -5981,7 +6150,15 @@ function nassauCardHtml(g, engineGame, ctx, context, scope, total){
     } else {
       statusText = liveMatchStatusText(seg, nameA, nameB)+' — thru '+seg.holesPlayed+'/'+seg.holes.length;
     }
-    html += '<div class="summary-row"><span class="lbl">'+segName+' ($'+seg.stake+')</span><span class="val">'+escapeHtml(statusText)+'</span></div>';
+    // Press button: show for in-progress segments (at least 1 hole played, not complete)
+    var pressBtn = '';
+    if (!seg.complete && seg.holesPlayed > 0) {
+      var alreadyPressed = (g.manualPresses || []).some(function(mp){ return mp.accepted && mp.segType === segKey; });
+      if (!alreadyPressed) {
+        pressBtn = '<button class="press-btn" onclick="nassauPressOpen('+g.id+',\''+segKey+'\')">🔒 Press</button>';
+      }
+    }
+    html += '<div class="summary-row"><span class="lbl">'+segName+' ($'+seg.stake+')</span><span class="val">'+escapeHtml(statusText)+pressBtn+'</span></div>';
 
     var moneyText;
     if (!seg.complete){
@@ -5996,6 +6173,19 @@ function nassauCardHtml(g, engineGame, ctx, context, scope, total){
       moneyText = parts.length ? parts.join(' · ') : 'push — no money moved';
     }
     html += '<div class="incomplete-note" style="margin:-4px 0 6px;">'+escapeHtml(moneyText)+'</div>';
+
+    // Show any accepted manual press results for this segment
+    var segPresses = (bd.manualPressResults || []).filter(function(r){ return r.mp.segType === segKey; });
+    segPresses.forEach(function(r){
+      var pLabel = describeMatchLabel(r.res.label, nameA, nameB);
+      var pHoles = r.mp.startHole === 18 ? 'hole 18 only' : 'holes '+r.mp.startHole+'–18';
+      var pParts = Object.keys(r.deltas).map(function(id){
+        var amt = r.deltas[id]; if (!amt) return null;
+        var pname = state.players[id] ? state.players[id].name : ('Player '+(parseInt(id,10)+1));
+        return pname+' '+(amt>=0?'+':'')+'$'+Math.abs(amt).toFixed(2);
+      }).filter(Boolean);
+      html += '<div class="press-result">🔒 Manual press ($'+r.mp.stake+', '+pHoles+'): '+escapeHtml(pLabel)+(pParts.length ? ' — '+pParts.join(' · ') : '')+'</div>';
+    });
   });
 
   html += '</div>';
