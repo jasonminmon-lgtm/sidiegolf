@@ -2215,7 +2215,7 @@ function wireCourseSearch(ns, onPicked){
             nearMeBtn.disabled = false;
             nearMeBtn.innerHTML = '&#128205; Near Me — Find Courses at My Location';
             if (!q) { setStatus('Could not determine city from your location.'); return; }
-            input.value = q + (state && city ? ', '+state : '');
+            input.value = q;
             runSearch();
           })
           .catch(function(){
