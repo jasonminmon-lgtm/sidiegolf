@@ -993,7 +993,7 @@
     return deltas;
   }
 
-  games['Wolf'] = function (game, ctx) { return wolfFamilyGame(game, ctx, game.stakes.hammerOn !== 'Off'); };
+  games['Wolf'] = function (game, ctx) { return wolfFamilyGame(game, ctx, game.stakes.hammerOn === 'On'); };
   games['Hammer Wolf'] = function (game, ctx) { return wolfFamilyGame(game, ctx, true); }; // legacy — kept for old rounds
 
   // ---------------- COIN FLIP WOLF ----------------
@@ -5014,7 +5014,7 @@ function buildEventTablesHtml(games, idxs, sc, ns){
     if (!gameNeedsPerHoleEvents(g.type)) return;
     var participantIdxs = g.participants.filter(function(p){ return idxs.indexOf(p)!==-1; });
     if (participantIdxs.length < 2) return;
-    if (g.type === '3-Man Wolf' && g.stakes.hammerOn === 'Off') return; // nothing to track per-hole without hammers
+    if (g.type === '3-Man Wolf' && g.stakes.hammerOn !== 'On') return; // nothing to track per-hole without hammers
     html += '<div class="card"><div class="sc-game-title">'+g.type+' — per-hole info</div>';
     html += '<div class="sc-scroll"><table class="sc-table"><thead><tr><th class="sc-rowlabel">Hole</th>';
     for (var h=1; h<=18; h++) html += '<th>'+h+'</th>';
@@ -5029,7 +5029,7 @@ function buildEventTablesHtml(games, idxs, sc, ns){
       html += buildSelectRow('Wolf', g, participantIdxs, sc, ns, 'wolf', true, wolfAutoFn);
       html += buildSelectRow('Partner', g, participantIdxs, sc, ns, 'partner', true);
       html += buildBoolRow('Blind?', g, sc, ns, 'blind');
-      if (g.stakes.hammerOn !== 'Off') html += buildHammerLogRow('Hammers', g, sc, ns);
+      if (g.stakes.hammerOn === 'On') html += buildHammerLogRow('Hammers', g, sc, ns);
       legend = [
         'Wolf — auto-rotates each hole based on tee order (set above). Leave blank to use auto-rotation; pick a player to manually override for that hole.',
         nPart === 5
@@ -5037,7 +5037,7 @@ function buildEventTablesHtml(games, idxs, sc, ns){
           : 'Partner — leave blank to send the wolf out alone (2× bet).',
         'Blind? — declared before anyone, including the wolf, tees off. Locks the wolf in alone at 3× the stake.'
       ];
-      if (g.stakes.hammerOn !== 'Off') legend.push('Hammers — tap a cell to log the hammer sequence for that hole. Each accepted hammer doubles the bet; teams must alternate (wolf → opp → wolf…). A decline forfeits the hole at the current rate to the throwing side.');
+      if (g.stakes.hammerOn === 'On') legend.push('Hammers — tap a cell to log the hammer sequence for that hole. Each accepted hammer doubles the bet; teams must alternate (wolf → opp → wolf…). A decline forfeits the hole at the current rate to the throwing side.');
     } else if (g.type==='Hammer Wolf'){
       var teeOrd2 = g.stakes.teeOrder;
       var nPart2 = participantIdxs.length;
