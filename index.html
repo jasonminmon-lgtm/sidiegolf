@@ -843,7 +843,8 @@
     var is5Player = (n === 5); // asymmetric 2v3 / 1v4 settlement (settle5PlayerWolfMoney)
     var baseAmount = parseFloat(game.stakes.amount) || 0; // this IS the $ per man — no scaling
     var cb = cryBabySettings(game);
-    var birdieEagleOn = (game.stakes.birdieEagle === 'On');
+    var birdieEagleOn = !!(game.stakes.birdieEagle && game.stakes.birdieEagle !== 'Off');
+    var eagleMult = game.stakes.birdieEagle === 'Birdie 2x / Eagle 4x' ? 4 : 3;
     // Auto-carry: read the one-time carry rule set at game setup instead of a per-hole flag.
     var carryRule = game.stakes.carryRule || 'None';
     var maxCarry;
@@ -975,7 +976,7 @@
           var scoreForBonus = basis === 'Net' ? winnerBest.net : (ctx.scores[winnerBest.id] ? ctx.scores[winnerBest.id][h] : null);
           if (scoreForBonus != null) {
             var diff = scoreForBonus - holePar(ctx.course, h);
-            if (diff <= -2) X *= 3;       // eagle or better — winning side only
+            if (diff <= -2) X *= eagleMult; // eagle or better — winning side only
             else if (diff === -1) X *= 2; // birdie — winning side only
           }
         }
@@ -1007,7 +1008,8 @@
     if (n < 4) return deltas;
     var baseAmount = parseFloat(game.stakes.amount) || 0;
     var ghostOn = game.stakes.ghostPartner === 'On';
-    var birdieEagleOn = (game.stakes.birdieEagle === 'On');
+    var birdieEagleOn = !!(game.stakes.birdieEagle && game.stakes.birdieEagle !== 'Off');
+    var eagleMult = game.stakes.birdieEagle === 'Birdie 2x / Eagle 4x' ? 4 : 3;
     var carryRule = game.stakes.carryRule || 'None';
     var maxCarry;
     if (carryRule === 'None') maxCarry = 0;
@@ -1061,7 +1063,7 @@
           var eftScore = eftBasis === 'Net' ? eftWinners[0].net : (ctx.scores[eftWinnerId] ? ctx.scores[eftWinnerId][h] : null);
           if (eftScore != null) {
             var eftDiff = eftScore - holePar(ctx.course, h);
-            if (eftDiff <= -2) Xeft *= 3;
+            if (eftDiff <= -2) Xeft *= eagleMult;
             else if (eftDiff === -1) Xeft *= 2;
           }
         }
@@ -1149,7 +1151,7 @@
           var cfwScore = cfwBasis === 'Net' ? cfwWB.net : (ctx.scores[cfwWB.id] ? ctx.scores[cfwWB.id][h] : null);
           if (cfwScore != null) {
             var cfwDiff = cfwScore - holePar(ctx.course, h);
-            if (cfwDiff <= -2) X *= 3;
+            if (cfwDiff <= -2) X *= eagleMult;
             else if (cfwDiff === -1) X *= 2;
           }
         }
@@ -1160,6 +1162,110 @@
     return deltas;
   }
   games['Coin Flip Wolf'] = coinFlipWolfGame;
+
+  // ---------------- 3-MAN WOLF ----------------
+  // Always 2-vs-1. Wolf rotates on fixed 5-hole (crybaby) or 6-hole (no crybaby)
+  // segments. Crybaby at 16-18: leader forced solo, trailer sets raise.
+  function threeManWolfGame(game, ctx) {
+    var deltas = zero(game.participants);
+    var n = game.participants.length;
+    if (n !== 3) return deltas;
+
+    var baseAmount = parseFloat(game.stakes.amount) || 0;
+    var cryBabyOn = game.stakes.cryBaby === 'On';
+    var birdieEagleOn = !!(game.stakes.birdieEagle && game.stakes.birdieEagle !== 'Off');
+    var eagleMult = game.stakes.birdieEagle === 'Birdie 2x / Eagle 4x' ? 4 : 3;
+
+    // Solo wolf order (3 segments, one per player)
+    var teeOrder = (game.stakes.teeOrder && game.stakes.teeOrder.length >= 3)
+      ? game.stakes.teeOrder.map(String)
+      : game.participants.map(String);
+
+    var raisePct = parseFloat(String(game.stakes.cryBabyRaise || '25%').replace('%','')) / 100;
+    if (isNaN(raisePct)) raisePct = 0.25;
+
+    // Crybaby wolf/raise captured once at hole 16
+    var cryBabyWolfId = null;
+    var cryBabyRaiseAmt = 0;
+
+    for (var h = 1; h <= 18; h++) {
+      var ev = (game.events && game.events[h]) || {};
+
+      // Capture crybaby state at start of hole 16
+      if (h === 16 && cryBabyOn) {
+        var maxD = -Infinity, minD = Infinity;
+        game.participants.forEach(function(id) {
+          var v = deltas[id] || 0;
+          if (v > maxD) { maxD = v; cryBabyWolfId = String(id); }
+          if (v < minD) { minD = v; }
+        });
+        if (!cryBabyWolfId) cryBabyWolfId = teeOrder[0];
+        var amtDown = minD < 0 ? Math.abs(minD) : 0;
+        cryBabyRaiseAmt = Math.round(amtDown * raisePct);
+      }
+
+      // Determine wolf for this hole
+      var wolfId;
+      if (cryBabyOn && h >= 16) {
+        wolfId = cryBabyWolfId;
+      } else {
+        var segIdx3mw = cryBabyOn
+          ? (h <= 5 ? 0 : h <= 10 ? 1 : 2)  // 5-hole segments
+          : (h <= 6 ? 0 : h <= 12 ? 1 : 2); // 6-hole segments
+        wolfId = teeOrder[segIdx3mw];
+      }
+
+      // Base stake + crybaby raise
+      var X = baseAmount + (cryBabyOn && h >= 16 ? cryBabyRaiseAmt : 0);
+
+      // Hammers
+      var hammerLog3mw = Array.isArray(ev.hammerLog) ? ev.hammerLog : [];
+      var hammerDeclSide3mw = null;
+      for (var hi3 = 0; hi3 < hammerLog3mw.length; hi3++) {
+        var hEnt3 = hammerLog3mw[hi3];
+        if (hammerDeclSide3mw) continue; // chain ended
+        if (hEnt3.accepted) X *= 2;
+        else hammerDeclSide3mw = hEnt3.side;
+      }
+
+      // Teams: always 1 wolf vs 2 opponents
+      var wolfSide3 = [wolfId];
+      var oppSide3 = game.participants.map(String).filter(function(id) { return id !== wolfId; });
+
+      // Winner
+      var wolfWins3;
+      var declinedBy3 = hammerDeclSide3mw ? (hammerDeclSide3mw === 'wolf' ? 'opp' : 'wolf') : '';
+      if (declinedBy3) {
+        wolfWins3 = (declinedBy3 === 'opp');
+      } else {
+        var wolfBest3 = bestBallNet(ctx, wolfSide3, h);
+        var oppBest3  = bestBallNet(ctx, oppSide3, h);
+        if (wolfBest3 == null || oppBest3 == null) continue;
+        if (wolfBest3 < oppBest3) wolfWins3 = true;
+        else if (oppBest3 < wolfBest3) wolfWins3 = false;
+        else continue; // tie — push
+      }
+
+      // Birdie / eagle bonus (winning side)
+      if (birdieEagleOn) {
+        var winnerSide3 = wolfWins3 ? wolfSide3 : oppSide3;
+        var wb3 = bestBallNetWithId(ctx, winnerSide3, h);
+        if (wb3) {
+          var bBasis3 = game.stakes.birdieEagleBasis === 'Net' ? 'Net' : 'Gross';
+          var bScore3 = bBasis3 === 'Net' ? wb3.net : (ctx.scores[wb3.id] ? ctx.scores[wb3.id][h] : null);
+          if (bScore3 != null) {
+            var bDiff3 = bScore3 - holePar(ctx.course, h);
+            if (bDiff3 <= -2) X *= eagleMult;
+            else if (bDiff3 === -1) X *= 2;
+          }
+        }
+      }
+
+      settleWolfMoney(deltas, wolfSide3, oppSide3, X, wolfWins3);
+    }
+    return deltas;
+  }
+  games['3-Man Wolf'] = threeManWolfGame;
 
   // ---------------- NASSAU ----------------
   // A Nassau segment (front 9 / back 9 / total 18) only pays out once every
@@ -2294,7 +2400,7 @@ var SIDE_GAME_DEFS = {
     fields:[
       {key:'amount', label:'$ Per Man', type:'number', placeholder:'5'},
       {key:'carryRule', label:'Carry Rule', type:'select', options:['None','Carry (unlimited)','Carry (max 1)','Carry (max 2)','Carry (max 3)']},
-      {key:'birdieEagle', label:'Birdie 2x / Eagle 3x (winning side only)', type:'select', options:['Off','On']},
+      {key:'birdieEagle', label:'Birdie / Eagle Bonus (winning side only)', type:'select', options:['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x']},
       {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Gross','Net']},
       {key:'cryBaby', label:'Cry Baby Rule', type:'select', options:['Off','On']},
       {key:'cryBabyStartHole', label:'Cry Baby Starts On Hole', type:'select', options:['16','17','18']},
@@ -2306,7 +2412,7 @@ var SIDE_GAME_DEFS = {
     fields:[
       {key:'amount', label:'$ Per Man (starting bet)', type:'number', placeholder:'5'},
       {key:'carryRule', label:'Carry Rule', type:'select', options:['None','Carry (unlimited)','Carry (max 1)','Carry (max 2)','Carry (max 3)']},
-      {key:'birdieEagle', label:'Birdie 2x / Eagle 3x (winning side only)', type:'select', options:['Off','On']},
+      {key:'birdieEagle', label:'Birdie / Eagle Bonus (winning side only)', type:'select', options:['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x']},
       {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Gross','Net']},
       {key:'cryBaby', label:'Cry Baby Rule', type:'select', options:['Off','On']},
       {key:'cryBabyStartHole', label:'Cry Baby Starts On Hole', type:'select', options:['16','17','18']},
@@ -2319,7 +2425,18 @@ var SIDE_GAME_DEFS = {
       {key:'amount', label:'$ Per Man', type:'number', placeholder:'5'},
       {key:'ghostPartner', label:'Ghost Partner (solo scores min of net vs par)', type:'select', options:['Off','On']},
       {key:'carryRule', label:'Carry Rule', type:'select', options:['None','Carry (unlimited)','Carry (max 1)','Carry (max 2)','Carry (max 3)']},
-      {key:'birdieEagle', label:'Birdie 2x / Eagle 3x (winning side only)', type:'select', options:['Off','On']},
+      {key:'birdieEagle', label:'Birdie / Eagle Bonus (winning side only)', type:'select', options:['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x']},
+      {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Gross','Net']}
+    ]
+  },
+  '3-Man Wolf': {
+    desc:'Three-player 2-vs-1 Wolf — always solo vs. two opponents. Each player is designated wolf for a fixed block of holes (5 holes each with Crybaby, 6 holes each without). Set the solo order using the Tee Order section below. Hammers apply. With Crybaby: holes 16–18 force the leader to go solo; the trailer sets the raise.',
+    fields:[
+      {key:'amount', label:'$ Per Man', type:'number', placeholder:'5'},
+      {key:'cryBaby', label:'Crybaby (holes 16–18)', type:'select', options:['On','Off']},
+      {key:'cryBabyRaise', label:'Crybaby Raise (% of $ the trailer is down)', type:'select', options:['25%','50%','75%','100%','125%','150%','175%','200%']},
+      {key:'hammerOn', label:'Hammers', type:'select', options:['On','Off']},
+      {key:'birdieEagle', label:'Birdie / Eagle Bonus (winning side only)', type:'select', options:['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x']},
       {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Gross','Net']}
     ]
   },
@@ -4144,8 +4261,9 @@ function summarizeStakes(g){
     return parts9.join(' + ');
   }
   if (g.stakes.amount){
-    var unit = (g.type==='Wolf' || g.type==='Hammer Wolf' || g.type==='Coin Flip Wolf') ? '/man' : (g.stakes.structure ? ' '+g.stakes.structure : '');
-    var be = g.stakes.birdieEagle==='On' ? ' + Birdie 2x/Eagle 3x ('+(g.stakes.birdieEagleBasis==='Net'?'Net':'Gross')+')' : '';
+    var unit = (g.type==='Wolf' || g.type==='Hammer Wolf' || g.type==='Coin Flip Wolf' || g.type==='3-Man Wolf') ? '/man' : (g.stakes.structure ? ' '+g.stakes.structure : '');
+    var eagleLabel = g.stakes.birdieEagle==='Birdie 2x / Eagle 4x' ? 'Eagle 4x' : 'Eagle 3x';
+    var be = (g.stakes.birdieEagle && g.stakes.birdieEagle!=='Off') ? ' + Birdie 2x/'+eagleLabel+' ('+(g.stakes.birdieEagleBasis==='Net'?'Net':'Gross')+')' : '';
     var cb = g.stakes.cryBaby==='On' ? ' + Cry Baby (h'+(g.stakes.cryBabyStartHole||16)+'+)' : '';
     return '$'+g.stakes.amount+unit+be+cb;
   }
@@ -4310,6 +4428,9 @@ function buildGameCardHtml(g, scope){
   if (g.type==='Coin Flip Wolf' && (n < 4 || n > 5) && n > 0){
     html += '<div class="player-count-warn">⚠️ Coin Flip Wolf requires 4 or 5 players (currently '+n+').</div>';
   }
+  if (g.type==='3-Man Wolf' && n !== 3 && n > 0){
+    html += '<div class="player-count-warn">⚠️ 3-Man Wolf requires exactly 3 players (currently '+n+').</div>';
+  }
   if (g.type==='Vegas' && n !== 4 && n > 0){
     html += '<div class="player-count-warn">⚠️ Vegas requires exactly 4 players (2 per team). Currently '+n+'.</div>';
   }
@@ -4352,7 +4473,7 @@ function buildGameCardHtml(g, scope){
   if (g.type==='Quota' && g.stakes.quotaPoints==='Modified Stableford'){
     html += modifiedStablefordTableEditorHtml();
   }
-  if (g.type==='Wolf' || g.type==='Hammer Wolf'){
+  if (g.type==='Wolf' || g.type==='Hammer Wolf' || g.type==='3-Man Wolf'){
     html += buildWolfTeeOrderHtml(g);
   }
 
@@ -4410,7 +4531,12 @@ function buildWolfTeeOrderHtml(g){
   var displayOrder = g.stakes.teeOrder || g.participants;
   var html = '<div class="tee-order-section">';
   html += '<label class="field-label">Tee Order <span style="font-weight:400;font-size:11px;color:var(--muted)">(optional)</span></label>';
-  html += '<div style="font-size:11px;color:var(--muted);margin:2px 0 7px;">Sets wolf rotation — engine auto-assigns wolf each hole. Tap ↑/↓ to reorder.</div>';
+  var _tmwNote = g.type === '3-Man Wolf'
+    ? (g.stakes.cryBaby === 'On'
+        ? 'Sets solo order: P1 is wolf holes 1–5, P2 holes 6–10, P3 holes 11–15. Crybaby takes over 16–18. Tap ↑/↓ to reorder.'
+        : 'Sets solo order: P1 is wolf holes 1–6, P2 holes 7–12, P3 holes 13–18. Tap ↑/↓ to reorder.')
+    : 'Sets wolf rotation — engine auto-assigns wolf each hole. Tap ↑/↓ to reorder.';
+  html += '<div style="font-size:11px;color:var(--muted);margin:2px 0 7px;">'+_tmwNote+'</div>';
   html += '<div class="tee-order-list">';
   displayOrder.forEach(function(pidx, pos){
     var nm = state.players[pidx] ? state.players[pidx].name : ('Player '+(parseInt(pidx,10)+1));
@@ -4602,6 +4728,7 @@ var EVENT_GAME_FIELDS = {
   'Wolf': ['wolf','partner','alone','blind'],
   'Hammer Wolf': ['wolf','partner','alone','blind','hammerLog'],
   'Coin Flip Wolf': ['cfwFlips','hammerLog'],
+  '3-Man Wolf': ['hammerLog'],
   'Snake': ['snakeBite'],
   'Bingo Bango Bongo': ['firstOnGreen','closestToPin','firstIn']
 };
@@ -4669,7 +4796,7 @@ function renderSingleScorecard(){
   }
   var parByHole = tee.parByHole || PAR72_LAYOUT;
   var strokes = (state.scoringMethod === 'Stroke Play (Gross)') ? null : strokesForGroup(idxs, course, tee);
-  var wolfGames = (state.sideGames||[]).filter(function(g){ return g.type==='Wolf'||g.type==='Hammer Wolf'||g.type==='Coin Flip Wolf'; });
+  var wolfGames = (state.sideGames||[]).filter(function(g){ return g.type==='Wolf'||g.type==='Hammer Wolf'||g.type==='Coin Flip Wolf'||g.type==='3-Man Wolf'; });
   var html = '';
   html += '<div class="note-box">'+course.name+' — '+tee.name+' tees, Par '+tee.par+'.</div>';
   if (state.scoringMethod === 'Foursomes (Alternate Shot)'){
@@ -4741,7 +4868,7 @@ function renderEventScorecard(){
   var parByHole = tee.parByHole || PAR72_LAYOUT;
   var strokes2 = strokesForGroup(idxs2, course, tee);
   var groupGames = (day.groupGames && day.groupGames[gn2]) || [];
-  var wolfGames2 = groupGames.filter(function(g){ return g.type==='Wolf'||g.type==='Hammer Wolf'||g.type==='Coin Flip Wolf'; });
+  var wolfGames2 = groupGames.filter(function(g){ return g.type==='Wolf'||g.type==='Hammer Wolf'||g.type==='Coin Flip Wolf'||g.type==='3-Man Wolf'; });
   if (isRyderCup()) html += buildRcMatchBannerHtml(day, gn2, course, tee, idxs2, day.scorecards[gn2]);
   html += '<div class="note-box">'+course.name+' — '+tee.name+' tees, Par '+tee.par+'.</div>';
   html += buildScoreGridHtml(idxs2, parByHole, day.scorecards[gn2], 'sc-'+day.id+'-'+gn2, strokes2, wolfGames2);
@@ -4805,6 +4932,14 @@ function buildScoreGridHtml(idxs, parByHole, sc, ns, strokes, wolfGames){
             // Color by flip: H=blue, T=orange, unflipped=none
             var cfwF = (wev.cfwFlips || {})[sIdx];
             cellBg = cfwF === 'H' ? '#dde9ff' : (cfwF === 'T' ? '#ffe8cc' : '');
+          } else if (wg.type === '3-Man Wolf') {
+            // Color: solo wolf=amber, partners=light green. Crybaby holes (16-18) left uncolored (dynamic wolf).
+            var to3mwG = (wg.stakes.teeOrder && wg.stakes.teeOrder.length >= 3) ? wg.stakes.teeOrder.map(String) : wg.participants.map(String);
+            var cb3mwG = wg.stakes.cryBaby === 'On';
+            var seg3mwG = cb3mwG ? (h3 <= 5 ? 0 : h3 <= 10 ? 1 : h3 <= 15 ? 2 : -1) : (h3 <= 6 ? 0 : h3 <= 12 ? 1 : 2);
+            var wolf3mwG = seg3mwG >= 0 ? to3mwG[seg3mwG] : null;
+            if (wolf3mwG !== null && sIdx === wolf3mwG) cellBg = '#fff9e0'; // solo wolf amber
+            else if (wolf3mwG !== null) cellBg = '#edf8ed'; // partners light green
           } else {
             var n_wg = wg.participants.length;
             var to_wg = (wg.stakes.teeOrder && wg.stakes.teeOrder.length >= n_wg) ? wg.stakes.teeOrder : null;
@@ -4939,6 +5074,15 @@ function buildEventTablesHtml(games, idxs, sc, ns){
         cfwGhost ? 'Ghost Partner is ON — a solo player gets a phantom partner who scores net par. The solo uses the better of their own net vs par. Hammering forfeits the ghost that hole.' : 'Ghost Partner is OFF.',
         'All flip the same → Everyone for Themselves: bet doubles, open hammer (either side), low net wins.',
         'Hammers — in Wolf side/Opp side label: Wolf side = H team (or solo team); Opp side = T team (or multi team).'
+      ];
+    } else if (g.type==='3-Man Wolf'){
+      html += buildHammerLogRow('Hammers', g, sc, ns);
+      var tmwCryOn = g.stakes.cryBaby === 'On';
+      legend = [
+        tmwCryOn
+          ? 'Wolf rotation: P1 solo holes 1–5, P2 holes 6–10, P3 holes 11–15. Crybaby at 16–18: leader forced solo, trailer sets raise. Tee order set above.'
+          : 'Wolf rotation: P1 solo holes 1–6, P2 holes 7–12, P3 holes 13–18. Tee order set above.',
+        'Hammers — either side can throw. Each accepted hammer doubles the bet; the other side can decline, forfeiting the hole at the current rate to the throwing side.'
       ];
     } else if (g.type==='Snake'){
       html += buildSelectRow('Snake bite', g, participantIdxs, sc, ns, 'snakeBite', true);
@@ -5596,7 +5740,7 @@ function renderBuddiesList(list) {
       if (inSelect) {
         html += '<button class="buddy-select-btn" onclick="buddySelectPick(\''+escapeHtml(b.id||'')+'\')">Add &#8594;</button>';
       }
-      html += '<button class="buddy-del-btn" onclick="buddyDelete(\''+escapeHtml(b.id||'')+'\')">&#10005;</button>';
+      html += '<button class="buddy-del-btn" onclick="buddyDelete(\''+escapeHtml(b.id||'')+'\',this)">&#10005;</button>';
       html += '</div>';
     });
   }
@@ -5611,10 +5755,30 @@ window.buddySelectPick = function(id) {
   closeBuddies();
 };
 
-window.buddyDelete = function(id) {
-  fbDeleteBuddy(id, function() {
-    fbLoadBuddies(function(list) { renderBuddiesList(list); });
-  });
+window.buddyDelete = function(id, el) {
+  if (el && el.dataset.confirmPending) {
+    clearTimeout(el._confirmTimer);
+    fbDeleteBuddy(id, function() {
+      fbLoadBuddies(function(list) { renderBuddiesList(list); });
+    });
+  } else if (el) {
+    el.dataset.confirmPending = '1';
+    el.innerHTML = 'Del?';
+    el.style.color = '#e53';
+    el.style.fontSize = '11px';
+    el.style.fontWeight = '700';
+    el._confirmTimer = setTimeout(function() {
+      delete el.dataset.confirmPending;
+      el.innerHTML = '&#10005;';
+      el.style.color = '';
+      el.style.fontSize = '';
+      el.style.fontWeight = '';
+    }, 3000);
+  } else {
+    fbDeleteBuddy(id, function() {
+      fbLoadBuddies(function(list) { renderBuddiesList(list); });
+    });
+  }
 };
 
 window.showBuddyAddForm = function() {
