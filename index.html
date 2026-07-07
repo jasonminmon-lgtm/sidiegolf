@@ -993,8 +993,8 @@
     return deltas;
   }
 
-  games['Wolf'] = function (game, ctx) { return wolfFamilyGame(game, ctx, false); };
-  games['Hammer Wolf'] = function (game, ctx) { return wolfFamilyGame(game, ctx, true); };
+  games['Wolf'] = function (game, ctx) { return wolfFamilyGame(game, ctx, game.stakes.hammerOn !== 'Off'); };
+  games['Hammer Wolf'] = function (game, ctx) { return wolfFamilyGame(game, ctx, true); }; // legacy — kept for old rounds
 
   // ---------------- COIN FLIP WOLF ----------------
   // Every player flips H or T each hole. Same flip = partners.
@@ -2396,21 +2396,10 @@ var SCORING_METHODS = {
 
 var SIDE_GAME_DEFS = {
   'Wolf': {
-    desc:'Rotating "Wolf" each hole picks a partner or goes it alone (2x) for greater risk-reward. $ Per Man is paid by every loser to every winner individually (a lone wolf who loses pays the full rate to each opponent). Optional house rules: Blind Wolf (3x, called before tee shots), birdie/eagle bonus, auto-carry, and Cry Baby.',
+    desc:'Rotating "Wolf" each hole picks a partner or goes it alone (2x) for greater risk-reward. $ Per Man is paid by every loser to every winner individually (a lone wolf who loses pays the full rate to each opponent). Optional house rules: Hammers, Blind Wolf (3x, called before tee shots), birdie/eagle bonus, auto-carry, and Cry Baby.',
     fields:[
       {key:'amount', label:'$ Per Man', type:'number', placeholder:'5'},
-      {key:'carryRule', label:'Carry Rule', type:'select', options:['None','Carry (unlimited)','Carry (max 1)','Carry (max 2)','Carry (max 3)']},
-      {key:'birdieEagle', label:'Birdie / Eagle Bonus (winning side only)', type:'select', options:['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x']},
-      {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Gross','Net']},
-      {key:'cryBaby', label:'Cry Baby Rule', type:'select', options:['Off','On']},
-      {key:'cryBabyStartHole', label:'Cry Baby Starts On Hole', type:'select', options:['16','17','18']},
-      {key:'cryBabyRaise', label:'Cry Baby Raise (% of $ down)', type:'select', options:['25%','50%','75%','100%','125%','150%','175%','200%']}
-    ]
-  },
-  'Hammer Wolf': {
-    desc:'Same rotating-Wolf game as Wolf (partner, alone 2x, or Blind Wolf 3x) — plus hammers: anyone can throw a hammer to double the bet on a hole, and hammers stack. The hammered side can decline instead of playing it out, forfeiting the hole at the pre-hammer rate. $ Per Man is paid by every loser to every winner individually. Optional house rules: birdie/eagle bonus, auto-carry, and Cry Baby.',
-    fields:[
-      {key:'amount', label:'$ Per Man (starting bet)', type:'number', placeholder:'5'},
+      {key:'hammerOn', label:'Hammers', type:'select', options:['Off','On']},
       {key:'carryRule', label:'Carry Rule', type:'select', options:['None','Carry (unlimited)','Carry (max 1)','Carry (max 2)','Carry (max 3)']},
       {key:'birdieEagle', label:'Birdie / Eagle Bonus (winning side only)', type:'select', options:['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x']},
       {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Gross','Net']},
@@ -4223,14 +4212,15 @@ function renderEventSchedule(){
 // ================= SIDE GAMES: single-round branch =================
 function sideGameSelectHtml(names){
   var html = '';
-  (names || Object.keys(SIDE_GAME_DEFS)).forEach(function(name){ html += '<option value="'+name+'">'+name+'</option>'; });
+  var _names = names || Object.keys(SIDE_GAME_DEFS).filter(function(n){ return !SIDE_GAME_DEFS[n].legacy; });
+  _names.forEach(function(name){ html += '<option value="'+name+'">'+name+'</option>'; });
   return html;
 }
 function groupGameTypeNames(){
-  return Object.keys(SIDE_GAME_DEFS).filter(function(name){ return SIDE_GAME_DEFS[name].scope !== 'day'; });
+  return Object.keys(SIDE_GAME_DEFS).filter(function(name){ return !SIDE_GAME_DEFS[name].legacy && SIDE_GAME_DEFS[name].scope !== 'day'; });
 }
 function dayGameTypeNames(){
-  return Object.keys(SIDE_GAME_DEFS).filter(function(name){ return SIDE_GAME_DEFS[name].scope === 'day'; });
+  return Object.keys(SIDE_GAME_DEFS).filter(function(name){ return !SIDE_GAME_DEFS[name].legacy && SIDE_GAME_DEFS[name].scope === 'day'; });
 }
 
 function quotaPayouts(buyin, numPlayers, structure){
@@ -4725,7 +4715,7 @@ function wireGameCardEvents(scope){
 // Games whose money math needs per-hole event data beyond gross scores, and
 // the engine field keys each one reads off ctx.events[hole].
 var EVENT_GAME_FIELDS = {
-  'Wolf': ['wolf','partner','alone','blind'],
+  'Wolf': ['wolf','partner','alone','blind','hammerLog'],
   'Hammer Wolf': ['wolf','partner','alone','blind','hammerLog'],
   'Coin Flip Wolf': ['cfwFlips','hammerLog'],
   '3-Man Wolf': ['hammerLog'],
@@ -5039,6 +5029,7 @@ function buildEventTablesHtml(games, idxs, sc, ns){
       html += buildSelectRow('Wolf', g, participantIdxs, sc, ns, 'wolf', true, wolfAutoFn);
       html += buildSelectRow('Partner', g, participantIdxs, sc, ns, 'partner', true);
       html += buildBoolRow('Blind?', g, sc, ns, 'blind');
+      if (g.stakes.hammerOn !== 'Off') html += buildHammerLogRow('Hammers', g, sc, ns);
       legend = [
         'Wolf — auto-rotates each hole based on tee order (set above). Leave blank to use auto-rotation; pick a player to manually override for that hole.',
         nPart === 5
@@ -5046,6 +5037,7 @@ function buildEventTablesHtml(games, idxs, sc, ns){
           : 'Partner — leave blank to send the wolf out alone (2× bet).',
         'Blind? — declared before anyone, including the wolf, tees off. Locks the wolf in alone at 3× the stake.'
       ];
+      if (g.stakes.hammerOn !== 'Off') legend.push('Hammers — tap a cell to log the hammer sequence for that hole. Each accepted hammer doubles the bet; teams must alternate (wolf → opp → wolf…). A decline forfeits the hole at the current rate to the throwing side.');
     } else if (g.type==='Hammer Wolf'){
       var teeOrd2 = g.stakes.teeOrder;
       var nPart2 = participantIdxs.length;
