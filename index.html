@@ -1172,7 +1172,7 @@
     if (n !== 3) return deltas;
 
     var baseAmount = parseFloat(game.stakes.amount) || 0;
-    var cryBabyOn = game.stakes.cryBaby === 'On';
+    var cryBabyOn = game.stakes.cryBaby !== 'Off';
     var birdieEagleOn = !!(game.stakes.birdieEagle && game.stakes.birdieEagle !== 'Off');
     var eagleMult = game.stakes.birdieEagle === 'Birdie 2x / Eagle 4x' ? 4 : 3;
 
@@ -4532,7 +4532,7 @@ function buildWolfTeeOrderHtml(g){
   var html = '<div class="tee-order-section">';
   html += '<label class="field-label">Tee Order <span style="font-weight:400;font-size:11px;color:var(--muted)">(optional)</span></label>';
   var _tmwNote = g.type === '3-Man Wolf'
-    ? (g.stakes.cryBaby === 'On'
+    ? (g.stakes.cryBaby !== 'Off'
         ? 'Sets solo order: P1 is wolf holes 1–5, P2 holes 6–10, P3 holes 11–15. Crybaby takes over 16–18. Tap ↑/↓ to reorder.'
         : 'Sets solo order: P1 is wolf holes 1–6, P2 holes 7–12, P3 holes 13–18. Tap ↑/↓ to reorder.')
     : 'Sets wolf rotation — engine auto-assigns wolf each hole. Tap ↑/↓ to reorder.';
@@ -5024,6 +5024,7 @@ function buildEventTablesHtml(games, idxs, sc, ns){
     if (!gameNeedsPerHoleEvents(g.type)) return;
     var participantIdxs = g.participants.filter(function(p){ return idxs.indexOf(p)!==-1; });
     if (participantIdxs.length < 2) return;
+    if (g.type === '3-Man Wolf' && g.stakes.hammerOn === 'Off') return; // nothing to track per-hole without hammers
     html += '<div class="card"><div class="sc-game-title">'+g.type+' — per-hole info</div>';
     html += '<div class="sc-scroll"><table class="sc-table"><thead><tr><th class="sc-rowlabel">Hole</th>';
     for (var h=1; h<=18; h++) html += '<th>'+h+'</th>';
@@ -5077,7 +5078,7 @@ function buildEventTablesHtml(games, idxs, sc, ns){
       ];
     } else if (g.type==='3-Man Wolf'){
       html += buildHammerLogRow('Hammers', g, sc, ns);
-      var tmwCryOn = g.stakes.cryBaby === 'On';
+      var tmwCryOn = g.stakes.cryBaby !== 'Off';
       legend = [
         tmwCryOn
           ? 'Wolf rotation: P1 solo holes 1–5, P2 holes 6–10, P3 holes 11–15. Crybaby at 16–18: leader forced solo, trailer sets raise. Tee order set above.'
