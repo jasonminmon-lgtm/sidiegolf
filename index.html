@@ -3334,12 +3334,15 @@ function renderPlayersInto(containerId){
   $('addFromBuddiesBtn').addEventListener('click', function(){
     showBuddies(function(buddy) {
       var joinTee = window.fbJoiningTee || '';
-      state.players.push({
-        name: buddy.name || '',
-        hi:   buddy.hi   || '',
-        ghin: buddy.ghin || '',
-        ghinName: '', ghinUpdated: '', tee: joinTee
-      });
+      var entry = { name: buddy.name||'', hi: buddy.hi||'', ghin: buddy.ghin||'', ghinName:'', ghinUpdated:'', tee: joinTee };
+      // Fill first empty/placeholder slot instead of always appending
+      var emptyIdx = -1;
+      for (var _i = 0; _i < state.players.length; _i++) {
+        var _n = (state.players[_i].name || '').trim();
+        if (!_n || /^player\s*\d+$/i.test(_n)) { emptyIdx = _i; break; }
+      }
+      if (emptyIdx >= 0) state.players[emptyIdx] = entry;
+      else state.players.push(entry);
       renderPlayerRows();
       updateNextButton();
     });
