@@ -1866,6 +1866,7 @@
       if (matchResult.winnerSide === 'B') return { A: 0,   B: 1,   complete: true  };
       return                                     { A: 0.5, B: 0.5, complete: true  };
     }
+    if (thru === 0) return { A: 0, B: 0, complete: false }; // not started yet — no points
     return { A: 0.5, B: 0.5, complete: false }; // in-progress projected
   };
 
