@@ -3260,8 +3260,9 @@ function buildRcMatchBannerHtml(day, gn, course, tee, idxs, sc) {
   var teamAIdxs = idxs.filter(function(i){ return rcTeamFor(i) === 'A'; });
   var teamBIdxs = idxs.filter(function(i){ return rcTeamFor(i) === 'B'; });
   if (!teamAIdxs.length || !teamBIdxs.length) return '';
+  var rcHcpPct = (matchType === 'Singles') ? 100 : ((day.groupHcpPct && day.groupHcpPct[gn] != null) ? day.groupHcpPct[gn] : 100);
   var ctx;
-  try { ctx = buildCtx(idxs, course, tee, sc); } catch(e) { return ''; }
+  try { ctx = buildCtx(idxs, course, tee, sc, rcHcpPct); } catch(e) { return ''; }
   var nameA = rcTeamName('A'), nameB = rcTeamName('B');
   var html = '<div class="rc-match-banner">';
   html += '<span class="rc-mb-label">'+escapeHtml(matchType)+'</span>';
@@ -4086,7 +4087,7 @@ function renderPlayerRows(){
 
 // ================= EVENT SCHEDULE (event branch) =================
 function addDay(){
-  state.days.push({ id: nextDayId++, courseIdx:null, teeName:null, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{} });
+  state.days.push({ id: nextDayId++, courseIdx:null, teeName:null, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{}, groupHcpPct:{} });
   if (state.selectedDayForGames==null) state.selectedDayForGames = state.days[0].id;
 }
 if (state.days.length===0) addDay();
@@ -4150,6 +4151,16 @@ function renderEventSchedule(){
               html += '<button class="rc-mt-btn'+(mt===fmt?' active':'')+'" data-rc-matchtype="'+d.id+'|'+gn+'|'+fmt+'">'+fmt+'</button>';
             });
             html += '</div></div>';
+            // Handicap % slider — hidden for Singles (always 100%)
+            if (mt === 'Singles') {
+              html += '<div style="margin-top:5px;font-size:11.5px;color:var(--muted);">Handicap: 100% (Singles — full handicap)</div>';
+            } else {
+              var hpct = (d.groupHcpPct && d.groupHcpPct[gn] != null) ? d.groupHcpPct[gn] : 100;
+              html += '<div style="margin-top:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.3px;margin-bottom:4px;">Handicap Allowance</div>';
+              html += '<div class="hcp-pct-row"><input type="range" min="0" max="100" step="5" value="'+hpct+'" data-rc-hcppct="'+d.id+'|'+gn+'">';
+              html += '<span class="hcp-pct-val" id="rc-hpct-val-'+d.id+'_'+gn+'">'+hpct+'%</span></div>';
+              html += '<div class="hcp-pct-label">100% = full handicap. 80% = common for team formats.</div></div>';
+            }
           }
         }
         html += '</div>';
@@ -4222,7 +4233,24 @@ function renderEventSchedule(){
       var d = state.days.filter(function(x){return x.id===dayId;})[0];
       if (!d.groupMatchType) d.groupMatchType = {};
       d.groupMatchType[gn] = fmt;
+      // Singles always uses 100% — clear any stored override
+      if (fmt === 'Singles') {
+        if (d.groupHcpPct) delete d.groupHcpPct[gn];
+      }
       renderEventSchedule();
+    });
+  });
+  // Ryder Cup: handicap % slider per group
+  Array.prototype.forEach.call(document.querySelectorAll('[data-rc-hcppct]'), function(el){
+    el.addEventListener('input', function(){
+      var parts = el.getAttribute('data-rc-hcppct').split('|');
+      var dayId = parseInt(parts[0],10), gn = parseInt(parts[1],10);
+      var d = state.days.filter(function(x){return x.id===dayId;})[0];
+      if (!d.groupHcpPct) d.groupHcpPct = {};
+      d.groupHcpPct[gn] = parseInt(el.value, 10);
+      var dispEl = document.getElementById('rc-hpct-val-'+dayId+'_'+gn);
+      if (dispEl) dispEl.textContent = el.value + '%';
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
     });
   });
 }
@@ -6931,8 +6959,9 @@ function buildRyderCupScoreboardHtml(){
       if (!teamAIdxs.length || !teamBIdxs.length) continue;
       if (!d.scorecards[gn]) d.scorecards[gn] = {scores:{},events:{}};
       var sc = d.scorecards[gn];
+      var rcHcpPct2 = (matchType === 'Singles') ? 100 : ((d.groupHcpPct && d.groupHcpPct[gn] != null) ? d.groupHcpPct[gn] : 100);
       var ctx;
-      try { ctx = buildCtx(idxs, course, tee, sc); } catch(e){ continue; }
+      try { ctx = buildCtx(idxs, course, tee, sc, rcHcpPct2); } catch(e){ continue; }
 
       if (matchType === 'Singles'){
         var pairs = Math.min(teamAIdxs.length, teamBIdxs.length);
