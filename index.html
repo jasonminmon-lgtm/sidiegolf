@@ -5838,10 +5838,12 @@ window.showBuddyAddForm = function() {
   var formHtml = '<div class="buddy-add-form" id="buddyAddFormArea">' +
     '<div style="font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted,#666);margin-bottom:10px;">NEW BUDDY</div>' +
     '<input id="baf-name" type="text" placeholder="Full Name" style="width:100%;padding:8px 10px;border:1.5px solid var(--border,#ddd);border-radius:6px;font-size:14px;margin-bottom:8px;box-sizing:border-box;">' +
-    '<div style="display:flex;gap:6px;margin-bottom:10px;">' +
-      '<input id="baf-ghin" type="text" inputmode="numeric" placeholder="GHIN (optional)" style="flex:1;padding:8px 10px;border:1.5px solid var(--border,#ddd);border-radius:6px;font-size:13px;box-sizing:border-box;">' +
-      '<input id="baf-hi" type="text" inputmode="decimal" placeholder="HI (optional)" style="flex:1;padding:8px 10px;border:1.5px solid var(--border,#ddd);border-radius:6px;font-size:13px;box-sizing:border-box;">' +
+    '<div style="display:flex;gap:6px;margin-bottom:3px;">' +
+      '<input id="baf-ghin" type="text" inputmode="numeric" placeholder="GHIN # (optional)" maxlength="8" style="flex:1;padding:8px 10px;border:1.5px solid var(--border,#ddd);border-radius:6px;font-size:13px;box-sizing:border-box;" oninput="var v=this.value.replace(/\\D/g,\'\');this.value=v;document.getElementById(\'baf-ghin-btn\').disabled=v.length<6;">' +
+      '<button id="baf-ghin-btn" class="btn-ghin-lookup" disabled onclick="buddyGhinLookup()">Look up HI</button>' +
     '</div>' +
+    '<div id="baf-ghin-status" class="ghin-status" style="padding-left:0;min-height:16px;margin-bottom:4px;"></div>' +
+    '<input id="baf-hi" type="text" inputmode="decimal" placeholder="HI (or look up via GHIN above)" style="width:100%;padding:8px 10px;border:1.5px solid var(--border,#ddd);border-radius:6px;font-size:13px;margin-bottom:10px;box-sizing:border-box;">' +
     '<div style="display:flex;gap:8px;">' +
       '<button onclick="buddyAddSave()" style="flex:1;padding:9px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">Save Buddy</button>' +
       '<button onclick="fbLoadBuddies(renderBuddiesList);document.getElementById(\'buddiesAddBtn\').style.display=\'\';" style="padding:9px 16px;border:1.5px solid var(--border,#ddd);background:#fff;border-radius:6px;font-size:13px;cursor:pointer;">Cancel</button>' +
@@ -5869,6 +5871,35 @@ window.buddyAddSave = function() {
     fbLoadBuddies(renderBuddiesList);
     var addBtn = document.getElementById('buddiesAddBtn');
     if (addBtn) addBtn.style.display = '';
+  });
+};
+
+// GHIN lookup from the buddy add form
+window.buddyGhinLookup = function() {
+  var ghinEl   = document.getElementById('baf-ghin');
+  var hiEl     = document.getElementById('baf-hi');
+  var nameEl   = document.getElementById('baf-name');
+  var btn      = document.getElementById('baf-ghin-btn');
+  var statusEl = document.getElementById('baf-ghin-status');
+  var ghin = ghinEl ? ghinEl.value.trim() : '';
+  if (!ghin || ghin.length < 6) return;
+  if (btn) btn.disabled = true;
+  if (statusEl) { statusEl.className = 'ghin-status ghin-loading'; statusEl.textContent = 'Looking up…'; }
+  lookupGhinHandicap(ghin, function(err, result) {
+    if (btn) btn.disabled = false;
+    if (err) {
+      if (statusEl) { statusEl.className = 'ghin-status ghin-err'; statusEl.textContent = '✗ ' + (err.message || 'Lookup failed.'); }
+      return;
+    }
+    var hi = result.handicapIndex || '';
+    if (hiEl) hiEl.value = hi;
+    var fullName = ((result.firstName || '') + ' ' + (result.lastName || '')).trim();
+    // Auto-fill name field if empty
+    if (nameEl && !nameEl.value.trim() && fullName) nameEl.value = fullName;
+    if (statusEl) {
+      statusEl.className = 'ghin-status ghin-ok';
+      statusEl.textContent = '✓ HI ' + hi + (fullName ? ' — ' + fullName : '');
+    }
   });
 };
 
