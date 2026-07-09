@@ -4134,6 +4134,11 @@ function renderPlayerRows(){
       if (autoLookupBtn) autoLookupBtn.click();
     }
   }
+
+  // Keep Ryder Cup team section in sync whenever the player list re-renders
+  if (typeof isRyderCup === 'function' && isRyderCup() && document.getElementById('rcTeamSetupCard')) {
+    renderRyderCupTeamSetup('content-3');
+  }
 }
 
 // ================= EVENT SCHEDULE (event branch) =================
