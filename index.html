@@ -239,6 +239,34 @@
   .hcp-pct-row input[type=range]{flex:1;accent-color:var(--green-dark);}
   .hcp-pct-val{font-size:13px;font-weight:700;color:var(--green-dark);min-width:38px;text-align:right;}
   .hcp-pct-label{font-size:12px;color:var(--muted);}
+  /* My Courses overlay */
+  .mc-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10150;display:none;align-items:flex-end;justify-content:center;}
+  .mc-overlay.open{display:flex;}
+  .mc-sheet{background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
+  .mc-head{display:flex;align-items:center;padding:16px 18px 12px;border-bottom:1px solid #eee;flex-shrink:0;}
+  .mc-head h2{flex:1;margin:0;font-size:17px;font-weight:700;color:var(--green-dark);}
+  .mc-close{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;padding:0 4px;color:#888;}
+  .mc-body{overflow-y:auto;flex:1;padding:12px 16px 8px;}
+  .mc-add-bar{padding:10px 16px 16px;border-top:1px solid #eee;flex-shrink:0;}
+  .mc-row{display:flex;align-items:center;padding:10px 12px;border:1.5px solid var(--border,#eee);border-radius:8px;margin-bottom:8px;background:#fff;}
+  .mc-row-info{flex:1;min-width:0;}
+  .mc-row-name{font-weight:600;font-size:14px;}
+  .mc-row-meta{font-size:12px;color:var(--muted);margin-top:2px;}
+  .mc-tee-block{border:1px solid #eee;border-radius:8px;padding:10px;margin-bottom:10px;background:#fafafa;}
+  /* Par tap buttons */
+  .par-hole-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;margin:3px 0 7px;}
+  .par-hole-cell{text-align:center;}
+  .par-hole-num{font-size:9px;color:var(--muted);text-align:center;margin-bottom:1px;}
+  .par-btn{display:block;width:100%;padding:2px 0;border:1px solid #ddd;border-radius:3px;font-size:10px;cursor:pointer;background:#f5f5f5;color:var(--dark);line-height:1.5;}
+  .par-btn.sel{background:var(--green);border-color:var(--green);color:#fff;font-weight:700;}
+  /* SI inputs */
+  .si-hole-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;margin:3px 0 6px;}
+  .si-hole-input{width:100%;text-align:center;padding:3px 0;border:1px solid #ddd;border-radius:3px;font-size:10px;box-sizing:border-box;}
+  /* My Courses rows inside course search */
+  .mc-inline-row{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border:1.5px solid var(--border,#eee);border-radius:8px;margin-bottom:5px;background:#fff;cursor:pointer;}
+  .mc-inline-row:active{background:#f0f8ee;}
+  .mc-inline-name{font-size:13px;font-weight:600;color:var(--dark);}
+  .mc-inline-meta{font-size:11px;color:var(--muted);}
   /* Help overlay */
   .help-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.45);color:#fff;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;}
   .help-btn:active{background:rgba(255,255,255,0.35);}
@@ -1946,6 +1974,7 @@
     </div>
     <div style="margin-top:18px;border-top:1px solid rgba(0,0,0,0.08);padding-top:14px;">
       <button onclick="showBuddies()" style="width:100%;padding:10px;background:transparent;border:1.5px solid var(--green-dark,#1a5c36);color:var(--green-dark,#1a5c36);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">&#128101; My Buddies</button>
+      <button onclick="openMyCourses()" style="width:100%;margin-top:8px;padding:10px;background:transparent;border:1.5px solid var(--green-dark,#1a5c36);color:var(--green-dark,#1a5c36);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">&#9971; My Courses</button>
     </div>
   </div>
 </div>
@@ -2070,6 +2099,20 @@
     <div class="buddies-body" id="buddiesBody"></div>
     <div class="buddies-add-bar">
       <button id="buddiesAddBtn" onclick="showBuddyAddForm()" style="width:100%;padding:10px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">+ Add New Buddy</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== My Courses Overlay ===== -->
+<div id="myCoursesOverlay" class="mc-overlay">
+  <div class="mc-sheet">
+    <div class="mc-head">
+      <h2>&#9971; My Courses</h2>
+      <button class="mc-close" onclick="closeMyCourses()">&#10005;</button>
+    </div>
+    <div class="mc-body" id="myCoursesBody"></div>
+    <div class="mc-add-bar">
+      <button id="mcAddBtn" onclick="showMcCourseForm(null)" style="width:100%;padding:10px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">+ Add Course Manually</button>
     </div>
   </div>
 </div>
@@ -2608,7 +2651,8 @@ function mapApiCourseToLocal(apiCourse){
 // Shared search-box markup, namespaced by `ns` so it can be repeated per
 // event day (ns = 'day-<id>') as well as once for the single-round branch.
 function courseSearchHtml(ns){
-  return '<div class="card">'+
+  return '<div id="mcSection-'+ns+'"></div>'+
+    '<div class="card">'+
     '<label class="field-label">Search Real Courses (GolfCourseAPI)</label>'+
     '<button id="nearMeBtn-'+ns+'" type="button" style="width:100%;padding:9px;margin-bottom:8px;border:1.5px solid var(--green-dark,#1a5c36);border-radius:8px;background:transparent;color:var(--green-dark,#1a5c36);font-size:13px;font-weight:600;cursor:pointer;">&#128205; Near Me — Find Courses at My Location</button>'+
     '<div style="display:flex;gap:8px;">'+
@@ -2624,6 +2668,13 @@ function courseSearchHtml(ns){
 // called once a result has been chosen, fetched, mapped, and pushed onto
 // MOCK_COURSES — caller is responsible for re-rendering + setting state.
 function wireCourseSearch(ns, onPicked){
+  // Populate My Courses section (custom user-saved courses)
+  if (_myCoursesLoaded) {
+    renderMcSection(ns, onPicked);
+  } else {
+    mcLoadAndInjectAll(function() { renderMcSection(ns, onPicked); });
+  }
+
   var input = $('courseSearchInput-'+ns);
   var btn = $('courseSearchBtn-'+ns);
   var resultsEl = $('courseSearchResults-'+ns);
@@ -5766,6 +5817,350 @@ function closeBuddies() {
   _buddiesSelectCb = null;
 }
 
+// =================== MY COURSES ===================
+var _myCoursesCache = [];
+var _myCoursesLoaded = false;
+var _myCoursesMap = {};    // { firestoreId: MOCK_COURSES index }
+var _mcActiveSections = {};// { ns: onPickedCallback } — live search sections
+var _mcTeeIds = [];        // active tee block ids in current form
+var _mcTeeCounter = 0;
+var _mcEditingId = null;
+var _DEFAULT_SI = [1,3,5,7,9,11,13,15,17,2,4,6,8,10,12,14,16,18];
+
+// ── Firestore CRUD ──────────────────────────────────────────────────────────
+function fbLoadMyCourses(callback) {
+  var uid = window.fbUser && window.fbUser.uid;
+  if (!uid || (window.fbUser && window.fbUser.isAnonymous) || !window.fbDb) { callback([]); return; }
+  window.fbDb.collection('users').doc(uid).collection('myCourses')
+    .orderBy('name').get()
+    .then(function(snap) {
+      callback(snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); }));
+    })
+    .catch(function() { callback([]); });
+}
+
+function fbSaveMyCourse(data, callback) {
+  var uid = window.fbUser && window.fbUser.uid;
+  if (!uid || !window.fbDb) { if (callback) callback(new Error('Not signed in')); return; }
+  var col = window.fbDb.collection('users').doc(uid).collection('myCourses');
+  var payload = { name: data.name, tees: data.tees, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+  var p = data.id ? col.doc(data.id).set(payload) : col.add(payload);
+  p.then(function(ref) { if (callback) callback(null, ref ? ref.id : data.id); })
+   .catch(function(e) { if (callback) callback(e); });
+}
+
+function fbDeleteMyCourse(id, callback) {
+  var uid = window.fbUser && window.fbUser.uid;
+  if (!uid || !window.fbDb) return;
+  window.fbDb.collection('users').doc(uid).collection('myCourses').doc(id).delete()
+    .then(function() { if (callback) callback(null); })
+    .catch(function(e) { if (callback) callback(e); });
+}
+
+// ── Shape + inject custom course into MOCK_COURSES ──────────────────────────
+function mcShapeCourse(course) {
+  return {
+    name: course.name,
+    tees: (course.tees || []).map(function(t) {
+      return {
+        name: t.name || 'Tee',
+        rating: parseFloat(t.rating) || 72.0,
+        slope: parseInt(t.slope, 10) || 113,
+        par: parseInt(t.par, 10) || 72,
+        parByHole: (t.parByHole && t.parByHole.length === 18) ? t.parByHole : PAR72_LAYOUT.slice(),
+        strokeIndex: (t.strokeIndex && t.strokeIndex.length === 18) ? t.strokeIndex : _DEFAULT_SI.slice()
+      };
+    })
+  };
+}
+
+function mcInjectIntoMockCourses(course) {
+  if (course.id && _myCoursesMap[course.id] != null) {
+    // Update existing slot in case tees changed
+    MOCK_COURSES[_myCoursesMap[course.id]] = mcShapeCourse(course);
+    return _myCoursesMap[course.id];
+  }
+  MOCK_COURSES.push(mcShapeCourse(course));
+  var idx = MOCK_COURSES.length - 1;
+  if (course.id) _myCoursesMap[course.id] = idx;
+  return idx;
+}
+
+// Load + cache all custom courses at login
+function mcLoadAndInjectAll(callback) {
+  fbLoadMyCourses(function(list) {
+    _myCoursesCache = list;
+    _myCoursesLoaded = true;
+    list.forEach(mcInjectIntoMockCourses);
+    if (callback) callback(list);
+  });
+}
+
+// ── Overlay open / close ────────────────────────────────────────────────────
+window.openMyCourses = function() {
+  var ov = document.getElementById('myCoursesOverlay');
+  if (!ov) return;
+  ov.style.display = 'flex';
+  fbLoadMyCourses(function(list) {
+    _myCoursesCache = list;
+    _myCoursesLoaded = true;
+    list.forEach(mcInjectIntoMockCourses);
+    renderMyCoursesList(list);
+  });
+};
+
+window.closeMyCourses = function() {
+  var ov = document.getElementById('myCoursesOverlay');
+  if (ov) ov.style.display = 'none';
+};
+
+// ── Courses list ────────────────────────────────────────────────────────────
+function renderMyCoursesList(list) {
+  var body = document.getElementById('myCoursesBody');
+  var addBtn = document.getElementById('mcAddBtn');
+  if (!body) return;
+  if (addBtn) addBtn.style.display = '';
+  if (!list.length) {
+    body.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:24px 0 8px;">No saved courses yet.<br>Tap "+ Add Course Manually" to start.</div>';
+    return;
+  }
+  var html = '';
+  list.forEach(function(c) {
+    var teeNames = (c.tees || []).map(function(t) { return t.name; }).join(', ');
+    html += '<div class="mc-row">';
+    html += '<div class="mc-row-info"><div class="mc-row-name">'+escapeHtml(c.name)+'</div>';
+    html += '<div class="mc-row-meta">'+(c.tees||[]).length+' tee(s): '+escapeHtml(teeNames)+'</div></div>';
+    html += '<button style="background:none;border:none;color:#ccc;font-size:20px;cursor:pointer;padding:2px 6px;" data-mc-del="'+c.id+'" title="Delete">&#128465;</button>';
+    html += '</div>';
+  });
+  body.innerHTML = html;
+  Array.prototype.forEach.call(body.querySelectorAll('[data-mc-del]'), function(btn) {
+    var taps = 0;
+    btn.addEventListener('click', function() {
+      taps++;
+      if (taps === 1) {
+        btn.innerHTML = '&#10003; Delete?';
+        btn.style.color = '#e53';
+        btn.style.fontSize = '12px';
+        setTimeout(function() { taps = 0; btn.innerHTML = '&#128465;'; btn.style.color = '#ccc'; btn.style.fontSize = '20px'; }, 3000);
+      } else {
+        var id = btn.getAttribute('data-mc-del');
+        fbDeleteMyCourse(id, function() {
+          if (_myCoursesMap[id] != null) { MOCK_COURSES[_myCoursesMap[id]] = null; delete _myCoursesMap[id]; }
+          fbLoadMyCourses(function(list2) {
+            _myCoursesCache = list2;
+            renderMyCoursesList(list2);
+            mcRefreshAllSections();
+          });
+        });
+      }
+    });
+  });
+}
+
+// ── Course entry form ───────────────────────────────────────────────────────
+function buildTeeBlockHtml(tid, tee) {
+  var t = tee || { name: '', rating: '', slope: '', par: 72, parByHole: PAR72_LAYOUT.slice(), strokeIndex: _DEFAULT_SI.slice() };
+  var h = '<div class="mc-tee-block" id="mcTeeBlock-'+tid+'">';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
+  h += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--green-dark);letter-spacing:.4px;">Tee Box</div>';
+  h += '<button type="button" onclick="mcRemoveTee('+tid+')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;">Remove</button>';
+  h += '</div>';
+  // Name / Rating / Slope / Par
+  h += '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:5px;margin-bottom:8px;">';
+  h += '<input id="mcTn-'+tid+'" type="text" placeholder="Name (e.g. Blue)" value="'+escapeHtml(t.name||'')+'" style="padding:7px 8px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box;">';
+  h += '<input id="mcTr-'+tid+'" type="text" inputmode="decimal" placeholder="Rating" value="'+escapeHtml(String(t.rating||''))+'" style="padding:7px 4px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;text-align:center;box-sizing:border-box;">';
+  h += '<input id="mcTs-'+tid+'" type="text" inputmode="numeric" placeholder="Slope" value="'+escapeHtml(String(t.slope||''))+'" style="padding:7px 4px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;text-align:center;box-sizing:border-box;">';
+  h += '<input id="mcTp-'+tid+'" type="text" inputmode="numeric" placeholder="Par" value="'+escapeHtml(String(t.par||72))+'" style="padding:7px 4px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;text-align:center;box-sizing:border-box;">';
+  h += '</div>';
+  // Column headers
+  h += '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:5px;margin-bottom:-4px;padding:0 2px;">';
+  h += '<div style="font-size:9px;color:var(--muted);text-align:center;">Tee Name</div>';
+  h += '<div style="font-size:9px;color:var(--muted);text-align:center;">Rating</div>';
+  h += '<div style="font-size:9px;color:var(--muted);text-align:center;">Slope</div>';
+  h += '<div style="font-size:9px;color:var(--muted);text-align:center;">Par</div>';
+  h += '</div>';
+  // Par by hole
+  h += '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:10px 0 2px;">Par by Hole <span style="font-weight:400;text-transform:none;letter-spacing:0;">(tap to set)</span></div>';
+  [0, 9].forEach(function(offset) {
+    var label = offset === 0 ? 'Front 9 (holes 1-9)' : 'Back 9 (holes 10-18)';
+    h += '<div style="font-size:9px;color:var(--muted);margin-bottom:2px;">'+label+'</div>';
+    h += '<div class="par-hole-grid">';
+    for (var i = offset; i < offset + 9; i++) {
+      var p = (t.parByHole && t.parByHole[i]) ? t.parByHole[i] : 4;
+      h += '<div class="par-hole-cell"><div class="par-hole-num">'+(i+1)+'</div>';
+      [3,4,5].forEach(function(pv) {
+        h += '<button type="button" class="par-btn'+(p===pv?' sel':'')+'" data-ptid="'+tid+'" data-phole="'+i+'" data-pval="'+pv+'" onclick="mcPar(this,'+tid+','+i+','+pv+')">'+pv+'</button>';
+      });
+      h += '</div>';
+    }
+    h += '</div>';
+  });
+  // Stroke Index
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;margin-bottom:2px;">';
+  h += '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">Stroke Index</div>';
+  h += '<button type="button" onclick="mcFillSI('+tid+')" style="font-size:10px;color:var(--green-dark);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">Use template (1-18)</button>';
+  h += '</div>';
+  [0, 9].forEach(function(offset) {
+    var label = offset === 0 ? 'Front 9' : 'Back 9';
+    h += '<div style="font-size:9px;color:var(--muted);margin-bottom:2px;">'+label+'</div>';
+    h += '<div class="si-hole-grid">';
+    for (var i = offset; i < offset + 9; i++) {
+      var sv = (t.strokeIndex && t.strokeIndex[i]) ? t.strokeIndex[i] : (i + 1);
+      h += '<input class="si-hole-input" type="number" min="1" max="18" id="mcSi-'+tid+'-'+i+'" value="'+sv+'">';
+    }
+    h += '</div>';
+  });
+  h += '</div>'; // close mc-tee-block
+  return h;
+}
+
+window.showMcCourseForm = function(course) {
+  var body = document.getElementById('myCoursesBody');
+  var addBtn = document.getElementById('mcAddBtn');
+  if (!body) return;
+  if (addBtn) addBtn.style.display = 'none';
+  _mcEditingId = course ? course.id : null;
+  _mcTeeIds = [];
+  _mcTeeCounter = 0;
+  var initialTees = (course && course.tees && course.tees.length) ? course.tees : [null];
+  var teesHtml = '';
+  initialTees.forEach(function(tee) {
+    var tid = _mcTeeCounter++;
+    _mcTeeIds.push(tid);
+    teesHtml += buildTeeBlockHtml(tid, tee);
+  });
+  body.innerHTML =
+    '<div style="font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted);margin-bottom:10px;">'+(course ? 'EDIT COURSE' : 'NEW COURSE')+'</div>' +
+    '<input id="mc-course-name" type="text" placeholder="Course name" value="'+escapeHtml((course && course.name) || '')+'" style="width:100%;padding:9px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:14px;margin-bottom:10px;box-sizing:border-box;">' +
+    '<div id="mcTeeList">'+teesHtml+'</div>' +
+    '<button type="button" onclick="mcAddTee()" style="width:100%;padding:8px;border:1.5px dashed var(--green-dark);background:transparent;color:var(--green-dark);border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:14px;">+ Add Another Tee</button>' +
+    '<div style="display:flex;gap:8px;">' +
+    '<button type="button" id="mcSaveBtn" onclick="mcSaveCourse()" style="flex:1;padding:10px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">Save Course</button>' +
+    '<button type="button" onclick="openMyCourses()" style="padding:10px 16px;border:1.5px solid #ddd;background:#fff;border-radius:6px;font-size:13px;cursor:pointer;">Cancel</button>' +
+    '</div>';
+  var nameEl = document.getElementById('mc-course-name');
+  if (nameEl) nameEl.focus();
+};
+
+window.mcAddTee = function() {
+  var tid = _mcTeeCounter++;
+  _mcTeeIds.push(tid);
+  var list = document.getElementById('mcTeeList');
+  if (list) list.insertAdjacentHTML('beforeend', buildTeeBlockHtml(tid, null));
+};
+
+window.mcRemoveTee = function(tid) {
+  var block = document.getElementById('mcTeeBlock-'+tid);
+  if (block) block.remove();
+  _mcTeeIds = _mcTeeIds.filter(function(x){ return x !== tid; });
+};
+
+window.mcPar = function(btn, tid, hole, val) {
+  var container = document.getElementById('mcTeeBlock-'+tid);
+  if (!container) return;
+  Array.prototype.forEach.call(
+    container.querySelectorAll('[data-ptid="'+tid+'"][data-phole="'+hole+'"]'),
+    function(b) { b.classList.toggle('sel', parseInt(b.getAttribute('data-pval'), 10) === val); }
+  );
+};
+
+window.mcFillSI = function(tid) {
+  for (var i = 0; i < 18; i++) {
+    var el = document.getElementById('mcSi-'+tid+'-'+i);
+    if (el) el.value = _DEFAULT_SI[i];
+  }
+};
+
+window.mcSaveCourse = function() {
+  var nameEl = document.getElementById('mc-course-name');
+  var name = nameEl ? nameEl.value.trim() : '';
+  if (!name) { if (nameEl) { nameEl.style.borderColor = '#e53'; nameEl.focus(); } return; }
+  var tees = [];
+  _mcTeeIds.forEach(function(tid) {
+    var block = document.getElementById('mcTeeBlock-'+tid);
+    if (!block) return;
+    var tName = (document.getElementById('mcTn-'+tid)||{value:''}).value.trim() || ('Tee '+(tees.length+1));
+    var rating = parseFloat((document.getElementById('mcTr-'+tid)||{value:''}).value) || 72.0;
+    var slope  = parseInt((document.getElementById('mcTs-'+tid)||{value:''}).value, 10) || 113;
+    var par    = parseInt((document.getElementById('mcTp-'+tid)||{value:''}).value, 10) || 72;
+    var parByHole = [], strokeIndex = [];
+    for (var h = 0; h < 18; h++) {
+      var activeBtn = block.querySelector('[data-ptid="'+tid+'"][data-phole="'+h+'"].sel');
+      parByHole.push(activeBtn ? parseInt(activeBtn.getAttribute('data-pval'), 10) : 4);
+      var siEl = document.getElementById('mcSi-'+tid+'-'+h);
+      strokeIndex.push(parseInt(siEl ? siEl.value : 0, 10) || (h + 1));
+    }
+    tees.push({ name: tName, rating: rating, slope: slope, par: par, parByHole: parByHole, strokeIndex: strokeIndex });
+  });
+  if (!tees.length) { alert('Please add at least one tee box.'); return; }
+  var saveBtn = document.getElementById('mcSaveBtn');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+  var data = { id: _mcEditingId, name: name, tees: tees };
+  fbSaveMyCourse(data, function(err, newId) {
+    if (err) {
+      alert('Save failed: '+(err.message||'unknown error'));
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Course'; }
+      return;
+    }
+    var courseWithId = Object.assign({}, data, { id: newId || data.id });
+    mcInjectIntoMockCourses(courseWithId);
+    fbLoadMyCourses(function(list) {
+      _myCoursesCache = list;
+      renderMyCoursesList(list);
+      mcRefreshAllSections();
+    });
+  });
+};
+
+// ── My Courses section inside course search UI ──────────────────────────────
+function mcRefreshAllSections() {
+  Object.keys(_mcActiveSections).forEach(function(ns) {
+    renderMcSection(ns, _mcActiveSections[ns]);
+  });
+}
+
+function renderMcSection(ns, onPicked) {
+  var el = document.getElementById('mcSection-'+ns);
+  if (!el) return;
+  var uid = window.fbUser && window.fbUser.uid;
+  var isAnon = window.fbUser && window.fbUser.isAnonymous;
+  if (!uid || isAnon) { el.innerHTML = ''; return; }
+  _mcActiveSections[ns] = onPicked;
+  var list = _myCoursesCache;
+  if (!list.length) {
+    el.innerHTML = '<button type="button" onclick="openMyCourses()" style="width:100%;padding:8px;border:1.5px dashed var(--green-dark);background:transparent;color:var(--green-dark);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;">&#9971; Add Course Manually</button>';
+    return;
+  }
+  var html = '<div class="card" style="margin-bottom:12px;">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
+  html += '<label class="field-label" style="margin:0;">My Courses</label>';
+  html += '<button type="button" onclick="openMyCourses()" style="font-size:12px;color:var(--green-dark);background:none;border:none;cursor:pointer;font-weight:600;">+ Add / Manage</button>';
+  html += '</div>';
+  list.forEach(function(c) {
+    var teeNames = (c.tees||[]).map(function(t){return t.name;}).join(', ');
+    html += '<div class="mc-inline-row" data-mc-pick="'+c.id+'">';
+    html += '<div><div class="mc-inline-name">'+escapeHtml(c.name)+'</div>';
+    html += '<div class="mc-inline-meta">'+escapeHtml(teeNames)+'</div></div>';
+    html += '<div style="color:var(--green-dark);font-size:20px;">&#8250;</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+  Array.prototype.forEach.call(el.querySelectorAll('[data-mc-pick]'), function(row) {
+    row.addEventListener('click', function() {
+      var id = row.getAttribute('data-mc-pick');
+      var course = null;
+      for (var i = 0; i < _myCoursesCache.length; i++) {
+        if (_myCoursesCache[i].id === id) { course = _myCoursesCache[i]; break; }
+      }
+      if (!course) return;
+      var idx = mcInjectIntoMockCourses(course);
+      onPicked(idx);
+    });
+  });
+}
+
 function renderBuddiesList(list) {
   var body = document.getElementById('buddiesBody');
   var addBtn = document.getElementById('buddiesAddBtn');
@@ -7458,6 +7853,8 @@ document.addEventListener('click', function(e){
   if (suOverlay && e.target === suOverlay){ closeSettleUp(); return; }
   var bdOverlay = $('buddiesOverlay');
   if (bdOverlay && e.target === bdOverlay){ closeBuddies(); return; }
+  var mcOverlay = $('myCoursesOverlay');
+  if (mcOverlay && e.target === mcOverlay){ closeMyCourses(); return; }
   var hlOverlay = $('hammerLogOverlay');
   if (hlOverlay && e.target === hlOverlay){ closeHammerLog(); return; }
   var spBtn = e.target.closest && e.target.closest('[data-smart-payout]');
@@ -8669,8 +9066,9 @@ fbAuth.onAuthStateChanged(function(user) {
       return;
     }
 
-    // Preload buddies cache for non-anonymous (registered) users
+    // Preload buddies + custom courses cache for non-anonymous (registered) users
     if (typeof fbLoadBuddies === 'function') fbLoadBuddies();
+    if (typeof mcLoadAndInjectAll === 'function') mcLoadAndInjectAll();
 
     // A pending join code (from a ?join= deep link or share link) always takes
     // priority over a stale saved round — the user explicitly clicked a link
