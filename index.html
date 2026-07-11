@@ -1463,7 +1463,7 @@
     var deltas = zero(game.participants);
     var amount = parseFloat(game.stakes.amount) || 0;
     var carryover = (game.stakes.carryover || 'Yes') !== 'No';
-    var basis = game.stakes.basis || 'Gross';
+    var basis = game.stakes.basis || 'Net';
     var pot = 0;
     var contributions = {}; // total ante each player has put in since the pot last paid out
 
@@ -1498,7 +1498,7 @@
   // Buy-in pot model: total pot = buyin × n players, divided equally among skins won.
   games['Skins (Event-Wide)'] = function (game, ctx) {
     var buyin     = parseFloat(game.stakes.buyin) || 0;
-    var basis     = game.stakes.basis || 'Gross';
+    var basis     = game.stakes.basis || 'Net';
     var carryover = (game.stakes.carryover || 'Yes') !== 'No';
     var n         = game.participants.length;
     var pot       = buyin * n;
@@ -2683,7 +2683,7 @@ var SIDE_GAME_DEFS = {
       {key:'hammerOn', label:'Hammers', type:'select', options:['Off','On']},
       {key:'carryRule', label:'Carry Rule', type:'select', options:['None','Carry (unlimited)','Carry (max 1)','Carry (max 2)','Carry (max 3)']},
       {key:'birdieEagle', label:'Birdie / Eagle Bonus (winning side only)', type:'select', options:['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x']},
-      {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Gross','Net']},
+      {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Net','Gross']},
       {key:'cryBaby', label:'Cry Baby Rule', type:'select', options:['Off','On']},
       {key:'cryBabyStartHole', label:'Cry Baby Starts On Hole', type:'select', options:['16','17','18']},
       {key:'cryBabyRaise', label:'Cry Baby Raise (% of $ down)', type:'select', options:['25%','50%','75%','100%','125%','150%','175%','200%']}
@@ -2696,7 +2696,7 @@ var SIDE_GAME_DEFS = {
       {key:'ghostPartner', label:'Ghost Partner (solo scores min of net vs par)', type:'select', options:['Off','On']},
       {key:'carryRule', label:'Carry Rule', type:'select', options:['None','Carry (unlimited)','Carry (max 1)','Carry (max 2)','Carry (max 3)']},
       {key:'birdieEagle', label:'Birdie / Eagle Bonus (winning side only)', type:'select', options:['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x']},
-      {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Gross','Net']}
+      {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Net','Gross']}
     ]
   },
   '3-Man Wolf': {
@@ -2707,7 +2707,7 @@ var SIDE_GAME_DEFS = {
       {key:'cryBabyRaise', label:'Crybaby Raise (% of $ the trailer is down)', type:'select', options:['25%','50%','75%','100%','125%','150%','175%','200%']},
       {key:'hammerOn', label:'Hammers', type:'select', options:['On','Off']},
       {key:'birdieEagle', label:'Birdie / Eagle Bonus (winning side only)', type:'select', options:['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x']},
-      {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Gross','Net']}
+      {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Net','Gross']}
     ]
   },
   'Nassau': {
@@ -2724,7 +2724,7 @@ var SIDE_GAME_DEFS = {
     desc:'Win a hole outright to claim the skin. Ties carry the pot forward.',
     fields:[
       {key:'amount', label:'$ Per Skin', type:'number', placeholder:'5'},
-      {key:'basis', label:'Score Basis', type:'select', options:['Gross','Net']},
+      {key:'basis', label:'Score Basis', type:'select', options:['Net','Gross']},
       {key:'carryover', label:'Carryover on Tie', type:'select', options:['Yes','No']}
     ]
   },
@@ -2755,7 +2755,7 @@ var SIDE_GAME_DEFS = {
     scope:'day',
     fields:[
       {key:'buyin', label:'Buy-In Per Player ($)', type:'number', placeholder:'20'},
-      {key:'basis', label:'Score Basis', type:'select', options:['Gross','Net']},
+      {key:'basis', label:'Score Basis', type:'select', options:['Net','Gross']},
       {key:'carryover', label:'Carryover on Tie', type:'select', options:['Yes','No']}
     ]
   },
@@ -4434,7 +4434,7 @@ function renderPlayerRows(){
 
 // ================= EVENT SCHEDULE (event branch) =================
 function addDay(){
-  state.days.push({ id: nextDayId++, courseIdx:null, teeName:null, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{}, groupHcpPct:{}, singlesPairings:{}, status:'pending' });
+  state.days.push({ id: nextDayId++, courseIdx:null, teeName:null, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{}, groupHcpPct:{}, playerTees:{}, singlesPairings:{}, status:'pending' });
   if (state.selectedDayForGames==null) state.selectedDayForGames = state.days[0].id;
 }
 if (state.days.length===0) addDay();
@@ -5397,15 +5397,31 @@ function renderDaySetupContent(dayId) {
   html += '<input type="number" min="1" max="8" id="dseNumGroups-'+dayId+'" value="'+d.numGroups+'">';
 
   html += '<label class="field-label" style="margin-top:12px;">Assign Players to Groups</label>';
+  var _dseMultiTee = course && course.tees && course.tees.length > 1;
+  if (_dseMultiTee) {
+    html += '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Tee box defaults to the day tee. Change per player if needed (e.g. back tees for low handicaps).</div>';
+  }
+  if (!d.playerTees) d.playerTees = {};
   state.players.forEach(function(p, idx){
     if (!p.name.trim()) return;
     var assigned = d.assignments[idx] || 0;
-    html += '<div class="assign-row"><div class="pname">'+escapeHtml(p.name)+'</div><select id="dseAssign-'+dayId+'-'+idx+'">';
+    html += '<div class="assign-row"><div class="pname">'+escapeHtml(p.name)+'</div>';
+    html += '<select id="dseAssign-'+dayId+'-'+idx+'">';
     html += '<option value="0">Unassigned</option>';
     for (var g=1; g<=d.numGroups; g++){
       html += '<option value="'+g+'"'+(assigned===g?' selected':'')+'>Tee Time '+g+'</option>';
     }
-    html += '</select></div>';
+    html += '</select>';
+    if (_dseMultiTee) {
+      var curTee = d.playerTees[idx] || '';
+      html += '<select id="dseTeeP-'+dayId+'-'+idx+'" style="margin-left:6px;font-size:12px;padding:4px 6px;border:1.5px solid var(--border,#ddd);border-radius:6px;background:#fff;color:var(--ink);">';
+      html += '<option value="">Default</option>';
+      course.tees.forEach(function(t){
+        html += '<option value="'+escapeHtml(t.name)+'"'+(curTee===t.name?' selected':'')+'>'+escapeHtml(t.name)+'</option>';
+      });
+      html += '</select>';
+    }
+    html += '</div>';
   });
 
   if (course && d.teeName && isRyderCup()) {
@@ -5458,13 +5474,20 @@ function renderDaySetupContent(dayId) {
     renderDaySetupContent(dayId);
   });
 
-  // Wire player assignment selects
+  // Wire player assignment selects + per-player tee overrides
   state.players.forEach(function(p, idx){
     if (!p.name.trim()) return;
     var sel = document.getElementById('dseAssign-'+dayId+'-'+idx);
     if (sel) sel.addEventListener('change', function(){
       d.assignments[idx] = parseInt(sel.value)||0;
       renderDaySetupContent(dayId);
+    });
+    var teeSel = document.getElementById('dseTeeP-'+dayId+'-'+idx);
+    if (teeSel) teeSel.addEventListener('change', function(){
+      if (!d.playerTees) d.playerTees = {};
+      if (teeSel.value) d.playerTees[idx] = teeSel.value;
+      else delete d.playerTees[idx];
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
     });
   });
 }
@@ -6587,7 +6610,9 @@ function renderReview(){
 // Builds an engine ctx for a flat list of player indices on one course/tee.
 // Supports per-player tee boxes: each player's CH is computed with their own
 // tee's slope/rating (set via p.tee); stroke hole assignment uses the group tee.
-function buildCtx(idxs, course, tee, sc, handicapPct){
+// playerTees: optional {playerIdx: teeName} map for per-player tee overrides (event days).
+// Takes precedence over p.tee (single-round global override).
+function buildCtx(idxs, course, tee, sc, handicapPct, playerTees){
   handicapPct = (handicapPct == null) ? 100 : parseFloat(handicapPct) || 100;
   var strokeIdxArr = tee.strokeIndex || course.strokeIndex;
   var par = tee.par;
@@ -6596,14 +6621,14 @@ function buildCtx(idxs, course, tee, sc, handicapPct){
     return { id: String(idx), name: p ? p.name : ('Player '+(idx+1)), handicapIndex: p ? p.hi : '' };
   });
   var engineCourse = { par: par, slope: tee.slope, rating: tee.rating, strokeIndex: strokeIdxArr, parByHole: tee.parByHole };
-  // Per-player tee: compute each player's course handicap using their own tee's
-  // slope/rating, then allocate strokes relative to the group's lowest CH.
-  // handicapPct (e.g. 80) applies a handicap allowance: adjCH = round(fullCH * pct/100).
+  // Per-player tee: day-level playerTees override takes precedence, then p.tee global override,
+  // then the group/day tee. Allows mixed tee boxes within a single tee time.
   var chEntries = idxs.map(function(idx){
     var p = state.players[idx];
     var playerTee = tee;
-    if (p && p.tee && course) {
-      var pt = course.tees.filter(function(t){ return t.name === p.tee; })[0];
+    var teeName = (playerTees && playerTees[idx] != null ? playerTees[idx] : null) || (p && p.tee) || null;
+    if (teeName && course) {
+      var pt = course.tees.filter(function(t){ return t.name === teeName; })[0];
       if (pt) playerTee = pt;
     }
     var fullCH = courseHandicap(p ? p.hi : '', playerTee, par);
@@ -8521,7 +8546,7 @@ function buildEventLeaderboardAndLedgerHtml(){
       ensureScorecardShape(d.scorecards[gn], groupIdxs);
       groupIdxs.forEach(function(idx){ dayScores[String(idx)] = d.scorecards[gn].scores[String(idx)]; });
     }
-    var dayCtx = dayIdxs.length ? buildCtx(dayIdxs, course, tee, { scores: dayScores, events:{} }) : null;
+    var dayCtx = dayIdxs.length ? buildCtx(dayIdxs, course, tee, { scores: dayScores, events:{} }, undefined, d.playerTees) : null;
 
     if (dayIdxs.length && !isRyderCup()){
       if (state.scoringMethod === 'Match Play'){
@@ -8573,7 +8598,7 @@ function buildEventLeaderboardAndLedgerHtml(){
       var groupIdxs2 = Object.keys(d.assignments).filter(function(k){return d.assignments[k]===gn2;}).map(function(k){return parseInt(k,10);});
       if (!groupIdxs2.length) continue;
       var groupSc = d.scorecards[gn2];
-      var groupCtx = buildCtx(groupIdxs2, course, tee, groupSc);
+      var groupCtx = buildCtx(groupIdxs2, course, tee, groupSc, undefined, d.playerTees);
       groupCtx.__sc = groupSc;
       (d.groupGames[gn2]||[]).forEach(function(g){
         if (!g.participants.length) return;
@@ -8640,7 +8665,7 @@ function buildCtxAndEngineGameForScope(scope, g){
       ensureScorecardShape(d.scorecards[gn], groupIdxs);
       groupIdxs.forEach(function(idx){ dayScores[String(idx)] = d.scorecards[gn].scores[String(idx)]; });
     }
-    var dayCtx = buildCtx(dayIdxs, course2, tee2, { scores: dayScores, events:{} });
+    var dayCtx = buildCtx(dayIdxs, course2, tee2, { scores: dayScores, events:{} }, undefined, d.playerTees);
     var dayEngineGame = buildEngineGame(g);
     attachEvents(dayEngineGame, { scores: dayScores, events:{} });
     return { ctx: dayCtx, engineGame: dayEngineGame };
@@ -8649,7 +8674,7 @@ function buildCtxAndEngineGameForScope(scope, g){
   if (!d.scorecards[scope.gn]) d.scorecards[scope.gn] = { scores:{}, events:{} };
   var groupSc = d.scorecards[scope.gn];
   ensureScorecardShape(groupSc, groupIdxs2);
-  var groupCtx = buildCtx(groupIdxs2, course2, tee2, groupSc);
+  var groupCtx = buildCtx(groupIdxs2, course2, tee2, groupSc, undefined, d.playerTees);
   var groupEngineGame = buildEngineGame(g);
   attachEvents(groupEngineGame, groupSc);
   return { ctx: groupCtx, engineGame: groupEngineGame };
