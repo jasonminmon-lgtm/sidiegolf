@@ -9191,15 +9191,25 @@ window.fbJoinRound = function(autoCode) {
     var courseTeeList = (courseData && courseData.tees) ? courseData.tees : [];
     var groupTee    = savedState.tee || '';
 
+    var _isEventRound = !!(savedState.days && savedState.days.length > 0);
+    var _isAnonUser   = !!(fbUser && fbUser.isAnonymous);
+    var _joinDesc, _joinBtn;
+    if (_isEventRound && !_isAnonUser) {
+      _joinDesc = 'You\'ll see the <strong>live leaderboard, scorecard, and money standings</strong> in real time.<br>Once inside, you can <strong>claim the scorekeeper role</strong> for your tee time group.';
+      _joinBtn  = 'Join Round';
+    } else {
+      _joinDesc = 'You\'ll join as a <strong>viewer</strong>. The manager controls all player info, handicaps, and scores.<br>You\'ll see the <strong>live leaderboard, scorecard, and money standings</strong> in real time.';
+      _joinBtn  = 'Join as Viewer';
+    }
     var confirmHtml =
       '<div id="fb-join-confirm">'+
       '<button class="fjc-back" onclick="fbCancelJoin()">‹ Back</button>'+
       '<div class="fjc-host">Joining '+escapeHtml(hostName)+'\'s round</div>'+
       '<div class="fjc-course">'+(courseName ? escapeHtml(courseName) : 'Round '+escapeHtml(code))+'</div>'+
       '<div style="margin:14px 0 18px;font-size:13px;color:var(--muted,#666);text-align:center;line-height:1.6;">'+
-        'You\'ll join as a <strong>viewer</strong>. The manager controls all player info, handicaps, and scores.<br>You\'ll see the <strong>live leaderboard, scorecard, and money standings</strong> in real time.'+
+        _joinDesc+
       '</div>'+
-      '<button class="fb-btn" onclick="fbConfirmJoin()">Join as Viewer</button>'+
+      '<button class="fb-btn" onclick="fbConfirmJoin()">'+_joinBtn+'</button>'+
       '</div>';
 
     // Hide normal panels, inject confirm
