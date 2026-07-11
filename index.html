@@ -1463,12 +1463,15 @@
     var deltas = zero(game.participants);
     var amount = parseFloat(game.stakes.amount) || 0;
     var carryover = (game.stakes.carryover || 'Yes') !== 'No';
+    var basis = game.stakes.basis || 'Gross';
     var pot = 0;
     var contributions = {}; // total ante each player has put in since the pot last paid out
 
     for (var h = 1; h <= 18; h++) {
-      var nets = game.participants.map(function (id) { return { id: id, net: netFor(ctx, id, h) }; })
-        .filter(function (x) { return x.net != null; });
+      var nets = game.participants.map(function (id) {
+        var s = basis === 'Gross' ? (ctx.scores[id] != null ? ctx.scores[id][h] : null) : netFor(ctx, id, h);
+        return { id: id, net: s };
+      }).filter(function (x) { return x.net != null; });
       if (!nets.length) continue;
       pot += amount * nets.length;
       nets.forEach(function (x) { contributions[x.id] = (contributions[x.id] || 0) + amount; });
@@ -1487,6 +1490,54 @@
         pot = 0;
         contributions = {};
       } // else: tie carries pot (and each player's running contribution) to next hole
+    }
+    return deltas;
+  };
+
+  // ---------------- SKINS (EVENT-WIDE) ----------------
+  // Buy-in pot model: total pot = buyin × n players, divided equally among skins won.
+  games['Skins (Event-Wide)'] = function (game, ctx) {
+    var buyin     = parseFloat(game.stakes.buyin) || 0;
+    var basis     = game.stakes.basis || 'Gross';
+    var carryover = (game.stakes.carryover || 'Yes') !== 'No';
+    var n         = game.participants.length;
+    var pot       = buyin * n;
+    var deltas    = zero(game.participants);
+    var skinsWon  = {};
+    game.participants.forEach(function (id) { skinsWon[id] = 0; });
+    var totalSkins = 0;
+    var carry = 0; // holes being carried into next skin
+
+    for (var h = 1; h <= 18; h++) {
+      var scores = game.participants.map(function (id) {
+        var s = basis === 'Gross'
+          ? (ctx.scores[id] != null ? ctx.scores[id][h] : null)
+          : netFor(ctx, id, h);
+        return { id: id, score: s };
+      }).filter(function (x) { return x.score != null; });
+      if (!scores.length) continue;
+
+      var low = Math.min.apply(null, scores.map(function (x) { return x.score; }));
+      var lowPlayers = scores.filter(function (x) { return x.score === low; });
+      var worth = 1 + carry; // carryover holes add to this skin's value
+
+      if (lowPlayers.length === 1) {
+        var wid = lowPlayers[0].id;
+        skinsWon[wid] = (skinsWon[wid] || 0) + worth;
+        totalSkins += worth;
+        carry = 0;
+      } else if (carryover) {
+        carry++;
+      } else {
+        carry = 0; // tie voids — no carry
+      }
+    }
+
+    if (totalSkins > 0 && pot > 0) {
+      var perSkin = pot / totalSkins;
+      game.participants.forEach(function (id) {
+        deltas[id] = Math.round(((skinsWon[id] || 0) * perSkin - buyin) * 100) / 100;
+      });
     }
     return deltas;
   };
@@ -2423,12 +2474,32 @@
         <span class="help-sec-arrow">▼</span>
       </div>
       <div class="help-body">
-        Win a hole <strong>outright</strong> (lowest net score in the group) to claim a skin worth $ Per Skin.
+        Win a hole <strong>outright</strong> (lowest score in the group) to claim a skin worth $ Per Skin.
         <ul>
+          <li><strong>Score Basis:</strong> choose <em>Gross</em> to play off raw scores, or <em>Net</em> to play off handicap-adjusted scores. When Gross is selected the handicap allowance slider is hidden since it has no effect.</li>
           <li><strong>Ties carry</strong> the pot forward to the next hole (if carryover is on).</li>
           <li>A carried skin can grow large if several holes tie in a row.</li>
           <li>If the final hole ties, the pot is split or voided depending on your house rules.</li>
         </ul>
+        <div class="help-tip">💡 For a group-level skins game, use <em>Skins</em>. For a tournament-wide pot across all tee times, use <em>Skins (Event-Wide)</em>.</div>
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-sec-head" onclick="toggleHelpSection(this)">
+        <span class="help-sec-icon">🏅</span>
+        <span class="help-sec-label">Skins (Event-Wide)</span>
+        <span class="help-sec-arrow">▼</span>
+      </div>
+      <div class="help-body">
+        A tournament-wide skins pot for large groups spanning multiple tee times. Every player buys in — the total pot is split equally among all skins won across the full field.
+        <ul>
+          <li><strong>Buy-In Per Player ($):</strong> everyone contributes this amount. Total pot = buy-in × number of players.</li>
+          <li><strong>Score Basis:</strong> Gross (raw scores) or Net (handicap-adjusted). Gross is most common for tournament skins.</li>
+          <li><strong>Carryover:</strong> ties can carry the skin to the next hole, building bigger prizes.</li>
+          <li>Payouts are proportional — win more skins, collect a larger share of the pot minus your buy-in.</li>
+        </ul>
+        <div class="help-tip">💡 Add Skins (Event-Wide) from the <em>Event-Wide Games</em> section on the Side Games step — it appears there because it spans all tee times, not just one group.</div>
       </div>
     </div>
 
@@ -2653,6 +2724,7 @@ var SIDE_GAME_DEFS = {
     desc:'Win a hole outright to claim the skin. Ties carry the pot forward.',
     fields:[
       {key:'amount', label:'$ Per Skin', type:'number', placeholder:'5'},
+      {key:'basis', label:'Score Basis', type:'select', options:['Gross','Net']},
       {key:'carryover', label:'Carryover on Tie', type:'select', options:['Yes','No']}
     ]
   },
@@ -2677,6 +2749,15 @@ var SIDE_GAME_DEFS = {
   'Vegas': {
     desc:'Team scores combined into a 2-digit number; low # mismatches pay big.',
     fields:[ {key:'amount', label:'$ Per Point', type:'number', placeholder:'1'} ]
+  },
+  'Skins (Event-Wide)': {
+    desc:'Everyone buys in — the total pot is split equally among all skins won across the full field. Perfect for large groups spanning multiple tee times.',
+    scope:'day',
+    fields:[
+      {key:'buyin', label:'Buy-In Per Player ($)', type:'number', placeholder:'20'},
+      {key:'basis', label:'Score Basis', type:'select', options:['Gross','Net']},
+      {key:'carryover', label:'Carryover on Tie', type:'select', options:['Yes','No']}
+    ]
   },
   'Quota': {
     desc:'Each player has a points quota to hit based on handicap. Use a per-point side bet, a buy-in pot paid out to the top finishers, or both.',
@@ -4599,6 +4680,13 @@ function summarizeStakes(g){
     if (g.stakes.buyin) parts.push('$'+g.stakes.buyin+' buy-in');
     return parts.join(' + ');
   }
+  if (g.type==='Skins (Event-Wide)'){
+    var parts = [];
+    if (g.stakes.buyin) parts.push('$'+g.stakes.buyin+'/player');
+    if (g.stakes.basis) parts.push(g.stakes.basis);
+    if (g.stakes.carryover==='No') parts.push('No carryover');
+    return parts.join(' · ');
+  }
   if (g.type==='9 Point'){
     if (!g.stakes.amount) return '';
     var parts9 = ['$'+g.stakes.amount+'/pt'];
@@ -4850,14 +4938,17 @@ function buildGameCardHtml(g, scope){
     html += buildWolfTeeOrderHtml(g);
   }
 
-  // Handicap % allowance — shown for every game type
-  var pct = g.stakes.handicapPct != null ? parseInt(g.stakes.handicapPct, 10) : 100;
-  html += '<label class="field-label">Handicap Allowance</label>';
-  html += '<div class="hcp-pct-row">';
-  html += '<input type="range" min="0" max="100" step="5" value="'+pct+'" data-game-field="'+g.id+'|handicapPct" data-hcp-pct-display="'+g.id+'">';
-  html += '<span class="hcp-pct-val" id="hcp-pct-val-'+g.id+'">'+pct+'%</span>';
-  html += '</div>';
-  html += '<div class="hcp-pct-label">100% = full handicap. Use 80% for Wolf/team games. 0% = scratch.</div>';
+  // Handicap % allowance — hidden when game uses gross scores (handicap is irrelevant)
+  var _grossBasis = (g.type === 'Skins' || g.type === 'Skins (Event-Wide)') && g.stakes.basis === 'Gross';
+  if (!_grossBasis) {
+    var pct = g.stakes.handicapPct != null ? parseInt(g.stakes.handicapPct, 10) : 100;
+    html += '<label class="field-label">Handicap Allowance</label>';
+    html += '<div class="hcp-pct-row">';
+    html += '<input type="range" min="0" max="100" step="5" value="'+pct+'" data-game-field="'+g.id+'|handicapPct" data-hcp-pct-display="'+g.id+'">';
+    html += '<span class="hcp-pct-val" id="hcp-pct-val-'+g.id+'">'+pct+'%</span>';
+    html += '</div>';
+    html += '<div class="hcp-pct-label">100% = full handicap. Use 80% for Wolf/team games. 0% = scratch.</div>';
+  }
 
   html += '</div>';
   return html;
