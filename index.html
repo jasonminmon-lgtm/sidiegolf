@@ -2818,6 +2818,20 @@ function isEvent(){ return state.roundType === 'event'; }
 function isRyderCup(){ return isEvent() && state.scoringMethod === 'Ryder Cup Format'; }
 function rcTeamFor(idx){ return (state.rcTeamAssign && state.rcTeamAssign[idx]) || 'A'; }
 function rcTeamName(side){ return (state.rcTeamNames && state.rcTeamNames[side]) || (side === 'A' ? 'USA' : 'Europe'); }
+// Returns [[aIdx, bIdx], ...] — uses stored pairing if valid, else defaults to position order
+function getSinglesPairings(d, gn, teamAIdxs, teamBIdxs){
+  var stored = d.singlesPairings && d.singlesPairings[gn];
+  if (stored && stored.length) {
+    var allValid = stored.every(function(pair){
+      return teamAIdxs.indexOf(pair[0]) >= 0 && teamBIdxs.indexOf(pair[1]) >= 0;
+    });
+    if (allValid) return stored;
+  }
+  var pairings = [];
+  var len = Math.min(teamAIdxs.length, teamBIdxs.length);
+  for (var i = 0; i < len; i++) pairings.push([teamAIdxs[i], teamBIdxs[i]]);
+  return pairings;
+}
 
 // ================= HELPERS =================
 function $(id){ return document.getElementById(id); }
@@ -3338,15 +3352,18 @@ function buildRcMatchBannerHtml(day, gn, course, tee, idxs, sc) {
   html += '<span class="rc-mb-label">'+escapeHtml(matchType)+'</span>';
   var totalA = 0, totalB = 0;
   if (matchType === 'Singles') {
-    var pairs = Math.min(teamAIdxs.length, teamBIdxs.length);
+    var sPairings = getSinglesPairings(day, gn, teamAIdxs, teamBIdxs);
     var parts = [];
-    for (var pi = 0; pi < pairs; pi++) {
-      var aIdx = teamAIdxs[pi], bIdx = teamBIdxs[pi];
+    for (var pi = 0; pi < sPairings.length; pi++) {
+      var aIdx = sPairings[pi][0], bIdx = sPairings[pi][1];
       var aName = (state.players[aIdx] ? state.players[aIdx].name : ('P'+(aIdx+1))).split(' ').pop();
       var bName = (state.players[bIdx] ? state.players[bIdx].name : ('P'+(bIdx+1))).split(' ').pop();
       var pThru = commonThruHoles([aIdx, bIdx], sc);
+      // Build a 2-player ctx so strokes are relative to this match pair only
+      var pairCtx;
+      try { pairCtx = buildCtx([aIdx, bIdx], course, tee, sc, 100); } catch(e) { parts.push(escapeHtml(aName)+' v '+escapeHtml(bName)); continue; }
       try {
-        var mRes = SidieGolfEngine.computeMatchPlayResult(ctx, [String(aIdx)], [String(bIdx)]);
+        var mRes = SidieGolfEngine.computeMatchPlayResult(pairCtx, [String(aIdx)], [String(bIdx)]);
         var mPts = SidieGolfEngine.ryderCupMatchPoints(mRes, pThru, 18);
         totalA += mPts.A; totalB += mPts.B;
         var curUp = pThru > 0 ? mRes.holeResults[pThru - 1].runningAUp : 0;
@@ -4162,7 +4179,7 @@ function renderPlayerRows(){
 
 // ================= EVENT SCHEDULE (event branch) =================
 function addDay(){
-  state.days.push({ id: nextDayId++, courseIdx:null, teeName:null, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{}, groupHcpPct:{} });
+  state.days.push({ id: nextDayId++, courseIdx:null, teeName:null, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{}, groupHcpPct:{}, singlesPairings:{} });
   if (state.selectedDayForGames==null) state.selectedDayForGames = state.days[0].id;
 }
 if (state.days.length===0) addDay();
@@ -4229,6 +4246,29 @@ function renderEventSchedule(){
             // Handicap % slider — hidden for Singles (always 100%)
             if (mt === 'Singles') {
               html += '<div style="margin-top:5px;font-size:11.5px;color:var(--muted);">Handicap: 100% (Singles — full handicap)</div>';
+              // Matchup assignment UI
+              var sTeamA = idxs.filter(function(i){ return rcTeamFor(i) === 'A'; });
+              var sTeamB = idxs.filter(function(i){ return rcTeamFor(i) === 'B'; });
+              if (sTeamA.length && sTeamB.length) {
+                if (!d.singlesPairings) d.singlesPairings = {};
+                var sPairs = getSinglesPairings(d, gn, sTeamA, sTeamB);
+                html += '<div style="margin-top:8px;">';
+                html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.3px;margin-bottom:5px;">Singles Matchups</div>';
+                sPairs.forEach(function(pair, pi){
+                  var pa = state.players[pair[0]] ? state.players[pair[0]].name : 'Player '+(pair[0]+1);
+                  var pb = state.players[pair[1]] ? state.players[pair[1]].name : 'Player '+(pair[1]+1);
+                  html += '<div style="font-size:12.5px;padding:3px 0;display:flex;align-items:center;gap:5px;">';
+                  html += '<span style="font-weight:700;min-width:55px;color:var(--navy,#16284a);">Match '+(pi+1)+':</span>';
+                  html += '<span>'+escapeHtml(pa)+'</span>';
+                  html += '<span style="opacity:.45;font-size:11px;padding:0 2px;">vs</span>';
+                  html += '<span>'+escapeHtml(pb)+'</span>';
+                  html += '</div>';
+                });
+                if (sTeamA.length >= 2 && sTeamB.length >= 2) {
+                  html += '<button data-rc-singles-swap="'+d.id+'|'+gn+'" style="margin-top:7px;font-size:11.5px;padding:5px 11px;border:1px solid var(--muted,#888);border-radius:6px;background:transparent;color:var(--muted,#888);cursor:pointer;">⇄ Swap Opponents</button>';
+                }
+                html += '</div>';
+              }
             } else {
               var hpct = (d.groupHcpPct && d.groupHcpPct[gn] != null) ? d.groupHcpPct[gn] : 100;
               html += '<div style="margin-top:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.3px;margin-bottom:4px;">Handicap Allowance</div>';
@@ -4311,6 +4351,27 @@ function renderEventSchedule(){
       // Singles always uses 100% — clear any stored override
       if (fmt === 'Singles') {
         if (d.groupHcpPct) delete d.groupHcpPct[gn];
+      }
+      renderEventSchedule();
+    });
+  });
+  // Ryder Cup: Singles matchup swap button
+  Array.prototype.forEach.call(document.querySelectorAll('[data-rc-singles-swap]'), function(el){
+    el.addEventListener('click', function(){
+      var parts = el.getAttribute('data-rc-singles-swap').split('|');
+      var dayId = parseInt(parts[0],10), gn = parseInt(parts[1],10);
+      var d = state.days.filter(function(x){return x.id===dayId;})[0];
+      if (!d) return;
+      if (!d.singlesPairings) d.singlesPairings = {};
+      var idxs2 = Object.keys(d.assignments).filter(function(k){return d.assignments[k]===gn;}).map(function(k){return parseInt(k,10);});
+      var tA = idxs2.filter(function(i){return rcTeamFor(i)==='A';});
+      var tB = idxs2.filter(function(i){return rcTeamFor(i)==='B';});
+      var current = getSinglesPairings(d, gn, tA, tB);
+      if (current.length >= 2) {
+        // Swap: keep A order, swap B players between matches
+        d.singlesPairings[gn] = current.map(function(pair, pi){
+          return [pair[0], current[(pi + 1) % current.length][1]];
+        });
       }
       renderEventSchedule();
     });
@@ -7414,14 +7475,22 @@ function buildRyderCupScoreboardHtml(){
       try { ctx = buildCtx(idxs, course, tee, sc, rcHcpPct2); } catch(e){ continue; }
 
       if (matchType === 'Singles'){
-        var pairs = Math.min(teamAIdxs.length, teamBIdxs.length);
-        for (var pi=0; pi<pairs; pi++){
-          var aIdx=teamAIdxs[pi], bIdx=teamBIdxs[pi];
+        if (!d.singlesPairings) d.singlesPairings = {};
+        var lbPairings = getSinglesPairings(d, gn, teamAIdxs, teamBIdxs);
+        for (var pi=0; pi<lbPairings.length; pi++){
+          var aIdx=lbPairings[pi][0], bIdx=lbPairings[pi][1];
           var aLbl=(state.players[aIdx]?state.players[aIdx].name:('P'+(aIdx+1))).split(' ').pop();
           var bLbl=(state.players[bIdx]?state.players[bIdx].name:('P'+(bIdx+1))).split(' ').pop();
           var pThru=commonThruHoles([aIdx,bIdx],sc);
+          // Per-pair ctx: strokes relative to match opponent only, full handicap
+          var pairCtx2;
+          try { pairCtx2 = buildCtx([aIdx, bIdx], course, tee, sc, 100); } catch(e){
+            matchSummaries.push({dayLabel:'Day '+(dIdx+1),matchType:matchType,label:aLbl+' v '+bLbl,
+              teamAPoints:0,teamBPoints:0,complete:false,started:false,thru:0,curUp:0,winnerSide:null});
+            continue;
+          }
           try {
-            var mRes=SidieGolfEngine.computeMatchPlayResult(ctx,[String(aIdx)],[String(bIdx)]);
+            var mRes=SidieGolfEngine.computeMatchPlayResult(pairCtx2,[String(aIdx)],[String(bIdx)]);
             var mPts=SidieGolfEngine.ryderCupMatchPoints(mRes,pThru,18);
             var mUp=pThru>0?mRes.holeResults[pThru-1].runningAUp:0;
             matchSummaries.push({dayLabel:'Day '+(dIdx+1),matchType:matchType,label:aLbl+' v '+bLbl,
