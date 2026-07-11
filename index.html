@@ -5209,7 +5209,7 @@ function renderEventHub(){
     var status = d.status || 'pending';
     var course = d.courseIdx != null ? MOCK_COURSES[d.courseIdx] : null;
     var detail = course ? escapeHtml(course.name) + (d.teeName ? ' — ' + escapeHtml(d.teeName) : '') : 'Not yet configured';
-    html += '<div class="day-hub-card '+(status==='active'?'active':status==='completed'?'completed':'')+('">';
+    html += '<div class="day-hub-card '+(status==='active'?'active':status==='completed'?'completed':'')+'">';
     html += '<div class="day-hub-num '+(status==='active'?'active':status==='completed'?'completed':'')+'">'+(dIdx+1)+'</div>';
     html += '<div class="day-hub-info"><div class="day-hub-label">Day '+(dIdx+1)+'</div><div class="day-hub-detail">'+detail+'</div></div>';
     if (isCurrentUserHost()) {
