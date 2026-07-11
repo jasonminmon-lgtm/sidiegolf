@@ -3569,7 +3569,7 @@ function renderPlayersInto(containerId){
       else state.players.push(entry);
       renderPlayerRows();
       updateNextButton();
-    });
+    }, true /* multiMode — stay open for bulk add */);
   });
 }
 
@@ -6658,6 +6658,8 @@ function toggleHelpSection(headEl){
 // ============================================================
 var _buddiesCache = [];       // local cache, refreshed on open
 var _buddiesSelectCb = null;  // set when opened from a player slot
+var _buddiesMultiMode = false; // true = stay open after each add
+var _buddiesAddedIds  = [];   // ids added this session (multi-mode)
 
 function fbLoadBuddies(cb) {
   var uid = window.fbUser && window.fbUser.uid;
@@ -6689,15 +6691,19 @@ function fbDeleteBuddy(id, cb) {
     .then(function() { if (cb) cb(); }).catch(function() { if (cb) cb(); });
 }
 
-function showBuddies(onSelectCb) {
+function showBuddies(onSelectCb, multiMode) {
   _buddiesSelectCb = onSelectCb || null;
+  _buddiesMultiMode = !!multiMode;
+  _buddiesAddedIds  = [];
   document.getElementById('buddiesOverlay').style.display = 'flex';
   fbLoadBuddies(function(list) { renderBuddiesList(list); });
 }
 
 function closeBuddies() {
   document.getElementById('buddiesOverlay').style.display = 'none';
-  _buddiesSelectCb = null;
+  _buddiesSelectCb  = null;
+  _buddiesMultiMode = false;
+  _buddiesAddedIds  = [];
 }
 
 // =================== MY COURSES ===================
@@ -7050,7 +7056,12 @@ function renderBuddiesList(list) {
   if (!body) return;
   var inSelect = !!_buddiesSelectCb;
   var html = '';
-  if (inSelect) {
+  if (_buddiesMultiMode && _buddiesAddedIds.length > 0) {
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;background:#e8f5e9;border:1.5px solid var(--green,#2e7d32);border-radius:8px;padding:10px 14px;margin-bottom:12px;">';
+    html += '<span style="font-size:13px;font-weight:700;color:var(--green-dark,#1a5c36);">✓ '+_buddiesAddedIds.length+' player'+(+_buddiesAddedIds.length===1?'':'s')+' added</span>';
+    html += '<button onclick="closeBuddies()" style="padding:6px 16px;border-radius:6px;border:none;background:var(--green-dark,#1a5c36);color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Done</button>';
+    html += '</div>';
+  } else if (inSelect) {
     html += '<div style="font-size:12px;color:var(--muted,#888);margin-bottom:10px;text-align:center;">Tap a buddy to add them to this slot</div>';
   }
   if (!list || list.length === 0) {
@@ -7060,12 +7071,17 @@ function renderBuddiesList(list) {
       var meta = [];
       if (b.ghin) meta.push('GHIN ' + escapeHtml(String(b.ghin)));
       if (b.hi != null && b.hi !== '') meta.push('HI ' + escapeHtml(String(b.hi)));
+      var alreadyAdded = _buddiesAddedIds.indexOf(b.id) >= 0;
       html += '<div class="buddy-row">';
       html += '<div class="buddy-info"><div class="buddy-name">'+escapeHtml(b.name)+'</div>';
       if (meta.length) html += '<div class="buddy-meta">'+meta.join(' · ')+'</div>';
       html += '</div>';
       if (inSelect) {
-        html += '<button class="buddy-select-btn" onclick="buddySelectPick(\''+escapeHtml(b.id||'')+'\')">Add &#8594;</button>';
+        if (alreadyAdded) {
+          html += '<button class="buddy-select-btn" disabled style="opacity:.5;cursor:default;background:var(--green-dark,#1a5c36);color:#fff;border-color:var(--green-dark,#1a5c36);">✓ Added</button>';
+        } else {
+          html += '<button class="buddy-select-btn" onclick="buddySelectPick(\''+escapeHtml(b.id||'')+'\')">Add &#8594;</button>';
+        }
       }
       html += '<button class="buddy-del-btn" onclick="buddyDelete(\''+escapeHtml(b.id||'')+'\',this)">&#10005;</button>';
       html += '</div>';
@@ -7079,7 +7095,13 @@ window.buddySelectPick = function(id) {
   var buddy = _buddiesCache.find(function(b){ return b.id === id; });
   if (!buddy || !_buddiesSelectCb) return;
   _buddiesSelectCb(buddy);
-  closeBuddies();
+  if (_buddiesMultiMode) {
+    // Stay open — mark this buddy as added and re-render
+    _buddiesAddedIds.push(id);
+    renderBuddiesList(_buddiesCache);
+  } else {
+    closeBuddies();
+  }
 };
 
 window.buddyDelete = function(id, el) {
