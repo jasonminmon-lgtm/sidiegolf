@@ -2996,9 +2996,10 @@ function renderStep(n){
       $('title-5').textContent = 'Sidie-Games';
       $('subtitle-5').textContent = 'Add side games and stakes. When everyone has joined, lock the round to start.';
       renderSingleSideGames(); // renders into content-5
-      // Append compact lobby (player list + Lock & Start) below side games
+      // Append compact lobby (player list + scorekeeper assignment + Lock & Start) below side games
       var _c5 = $('content-5');
       if (_c5) _c5.insertAdjacentHTML('beforeend', buildCompactLobbyHtml());
+      wirePrelobScorekeeperButtons();
     }
     else if (fbRoundCode && !isCurrentUserHost()) {
       // Joiner waiting screen
@@ -3721,6 +3722,46 @@ function buildCompactLobbyHtml(){
       html += '</div>';
     });
   }
+  // Scorekeeper pre-assignment for Golf Events
+  if (isEvent()) {
+    var hasScorekeeperGroups = false;
+    var skHtml = '<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border,#eee);">';
+    skHtml += '<div style="font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--muted,#666);margin-bottom:4px;">WHO\'S KEEPING SCORE?</div>';
+    skHtml += '<div style="font-size:12px;color:var(--muted,#888);margin-bottom:10px;">Claim your group. Players who join can claim theirs from the leaderboard.</div>';
+    state.days.forEach(function(d, dIdx) {
+      for (var gn = 1; gn <= d.numGroups; gn++) {
+        var gIdxs = Object.keys(d.assignments || {}).filter(function(k){ return d.assignments[k] === gn; }).map(function(k){ return parseInt(k,10); }).filter(function(i){ return state.players[i] && (state.players[i].name||'').trim() && !/^player\s*\d+$/i.test((state.players[i].name||'').trim()); });
+        if (!gIdxs.length) continue;
+        hasScorekeeperGroups = true;
+        var gKey = d.id + '_' + gn;
+        var gNames = gIdxs.map(function(i){ return (state.players[i].name||'').split(' ')[0]; }).join(', ');
+        var claimedBy = (window.fbScorekeeperClaims || {})[gKey];
+        var isMine = (window.fbMyScoreGroups || []).some(function(g){ return g.dayId===d.id && g.gn===gn; });
+        skHtml += '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--border,#f0f0f0);">';
+        skHtml += '<div style="flex:1;">';
+        if (state.days.length > 1) skHtml += '<div style="font-size:10px;font-weight:700;color:var(--muted,#aaa);text-transform:uppercase;">Day '+(dIdx+1)+'</div>';
+        skHtml += '<div style="font-size:13px;font-weight:600;">Tee Time '+gn+'</div>';
+        skHtml += '<div style="font-size:11.5px;color:var(--muted,#888);">'+escapeHtml(gNames)+'</div>';
+        skHtml += '</div>';
+        skHtml += '<div style="flex-shrink:0;margin-left:10px;">';
+        if (isMine) {
+          skHtml += '<span style="font-size:12px;color:var(--green-dark,#1a5c36);font-weight:700;">✓ You</span>';
+          skHtml += ' <span data-sk-prelob-unclaim="'+d.id+'|'+gn+'" style="font-size:11px;color:var(--muted,#aaa);cursor:pointer;text-decoration:underline;">Release</span>';
+        } else if (claimedBy) {
+          skHtml += '<span style="font-size:12px;color:var(--muted,#888);">'+escapeHtml(claimedBy)+'</span>';
+        } else {
+          skHtml += '<button data-sk-prelob-claim="'+d.id+'|'+gn+'" style="font-size:12px;padding:5px 12px;border:1px solid var(--green-dark,#1a5c36);border-radius:6px;background:transparent;color:var(--green-dark,#1a5c36);cursor:pointer;font-weight:600;">I\'ll Score</button>';
+        }
+        skHtml += '</div></div>';
+      }
+    });
+    if (!hasScorekeeperGroups) {
+      skHtml += '<div style="font-size:12.5px;color:var(--muted,#aaa);">No groups set up yet — assign players to tee times first.</div>';
+    }
+    skHtml += '</div>';
+    html += skHtml;
+  }
+
   var canStart = named.length >= 1;
   html += '<button id="fb-lock-btn" onclick="fbLockRound()" style="width:100%;margin-top:16px;padding:13px;font-size:15px;font-weight:700;border-radius:8px;border:none;background:'+(canStart?'var(--green-dark,#1a5c36)':'#ccc')+';color:#fff;cursor:'+(canStart?'pointer':'default')+';"'+(canStart?'':' disabled')+'>Lock &amp; Start Round →</button>';
   if (!canStart) html += '<div style="text-align:center;font-size:12px;color:var(--muted,#888);margin-top:6px;">At least one player must join before you can start.</div>';
@@ -3744,11 +3785,10 @@ function refreshLobbySection(){
       var tmp = document.createElement('div');
       tmp.innerHTML = buildCompactLobbyHtml();
       inlineEl.parentNode.replaceChild(tmp.firstChild, inlineEl);
+      wirePrelobScorekeeperButtons();
     } else {
       // Fallback: no inline section found, re-render full step
-      renderSingleSideGames();
-      var c5 = $('content-5');
-      if (c5) c5.insertAdjacentHTML('beforeend', buildCompactLobbyHtml());
+      if (isEvent()) { renderEventSideGames(); } else { renderSingleSideGames(); var c5 = $('content-5'); if (c5) c5.insertAdjacentHTML('beforeend', buildCompactLobbyHtml()); wirePrelobScorekeeperButtons(); }
     }
   }
 }
@@ -4542,6 +4582,33 @@ function renderEventSideGames(){
   });
   renderDayGameList(day.id);
   for (var gn2=1; gn2<=groupCount; gn2++){ renderGroupGameList(day.id, gn2); }
+
+  // Networked event: append the compact lobby (scorekeeper assignment + Lock & Start)
+  // This is the only way the host can lock a networked Golf Event.
+  if (fbRoundCode && isCurrentUserHost()) {
+    var _ec5 = $('content-5');
+    if (_ec5) _ec5.insertAdjacentHTML('beforeend', buildCompactLobbyHtml());
+    wirePrelobScorekeeperButtons();
+  }
+}
+
+function wirePrelobScorekeeperButtons() {
+  Array.prototype.forEach.call(document.querySelectorAll('[data-sk-prelob-claim]'), function(el) {
+    el.addEventListener('click', function() {
+      var parts = el.getAttribute('data-sk-prelob-claim').split('|');
+      var dayId = parseInt(parts[0],10), gn = parseInt(parts[1],10);
+      var myName = (window.fbMyPlayerEntry && window.fbMyPlayerEntry.name) || '';
+      if (!myName) { try { var p=JSON.parse(localStorage.getItem('sg_user_profile')||'null'); if(p&&p.name) myName=p.name; } catch(e){} }
+      if (!myName) myName = (fbUser && (fbUser.displayName||fbUser.email||'').split('@')[0]) || 'Host';
+      fbScorekeeperClaim(dayId, gn, myName);
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-sk-prelob-unclaim]'), function(el) {
+    el.addEventListener('click', function() {
+      var parts = el.getAttribute('data-sk-prelob-unclaim').split('|');
+      fbScorekeeperUnclaim(parseInt(parts[0],10), parseInt(parts[1],10));
+    });
+  });
 }
 
 function renderDayGameList(dayId){
@@ -5674,7 +5741,9 @@ function renderReview(){
   html += '<div class="note-box">Scores entered on the Scorecard step are real and the leaderboard/ledger below are computed by the scoring engine. Course/tee data is either a built-in sample course or a real course pulled live from GolfCourseAPI — either way, the math itself is live, not illustrative.</div>';
 
   if (isEvent()) {
-    if (!isCurrentUserHost()) html += buildScorekeeperPanelHtml();
+    // Show scorekeeper panel only to signed-in (non-anonymous) joiners
+    var _isAnon = window.fbUser && window.fbUser.isAnonymous;
+    if (!isCurrentUserHost() && !_isAnon) html += buildScorekeeperPanelHtml();
     html += buildEventLeaderboardAndLedgerHtml();
   } else {
     html += buildSingleLeaderboardAndLedgerHtml();
@@ -8394,6 +8463,16 @@ function fbApplyRemoteState(remote) {
     while (MOCK_COURSES.length <= remote.course) MOCK_COURSES.push(null);
     MOCK_COURSES[remote.course] = remote._courseData; // always use Firestore's embedded data
   }
+  // Restore per-day course data for Golf Events — without this, joiners see an
+  // empty leaderboard because MOCK_COURSES[d.courseIdx] is null on their device.
+  if (remote.days && Array.isArray(remote.days)) {
+    remote.days.forEach(function(d) {
+      if (d && d._courseData && d.courseIdx != null) {
+        while (MOCK_COURSES.length <= d.courseIdx) MOCK_COURSES.push(null);
+        if (!MOCK_COURSES[d.courseIdx]) MOCK_COURSES[d.courseIdx] = d._courseData;
+      }
+    });
+  }
   var keys = Object.keys(remote);
   for (var _k = 0; _k < keys.length; _k++) {
     if (keys[_k] === 'step') continue; // never overwrite local navigation
@@ -8742,6 +8821,30 @@ function fbSerializeState() {
   } catch(e) {
     console.warn('fbSerializeState _courseData error (state still saved):', e);
   }
+  // Embed course data for each event day so joiners can see the full leaderboard.
+  // Without this, MOCK_COURSES[d.courseIdx] is null on the joiner's device and
+  // every leaderboard builder returns early, producing a completely empty view.
+  try {
+    if (s.days && Array.isArray(s.days)) {
+      s.days = s.days.map(function(d) {
+        if (d.courseIdx != null && MOCK_COURSES[d.courseIdx]) {
+          var dc = MOCK_COURSES[d.courseIdx];
+          d._courseData = JSON.parse(JSON.stringify({
+            name: dc.name,
+            par: dc.par != null ? dc.par : null,
+            strokeIndex: dc.strokeIndex || null,
+            tees: (dc.tees || []).map(function(t){ return {
+              name: t.name || null, slope: t.slope != null ? t.slope : null, rating: t.rating != null ? t.rating : null,
+              par: t.par != null ? t.par : null, parByHole: t.parByHole || null, strokeIndex: t.strokeIndex || null
+            }; })
+          }));
+        }
+        return d;
+      });
+    }
+  } catch(e) {
+    console.warn('fbSerializeState event day _courseData error (state still saved):', e);
+  }
   return s;
 }
 
@@ -8807,6 +8910,15 @@ function fbResumeState(remote, roundStatus) {
     if (remote._courseData && remote.course != null) {
       while (MOCK_COURSES.length <= remote.course) MOCK_COURSES.push(null);
       MOCK_COURSES[remote.course] = remote._courseData; // always use Firestore's embedded data
+    }
+    // Restore per-day course data for Golf Events on resume
+    if (remote.days && Array.isArray(remote.days)) {
+      remote.days.forEach(function(d) {
+        if (d && d._courseData && d.courseIdx != null) {
+          while (MOCK_COURSES.length <= d.courseIdx) MOCK_COURSES.push(null);
+          if (!MOCK_COURSES[d.courseIdx]) MOCK_COURSES[d.courseIdx] = d._courseData;
+        }
+      });
     }
     var keys = Object.keys(remote);
     for (var i = 0; i < keys.length; i++) {
