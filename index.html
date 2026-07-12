@@ -4038,7 +4038,7 @@ function buildCompactLobbyHtml(){
     var hasScorekeeperGroups = false;
     var skHtml = '<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border,#eee);">';
     skHtml += '<div style="font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--muted,#666);margin-bottom:4px;">WHO\'S KEEPING SCORE?</div>';
-    skHtml += '<div style="font-size:12px;color:var(--muted,#888);margin-bottom:10px;">Claim your group. Players who join can claim theirs from the leaderboard.</div>';
+    skHtml += '<div style="font-size:12px;color:var(--muted,#888);margin-bottom:10px;">Assign a scorekeeper for each group, or leave unclaimed for players to self-select from the leaderboard.</div>';
     state.days.forEach(function(d, dIdx) {
       for (var gn = 1; gn <= d.numGroups; gn++) {
         var gIdxs = Object.keys(d.assignments || {}).filter(function(k){ return d.assignments[k] === gn; }).map(function(k){ return parseInt(k,10); }).filter(function(i){ return state.players[i] && (state.players[i].name||'').trim() && !/^player\s*\d+$/i.test((state.players[i].name||'').trim()); });
@@ -4047,7 +4047,7 @@ function buildCompactLobbyHtml(){
         var gKey = d.id + '_' + gn;
         var gNames = gIdxs.map(function(i){ return (state.players[i].name||'').split(' ')[0]; }).join(', ');
         var claimedBy = (window.fbScorekeeperClaims || {})[gKey];
-        var isMine = (window.fbMyScoreGroups || []).some(function(g){ return g.dayId===d.id && g.gn===gn; });
+        var _playerMatch = claimedBy ? gIdxs.some(function(i){ return (state.players[i].name||'').trim()===claimedBy.trim(); }) : false;
         skHtml += '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--border,#f0f0f0);">';
         skHtml += '<div style="flex:1;">';
         if (state.days.length > 1) skHtml += '<div style="font-size:10px;font-weight:700;color:var(--muted,#aaa);text-transform:uppercase;">Day '+(dIdx+1)+'</div>';
@@ -4055,14 +4055,15 @@ function buildCompactLobbyHtml(){
         skHtml += '<div style="font-size:11.5px;color:var(--muted,#888);">'+escapeHtml(gNames)+'</div>';
         skHtml += '</div>';
         skHtml += '<div style="flex-shrink:0;margin-left:10px;">';
-        if (isMine) {
-          skHtml += '<span style="font-size:12px;color:var(--green-dark,#1a5c36);font-weight:700;">✓ You</span>';
-          skHtml += ' <span data-sk-prelob-unclaim="'+d.id+'|'+gn+'" style="font-size:11px;color:var(--muted,#aaa);cursor:pointer;text-decoration:underline;">Release</span>';
-        } else if (claimedBy) {
-          skHtml += '<span style="font-size:12px;color:var(--muted,#888);">'+escapeHtml(claimedBy)+'</span>';
-        } else {
-          skHtml += '<button data-sk-prelob-claim="'+d.id+'|'+gn+'" style="font-size:12px;padding:5px 12px;border:1px solid var(--green-dark,#1a5c36);border-radius:6px;background:transparent;color:var(--green-dark,#1a5c36);cursor:pointer;font-weight:600;">I\'ll Score</button>';
-        }
+        skHtml += '<select onchange="sgHostAssignSK('+d.id+','+gn+',this.value)" style="font-size:12px;padding:5px 8px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--card,#fff);color:var(--fg,#222);cursor:pointer;max-width:140px;">';
+        skHtml += '<option value=""'+(!claimedBy?' selected':'')+'>— Not assigned —</option>';
+        gIdxs.forEach(function(i){
+          var _pn=(state.players[i].name||'').trim();
+          var _sel=(claimedBy&&claimedBy.trim()===_pn)?' selected':'';
+          skHtml += '<option value="'+escapeHtml(_pn)+'"'+_sel+'>'+escapeHtml(_pn)+'</option>';
+        });
+        skHtml += '<option value="__host__"'+(claimedBy&&!_playerMatch?' selected':'')+'>I\'ll score</option>';
+        skHtml += '</select>';
         skHtml += '</div></div>';
       }
     });
@@ -4959,6 +4960,20 @@ function wirePrelobScorekeeperButtons() {
     });
   });
 }
+
+// Host can assign any player in a group as scorekeeper from the lobby dropdown
+window.sgHostAssignSK = function(dayId, gn, value) {
+  if (!value) { fbScorekeeperUnclaim(dayId, gn); return; }
+  var name;
+  if (value === '__host__') {
+    name = (window.fbMyPlayerEntry && window.fbMyPlayerEntry.name) || '';
+    if (!name) { try { var _p2=JSON.parse(localStorage.getItem('sg_user_profile')||'null'); if(_p2&&_p2.name) name=_p2.name; } catch(e){} }
+    if (!name) name = (window.fbUser && (window.fbUser.displayName || (window.fbUser.email||'').split('@')[0])) || 'Host';
+  } else {
+    name = value;
+  }
+  fbScorekeeperClaim(dayId, gn, name);
+};
 
 function renderDayGameList(dayId){
   var listEl = $('dgList-'+dayId);
@@ -6631,6 +6646,7 @@ function renderReview(){
     renderScorekeeperScorecardView(window.fbScorekeeperView);
     return;
   }
+  try {
   var rt = ROUND_TYPES.filter(function(r){return r.id===state.roundType;})[0];
   var html = '';
   // Show live read-only scorecard at top of leaderboard for all players
@@ -6638,15 +6654,16 @@ function renderReview(){
   html += '<div class="card"><div class="section-title">Round Setup</div>';
   html += '<div class="summary-row"><span class="lbl">Round Type</span><span class="val">'+(rt?rt.name:'—')+'</span></div>';
   html += '<div class="summary-row"><span class="lbl">Scoring Method</span><span class="val">'+(state.scoringMethod||'—')+'</span></div>';
-  html += '<div class="summary-row"><span class="lbl">Players</span><span class="val">'+state.players.filter(function(p){return p.name.trim();}).length+'</span></div>';
+  html += '<div class="summary-row"><span class="lbl">Players</span><span class="val">'+state.players.filter(function(p){return p.name&&p.name.trim();}).length+'</span></div>';
   html += '</div>';
 
   if (isEvent()){
     state.days.forEach(function(d, dIdx){
       var course = d.courseIdx!=null ? MOCK_COURSES[d.courseIdx] : null;
       var tee = course && d.teeName ? course.tees.filter(function(t){return t.name===d.teeName;})[0] : null;
+      if (!tee && course && course.tees && course.tees.length) tee = course.tees[0]; // fallback: first tee
       html += '<div class="card"><div class="section-title">Day '+(dIdx+1)+'</div>';
-      html += '<div class="summary-row"><span class="lbl">Course</span><span class="val">'+(course?course.name+' — '+tee.name:'—')+'</span></div>';
+      html += '<div class="summary-row"><span class="lbl">Course</span><span class="val">'+(course&&tee?course.name+' — '+tee.name:course?course.name:'—')+'</span></div>';
       var dayGames = d.dayGames || [];
       if (dayGames.length){
         dayGames.forEach(function(g){
@@ -6727,7 +6744,12 @@ function renderReview(){
   html += '<button class="su-share-btn" onclick="openSettleUp()" type="button" style="margin-bottom:20px;">💸 Settle Up</button>';
 
   $('reviewArea').innerHTML = html;
-  if (!isCurrentUserHost() && isEvent()) wireScorekeeperPanel();
+  } catch(e) {
+    console.error('renderReview error:', e);
+    var _ra = $('reviewArea');
+    if (_ra) _ra.innerHTML = '<div class="card" style="color:#c00;padding:12px;"><b>⚠ Leaderboard error — please refresh.</b><br><small>' + escapeHtml(String(e.message||e)) + '</small></div>';
+  }
+  if (!isCurrentUserHost() && isEvent()) { try { wireScorekeeperPanel(); } catch(e2){ console.warn('wireScorekeeperPanel error:', e2); } }
 }
 
 // ============================================================
@@ -8659,6 +8681,7 @@ function buildEventLeaderboardAndLedgerHtml(){
   state.days.forEach(function(d, dIdx){
     var course = d.courseIdx!=null ? MOCK_COURSES[d.courseIdx] : null;
     var tee = course && d.teeName ? course.tees.filter(function(t){return t.name===d.teeName;})[0] : null;
+    if (!tee && course && course.tees && course.tees.length) tee = course.tees[0]; // fallback: first tee
     if (!course || !tee) return;
     if (!d.scorecards) d.scorecards = {};
 
@@ -9498,9 +9521,29 @@ function fbListenToRound(code) {
     window.fbRoundStatus = data.roundStatus || 'active';
 
     // Sync scorekeeper claims (who's scoring which group) — all users
-    if (data.scorekeepers) window.fbScorekeeperClaims = data.scorekeepers;
-    // Apply scorekeeper score writes into state.days — all users
-    if (data.scorecards) applyExternalScorecards(data.scorecards);
+    if (data.scorekeepers) {
+      window.fbScorekeeperClaims = data.scorekeepers;
+      // Auto-register any groups pre-assigned to this joiner (host may have assigned them
+      // from the lobby before locking). Without this, the "Enter Scores" button never
+      // appears because fbMyScoreGroups is only populated on explicit Claim clicks.
+      if (!isCurrentUserHost()) {
+        var _myName = (window.fbMyPlayerEntry && window.fbMyPlayerEntry.name || '').trim().toLowerCase();
+        if (!_myName) { try { var _p=JSON.parse(localStorage.getItem('sg_user_profile')||'null'); if(_p&&_p.name) _myName=_p.name.trim().toLowerCase(); } catch(e){} }
+        if (_myName) {
+          Object.keys(data.scorekeepers).forEach(function(key) {
+            var claimedName = (data.scorekeepers[key] || '').trim().toLowerCase();
+            if (claimedName === _myName) {
+              var parts = key.split('_');
+              var _did = parseInt(parts[0],10), _gn = parseInt(parts[1],10);
+              if (!isNaN(_did) && !isNaN(_gn)) {
+                var already = window.fbMyScoreGroups.some(function(g){ return g.dayId===_did && g.gn===_gn; });
+                if (!already) window.fbMyScoreGroups.push({ dayId: _did, gn: _gn });
+              }
+            }
+          });
+        }
+      }
+    }
 
     // Sync Venmo handles for all users (manager + anonymous viewers)
     if (data.venmoHandles) {
@@ -9508,9 +9551,12 @@ function fbListenToRound(code) {
       refreshSettleUpOverlay();
     }
 
-    // Joiners are always view-only on the leaderboard — apply any state change and re-render
+    // Joiners are always view-only on the leaderboard — apply state FIRST, then scorecard
+    // scores. Order matters: fbApplyRemoteState overwrites state.days (including scorecards),
+    // so SK scores must be applied AFTER the state merge, not before.
     if (!isCurrentUserHost() && data.state) {
       fbApplyRemoteState(data.state);
+      if (data.scorecards) applyExternalScorecards(data.scorecards); // AFTER state merge
       if (state.step !== 7) goToStep(7);
       else if (typeof renderReview === 'function') renderReview();
       return;
@@ -9527,7 +9573,8 @@ function fbListenToRound(code) {
       // Only update players list — never clobber manager's local step/sideGames/scorecard
       if (remoteState.players) state.players = remoteState.players;
       if (state.step === 4 || state.step === 5 || state.step === 6) refreshLobbySection();
-      // Refresh host's leaderboard/scorecard when scorekeeper scores arrive
+      // Apply SK scores then refresh host's leaderboard
+      if (data.scorecards) applyExternalScorecards(data.scorecards);
       if (data.scorecards && state.step === 7 && typeof renderReview === 'function') renderReview();
       return; // Host owns all writes — never merge full remote state into manager
     }
