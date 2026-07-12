@@ -2296,7 +2296,7 @@
           <li><strong>Manager opens the app</strong> and taps <em>Start a Round</em>.</li>
           <li>Choose a <strong>round type</strong>: Stroke Play, Match Play, or Golf Event (multi-day).</li>
           <li>Select a <strong>scoring method</strong> (e.g. Net Stroke Play). For Golf Events, choose Ryder Cup for team match play.</li>
-          <li>For <strong>single rounds</strong>: pick a course and tee. For <strong>Golf Events</strong>: add players and days — course and groups are set each day from the Event Hub.</li>
+          <li>Pick a <strong>course and date</strong>. Then add players — each player gets their own <strong>tee box</strong> assignment (useful when different players play different tees).</li>
           <li>Enter each <strong>player's name and Handicap Index</strong> (HI). Tap 🔍 to look up via GHIN, or use <em>👥 From Buddies</em> to quickly add saved players.</li>
           <li>Add <strong>side games</strong> with stakes (Nassau, Wolf, Skins, etc.).</li>
           <li>Share the <strong>join code</strong> so playing partners can join. Lock the round when everyone is in.</li>
@@ -3140,10 +3140,10 @@ function teeOptionsHtml(course, selectedTee){
 function stepLabelText(n){
   if (n===1) return 'Round Type';
   if (n===2) return 'Scoring Method';
-  if (n===3) return isEvent() ? "Who's Playing" : 'Course & Tees';
-  if (n===4) return isEvent() ? 'Event Schedule' : "Who's Playing";
-  if (n===5) return 'Sidie-Games';
-  if (n===6) return 'Scorecard';
+  if (n===3) return 'Course & Date';
+  if (n===4) return "Who's Playing";
+  if (n===5) return isEvent() ? 'Event Schedule' : 'Sidie-Games';
+  if (n===6) return isEvent() ? 'Sidie-Games' : 'Scorecard';
   if (n===7) return 'Review';
 }
 
@@ -3180,31 +3180,42 @@ function renderStep(n){
   if (n===1){ renderRoundTypes(); }
   else if (n===2){ renderScoringOptions(); }
   else if (n===3){
-    if (isEvent()){
-      var sub3 = isRyderCup() ? "Add all players, assign them to teams, and set your team names." : "Add everyone on the trip and their Handicap Index. You'll assign them to tee times next.";
-      $('title-3').textContent = "Who's playing?"; $('subtitle-3').textContent = sub3;
-      renderPlayersInto('content-3');
-      if (isRyderCup()) renderRyderCupTeamSetup('content-3');
-    }
-    else { $('title-3').textContent = 'Course & Tees'; $('subtitle-3').textContent = "Pick the course and tee box — needed to calculate handicap strokes."; renderCourseStep(); }
+    // Step 3 (all round types): Course selection + date. No tee box here — tees are assigned per player on step 4.
+    $('title-3').textContent = 'Course & Date';
+    $('subtitle-3').textContent = isEvent()
+      ? 'Pick the course and event date. Each player\'s tee box is set on the next step.'
+      : 'Pick the course and date. Tee boxes are assigned per player on the next step.';
+    renderCourseStep();
   }
   else if (n===4){
-    if (isEvent()){ $('title-4').textContent = 'Event Schedule'; $('subtitle-4').textContent = 'Add the days for your event. Course, groups, and scoring type are set each day from the Event Hub — things can change daily!'; renderEventSchedule(); }
+    // Step 4 (all round types): Who's Playing + per-player tee box assignment
+    $('title-4').textContent = "Who's Playing";
+    if (isEvent()){
+      var sub4 = isRyderCup()
+        ? "Add all players, assign them to teams and tee boxes, and set your team names."
+        : "Add everyone on the trip and their Handicap Index. Assign each player a tee box.";
+      $('subtitle-4').textContent = sub4;
+      renderPlayersInto('content-4');
+      if (isRyderCup()) renderRyderCupTeamSetup('content-4');
+    }
     else if (fbRoundCode) {
-      // Networked round: Who's Playing — manager is pre-filled, others are pending
-      $('title-4').textContent = "Who's Playing";
+      // Networked round: manager sees player list + join code; joiners see confirm step
       $('subtitle-4').textContent = 'Your spot is saved. Set the number of players and share the code — others join from their phone.';
       renderNetworkedPlayersStep();
     }
     else {
-      // Solo play: Who's Playing (unchanged)
-      $('title-4').textContent = "Who's playing?";
-      $('subtitle-4').textContent = 'Add players and their Handicap Index. Strokes are calculated off the lowest handicap in the group.';
+      // Solo play
+      $('subtitle-4').textContent = 'Add players and their Handicap Index. Assign each a tee box.';
       renderPlayersInto('content-4');
     }
   }
   else if (n===5){
-    if (isEvent()){ $('title-5').textContent = 'Sidie-Games'; $('subtitle-5').textContent = 'Each tee-time group can run its own side games and stakes.'; renderEventSideGames(); }
+    if (isEvent()){
+      // Events: Event Schedule at step 5 (shifted from step 4)
+      $('title-5').textContent = 'Event Schedule';
+      $('subtitle-5').textContent = 'Add the days for your event. Course, groups, and scoring type are set each day from the Event Hub — things can change daily!';
+      renderEventSchedule();
+    }
     else if (fbRoundCode && isCurrentUserHost()) {
       // Networked round — Sidie Games setup + inline lobby to lock when ready
       $('title-5').textContent = 'Sidie-Games';
@@ -3229,10 +3240,18 @@ function renderStep(n){
     }
   }
   else if (n===6){
-    $('title-6').textContent = 'Scorecard';
-    $('subtitle-6').textContent = 'Enter hole-by-hole scores (and any per-hole game info) so Review can compute real results.';
-    renderScorecard();
-    activateRefreshGuard();
+    if (isEvent()){
+      // Events: Sidie Games at step 6 (shifted from step 5)
+      $('title-6').textContent = 'Sidie-Games';
+      $('subtitle-6').textContent = 'Each tee-time group can run its own side games and stakes.';
+      renderEventSideGames();
+    }
+    else {
+      $('title-6').textContent = 'Scorecard';
+      $('subtitle-6').textContent = 'Enter hole-by-hole scores (and any per-hole game info) so Review can compute real results.';
+      renderScorecard();
+      activateRefreshGuard();
+    }
   }
   else if (n===7){ renderReview(); }
 }
@@ -3240,8 +3259,8 @@ function renderStep(n){
 function isStepValid(n){
   if (n===1) return !!state.roundType;
   if (n===2) return !!state.scoringMethod;
-  if (n===3) return isEvent() ? validPlayers() : (state.course!=null && !!state.tee);
-  if (n===4) return isEvent() ? validEventSchedule() : (fbRoundCode ? true : validPlayers());
+  if (n===3) return state.course != null; // course selected (no tee required here — assigned per player on step 4)
+  if (n===4) return isEvent() ? validPlayers() : (fbRoundCode ? true : validPlayers());
   // Step 5 lobby: at least one real player must have joined before locking
   // (enforced by the Lock button's disabled state inside renderLobbyStep, not here)
   return true;
@@ -3454,31 +3473,31 @@ function renderCourseStep(){
   var html = courseSearchHtml('single');
   if (course){
     html += '<div class="card">';
-    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">'+
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'+
       '<span style="color:#2e7d32;font-size:18px;line-height:1;">✓</span>'+
       '<strong style="flex:1;">'+escapeHtml(course.name)+'</strong>'+
       '<button type="button" id="clearCourseBtn" style="font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;padding:0;">Change course</button>'+
     '</div>';
-    html += '<label class="field-label">Tee Box</label><select id="teeSelect">'+teeOptionsHtml(course, state.tee)+'</select>';
-    if (state.tee){
-      var t = course.tees.filter(function(x){return x.name===state.tee;})[0];
-      if (t) html += '<div class="note-box" style="margin-top:12px;">'+escapeHtml(t.name)+' tees — Par '+t.par+', Rating '+t.rating.toFixed(1)+', Slope '+t.slope+'</div>';
+    if (course.tees && course.tees.length){
+      html += '<div style="font-size:12px;color:var(--muted);">'+course.tees.length+' tee option'+(course.tees.length!==1?'s':'')+'available — assign each player a tee on the next step.</div>';
     }
     html += '</div>';
   }
+  // Date picker
+  html += '<div class="card" style="margin-top:12px;">';
+  html += '<label class="field-label">Round Date</label>';
+  html += '<input type="date" id="roundDateInput" value="'+(state.date||'')+'" style="width:100%;padding:9px 12px;border:1.5px solid var(--border,#ddd);border-radius:8px;font-size:14px;background:#fff;box-sizing:border-box;">';
+  html += '</div>';
   $('content-3').innerHTML = html;
   wireCourseSearch('single', function(newIdx){
     state.course = newIdx;
-    state.tee = null;
+    // Auto-set a default tee (first tee) as fallback for players who don't pick one
+    var c = MOCK_COURSES[newIdx];
+    state.tee = (c && c.tees && c.tees.length) ? c.tees[0].name : null;
     renderCourseStep();
     updateNextButton();
   });
   if (course){
-    $('teeSelect').addEventListener('change', function(){
-      state.tee = this.value===''? null : this.value;
-      renderCourseStep();
-      updateNextButton();
-    });
     $('clearCourseBtn').addEventListener('click', function(){
       state.course = null;
       state.tee = null;
@@ -3486,6 +3505,8 @@ function renderCourseStep(){
       updateNextButton();
     });
   }
+  var dateEl = document.getElementById('roundDateInput');
+  if (dateEl) dateEl.addEventListener('change', function(){ state.date = dateEl.value; });
 }
 
 // ================= RYDER CUP TEAM SETUP =================
@@ -3989,11 +4010,12 @@ function buildCompactLobbyHtml(){
 // Called by fbListenToRound and fbRemoveJoinedPlayer.
 function refreshLobbySection(){
   if (state.step === 4 && isCurrentUserHost()) {
-    if (!isEvent()) renderNetworkedPlayersStep(); // refresh Who's Playing view (non-event rounds only)
-    // For events, step 4 is Event Schedule — no auto-refresh needed
+    if (!isEvent()) renderNetworkedPlayersStep(); // refresh Who's Playing view (non-event networked rounds)
+    // For events, step 4 is also Who's Playing but managed by host directly, no auto-refresh needed
     return;
   }
-  if (state.step === 5 && isCurrentUserHost()) {
+  var _lobbyStep = isEvent() ? 6 : 5; // Sidie Games step (where lobby is appended for networked rounds)
+  if (state.step === _lobbyStep && isCurrentUserHost()) {
     var inlineEl = document.getElementById('compact-lobby-section');
     if (inlineEl) {
       // Replace just the inline lobby section, leaving Sidie Games intact
@@ -4540,7 +4562,7 @@ function renderEventSchedule(){
 
     html += '</div></div>';
   });
-  $('content-4').innerHTML = html + '<button class="add-day-btn" id="addDayBtn">+ Add Another Day</button>';
+  $('content-5').innerHTML = html + '<button class="add-day-btn" id="addDayBtn">+ Add Another Day</button>';
 
   $('addDayBtn').addEventListener('click', function(){ addDay(); renderEventSchedule(); updateNextButton(); });
   state.days.forEach(function(d){
@@ -4732,7 +4754,7 @@ function renderSideGameList(){
 
 // ================= SIDE GAMES: event branch (per day, per tee-time group) =================
 function renderEventSideGames(){
-  if (!state.days.length){ $('content-5').innerHTML = '<div class="empty-state">Set up your event schedule first (Step 4).</div>'; return; }
+  if (!state.days.length){ $('content-6').innerHTML = '<div class="empty-state">Set up your event schedule first (Step 5).</div>'; return; }
   if (!state.selectedDayForGames || !state.days.some(function(d){return d.id===state.selectedDayForGames;})){
     state.selectedDayForGames = state.days[0].id;
   }
@@ -4767,9 +4789,9 @@ function renderEventSideGames(){
     html += '</div>';
   }
   if (!anyGroup){
-    html += '<div class="empty-state">No players assigned to tee times for this day yet. Go back to Step 4 to assign players.</div>';
+    html += '<div class="empty-state">No players assigned to tee times for this day yet. Go to Day Setup to assign players.</div>';
   }
-  $('content-5').innerHTML = html;
+  $('content-6').innerHTML = html;
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-select-day]'), function(el){
     el.addEventListener('click', function(){
@@ -5879,7 +5901,7 @@ window.shareResultsText = function() {
 
 // ---------------- event branch ----------------
 function renderEventScorecard(){
-  if (!state.days.length){ $('content-6').innerHTML = '<div class="empty-state">Set up your event schedule first (Step 4).</div>'; return; }
+  if (!state.days.length){ $('content-6').innerHTML = '<div class="empty-state">Set up your event schedule first (Step 5).</div>'; return; }
 
   // If it's a networked event and no days are configured yet, show the Event Hub
   if (fbRoundCode) {
@@ -9399,7 +9421,7 @@ function fbListenToRound(code) {
       }
       // Only update players list — never clobber manager's local step/sideGames/scorecard
       if (remoteState.players) state.players = remoteState.players;
-      if (state.step === 4 || state.step === 5) refreshLobbySection();
+      if (state.step === 4 || state.step === 5 || state.step === 6) refreshLobbySection();
       // Refresh host's leaderboard/scorecard when scorekeeper scores arrive
       if (data.scorecards && state.step === 7 && typeof renderReview === 'function') renderReview();
       return; // Host owns all writes — never merge full remote state into manager
@@ -9658,6 +9680,7 @@ function resetState() {
   ];
   state.course = null;
   state.tee = null;
+  state.date = '';
   state.sideGames = [];
   state.days = [];
   state.selectedDayForGames = null;
