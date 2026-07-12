@@ -3261,6 +3261,11 @@ function renderStep(n){
       $('title-6').textContent = 'Sidie-Games';
       $('subtitle-6').textContent = 'Each tee-time group can run its own side games and stakes.';
       renderEventSideGames(); // targets content-6
+      if (fbRoundCode && isCurrentUserHost()) {
+        var _c6m = $('content-6');
+        if (_c6m) _c6m.insertAdjacentHTML('beforeend', buildCompactLobbyHtml());
+        wirePrelobScorekeeperButtons();
+      }
     }
     else {
       $('title-6').textContent = 'Scorecard';
@@ -4094,8 +4099,18 @@ function refreshLobbySection(){
       inlineEl.parentNode.replaceChild(tmp.firstChild, inlineEl);
       wirePrelobScorekeeperButtons();
     } else {
-      // Fallback: no inline section found, re-render full step
-      if (isEvent()) { renderEventSideGames(); } else { renderSingleSideGames(); var c5 = $('content-5'); if (c5) c5.insertAdjacentHTML('beforeend', buildCompactLobbyHtml()); wirePrelobScorekeeperButtons(); }
+      // Fallback: no inline section found, re-render full step then append lobby
+      if (isEvent()) {
+        renderEventSideGames();
+        var _cEvt = $(isMultiDay() ? 'content-6' : 'content-5');
+        if (_cEvt) _cEvt.insertAdjacentHTML('beforeend', buildCompactLobbyHtml());
+        wirePrelobScorekeeperButtons();
+      } else {
+        renderSingleSideGames();
+        var c5 = $('content-5');
+        if (c5) c5.insertAdjacentHTML('beforeend', buildCompactLobbyHtml());
+        wirePrelobScorekeeperButtons();
+      }
     }
   }
 }
@@ -4923,14 +4938,7 @@ function renderEventSideGames(){
   });
   renderDayGameList(day.id);
   for (var gn2=1; gn2<=groupCount; gn2++){ renderGroupGameList(day.id, gn2); }
-
-  // Networked event: append the compact lobby (scorekeeper assignment + Lock & Start)
-  // This is the only way the host can lock a networked Golf Event.
-  if (fbRoundCode && isCurrentUserHost()) {
-    var _ec5 = $('content-5');
-    if (_ec5) _ec5.insertAdjacentHTML('beforeend', buildCompactLobbyHtml());
-    wirePrelobScorekeeperButtons();
-  }
+  // Lobby is appended by renderStep after calling this function — not here.
 }
 
 function wirePrelobScorekeeperButtons() {
