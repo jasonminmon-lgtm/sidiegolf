@@ -3030,6 +3030,7 @@ var nextDayId = 1;
 
 function isEvent(){ return state.roundType === 'event'; }
 function isRyderCup(){ return isEvent() && state.scoringMethod === 'Ryder Cup Format'; }
+function isMultiDay(){ return isEvent() && state.multiDay === true; } // false/null = single-day event
 function rcTeamFor(idx){ return (state.rcTeamAssign && state.rcTeamAssign[idx]) || 'A'; }
 function rcTeamName(side){ return (state.rcTeamNames && state.rcTeamNames[side]) || (side === 'A' ? 'USA' : 'Europe'); }
 // Returns [[aIdx, bIdx], ...] — uses stored pairing if valid, else defaults to position order
@@ -3142,8 +3143,8 @@ function stepLabelText(n){
   if (n===2) return 'Scoring Method';
   if (n===3) return 'Course & Date';
   if (n===4) return "Who's Playing";
-  if (n===5) return isEvent() ? 'Event Schedule' : 'Sidie-Games';
-  if (n===6) return isEvent() ? 'Sidie-Games' : 'Scorecard';
+  if (n===5) return isMultiDay() ? 'Event Schedule' : 'Sidie-Games';
+  if (n===6) return isMultiDay() ? 'Sidie-Games' : 'Scorecard';
   if (n===7) return 'Review';
 }
 
@@ -3191,9 +3192,13 @@ function renderStep(n){
     // Step 4 (all round types): Who's Playing + per-player tee box assignment
     $('title-4').textContent = "Who's Playing";
     if (isEvent()){
+      // Single-day event: ensure day 0 is initialized (needed for tee-time group assignment per player)
+      if (!isMultiDay() && !state.days.length) addDay();
       var sub4 = isRyderCup()
         ? "Add all players, assign them to teams and tee boxes, and set your team names."
-        : "Add everyone on the trip and their Handicap Index. Assign each player a tee box.";
+        : isMultiDay()
+          ? "Add everyone on the trip and their Handicap Index. Assign each player a tee box."
+          : "Add players, pick their tee, and assign each to a tee time.";
       $('subtitle-4').textContent = sub4;
       renderPlayersInto('content-4');
       if (isRyderCup()) renderRyderCupTeamSetup('content-4');
@@ -3210,11 +3215,22 @@ function renderStep(n){
     }
   }
   else if (n===5){
-    if (isEvent()){
-      // Events: Event Schedule at step 5 (shifted from step 4)
+    if (isMultiDay()){
+      // Multi-day event: Event Schedule at step 5
       $('title-5').textContent = 'Event Schedule';
       $('subtitle-5').textContent = 'Add the days for your event. Course, groups, and scoring type are set each day from the Event Hub — things can change daily!';
       renderEventSchedule();
+    }
+    else if (isEvent()){
+      // Single-day event: Sidie Games at step 5 (same position as non-events) + lobby
+      $('title-5').textContent = 'Sidie-Games';
+      $('subtitle-5').textContent = 'Add side games and stakes. When everyone has joined, lock the round to start.';
+      renderEventSideGames(); // targets content-5
+      if (fbRoundCode && isCurrentUserHost()) {
+        var _c5e = $('content-5');
+        if (_c5e) _c5e.insertAdjacentHTML('beforeend', buildCompactLobbyHtml());
+        wirePrelobScorekeeperButtons();
+      }
     }
     else if (fbRoundCode && isCurrentUserHost()) {
       // Networked round — Sidie Games setup + inline lobby to lock when ready
@@ -3240,11 +3256,11 @@ function renderStep(n){
     }
   }
   else if (n===6){
-    if (isEvent()){
-      // Events: Sidie Games at step 6 (shifted from step 5)
+    if (isMultiDay()){
+      // Multi-day event: Sidie Games at step 6
       $('title-6').textContent = 'Sidie-Games';
       $('subtitle-6').textContent = 'Each tee-time group can run its own side games and stakes.';
-      renderEventSideGames();
+      renderEventSideGames(); // targets content-6
     }
     else {
       $('title-6').textContent = 'Scorecard';
@@ -3257,7 +3273,7 @@ function renderStep(n){
 }
 
 function isStepValid(n){
-  if (n===1) return !!state.roundType;
+  if (n===1) return !!state.roundType && (state.roundType !== 'event' || state.multiDay !== null);
   if (n===2) return !!state.scoringMethod;
   if (n===3) return state.course != null; // course selected (no tee required here — assigned per player on step 4)
   if (n===4) return isEvent() ? validPlayers() : (fbRoundCode ? true : validPlayers());
@@ -3280,9 +3296,13 @@ function updateNextButton(){
   // Gameplay-order labels: setup ends with "Start Round/Event" (jumps into
   // live scoring), Scorecard ends with "View Leaderboard" (jumps to Review),
   // and Review is the end of the line — no further Next action.
-  if (n===5 && fbRoundCode) { btn.style.visibility = 'hidden'; return; } // Lock button is inside Sidie-Games step
-  if (n===5) btn.textContent = isEvent() ? 'Start Event' : 'Start Round'; // solo: side games → scores
-  else if (n===6) btn.textContent = 'View Leaderboard';
+  // Hide Next button when the Lock button takes over (Sidie-Games step for networked rounds)
+  var _lockStep = isMultiDay() ? 6 : 5;
+  if (n === _lockStep && fbRoundCode) { btn.style.visibility = 'hidden'; return; }
+  // Button labels
+  if (!isEvent() && n === 5 && !fbRoundCode) btn.textContent = 'Start Round'; // solo non-event: sidie games → scorecard
+  else if (!isEvent() && n === 6) btn.textContent = 'View Leaderboard'; // non-event: scorecard → review
+  else if (isEvent() && !isMultiDay() && n === 5 && !fbRoundCode) btn.textContent = 'Start Event'; // single-day event solo
   else btn.textContent = 'Next';
   btn.style.visibility = (n===7) ? 'hidden' : 'visible';
   btn.disabled = !isStepValid(n);
@@ -3389,13 +3409,39 @@ function renderRoundTypes(){
       '<div class="option-text"><div class="opt-name">'+rt.name+'</div><div class="opt-desc">'+rt.desc+'</div></div>'+
       '<div class="check-badge">'+(state.roundType===rt.id?'✓':'')+'</div></div>';
   });
+  // Single / Multi-day sub-picker — shown when Golf Event is selected
+  if (state.roundType === 'event') {
+    html += '<div style="margin-top:14px;">';
+    html += '<div style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;">How many days?</div>';
+    var sdSel = state.multiDay === false ? ' selected' : '';
+    var mdSel = state.multiDay === true  ? ' selected' : '';
+    html += '<div class="option-card'+sdSel+'" data-event-multiday="false" style="margin-bottom:8px;">'+
+      '<div class="option-icon">🏌️</div>'+
+      '<div class="option-text"><div class="opt-name">Single Day</div><div class="opt-desc">One course, multiple tee times — skins, nassau, group games.</div></div>'+
+      '<div class="check-badge">'+(state.multiDay===false?'✓':'')+'</div></div>';
+    html += '<div class="option-card'+mdSel+'" data-event-multiday="true">'+
+      '<div class="option-icon">📅</div>'+
+      '<div class="option-text"><div class="opt-name">Multi-Day</div><div class="opt-desc">Ryder Cup, golf trips — different courses or formats each day.</div></div>'+
+      '<div class="check-badge">'+(state.multiDay===true?'✓':'')+'</div></div>';
+    html += '</div>';
+  }
   $('roundTypeOptions').innerHTML = html;
   Array.prototype.forEach.call(document.querySelectorAll('[data-roundtype]'), function(el){
     el.addEventListener('click', function(){
       state.roundType = el.getAttribute('data-roundtype');
+      if (state.roundType !== 'event') state.multiDay = null;
       if (state.scoringMethod && !SCORING_METHODS[state.roundType].some(function(m){return m.name===state.scoringMethod;})){
         state.scoringMethod = null;
       }
+      renderRoundTypes();
+      updateNextButton();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-event-multiday]'), function(el){
+    el.addEventListener('click', function(){
+      state.multiDay = el.getAttribute('data-event-multiday') === 'true';
+      // Ryder Cup is always multi-day — auto-enforce
+      if (state.scoringMethod === 'Ryder Cup Format') state.multiDay = true;
       renderRoundTypes();
       updateNextButton();
     });
@@ -3460,6 +3506,8 @@ function renderScoringOptions(){
   Array.prototype.forEach.call(document.querySelectorAll('[data-method]'), function(el){
     el.addEventListener('click', function(){
       state.scoringMethod = el.getAttribute('data-method');
+      // Ryder Cup is always multi-day — auto-enforce
+      if (state.scoringMethod === 'Ryder Cup Format') state.multiDay = true;
       renderScoringOptions();
       updateNextButton();
     });
@@ -3642,13 +3690,35 @@ function buildRcMatchBannerHtml(day, gn, course, tee, idxs, sc) {
 
 // ================= PLAYERS (shared by both branches) =================
 function renderPlayersInto(containerId){
-  var html = '<div class="card"><div id="playerListInner"></div>' +
+  // Single-day events: numGroups (tee times) control above player list
+  var numGroupsHtml = '';
+  if (isEvent() && !isMultiDay() && state.days.length) {
+    var ng = state.days[0].numGroups || 1;
+    var ngOpts = '';
+    for (var _ng=1; _ng<=10; _ng++) ngOpts += '<option value="'+_ng+'"'+(_ng===ng?' selected':'')+'>'+_ng+'</option>';
+    numGroupsHtml = '<div class="card" style="margin-bottom:10px;">'+
+      '<label class="field-label" style="display:flex;align-items:center;gap:10px;">'+
+        '<span style="flex:1;">Number of Tee Times</span>'+
+        '<select id="numGroupsSel" style="padding:6px 10px;border:1.5px solid var(--border,#ddd);border-radius:8px;font-size:14px;background:#fff;">'+ngOpts+'</select>'+
+      '</label>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px;">Assign each player to a tee time below.</div>'+
+    '</div>';
+  }
+  var html = numGroupsHtml + '<div class="card"><div id="playerListInner"></div>' +
     '<div style="display:flex;gap:8px;margin-top:4px;">' +
       '<button class="btn-add-player" id="addPlayerBtn" style="flex:1;">+ Add Player</button>' +
       '<button id="addFromBuddiesBtn" style="flex:1;padding:8px 10px;border:1.5px solid var(--green-dark,#1a5c36);border-radius:8px;background:transparent;color:var(--green-dark,#1a5c36);font-size:13px;font-weight:600;cursor:pointer;">&#128101; From Buddies</button>' +
     '</div>' +
   '</div>';
   $(containerId).innerHTML = html;
+  // Wire numGroups selector
+  var ngSel = document.getElementById('numGroupsSel');
+  if (ngSel) {
+    ngSel.addEventListener('change', function(){
+      state.days[0].numGroups = parseInt(ngSel.value, 10);
+      renderPlayerRows(); // re-render so tee-time dropdowns update their max group number
+    });
+  }
   renderPlayerRows();
   $('addPlayerBtn').addEventListener('click', function(){
     // If this player is joining an existing round, pre-set their tee from the join flow
@@ -4014,7 +4084,7 @@ function refreshLobbySection(){
     // For events, step 4 is also Who's Playing but managed by host directly, no auto-refresh needed
     return;
   }
-  var _lobbyStep = isEvent() ? 6 : 5; // Sidie Games step (where lobby is appended for networked rounds)
+  var _lobbyStep = isMultiDay() ? 6 : 5; // Sidie Games step (where lobby is appended for networked rounds)
   if (state.step === _lobbyStep && isCurrentUserHost()) {
     var inlineEl = document.getElementById('compact-lobby-section');
     if (inlineEl) {
@@ -4288,6 +4358,18 @@ function renderPlayerRows(){
       }).join('');
       teeRowHtml = '<div class="player-tee-row"><span class="ptr-label">Tees:</span><select class="ptr-sel" data-player-tee="'+idx+'">'+teeOpts+'</select></div>';
     }
+    // Tee Time group row: single-day events only
+    var ttRowHtml = '';
+    if (isEvent() && !isMultiDay() && state.days.length) {
+      var _d0 = state.days[0];
+      var _ng0 = _d0.numGroups || 1;
+      var _curG = _d0.assignments[idx] || 0;
+      var _ttOpts = '<option value="0"'+((_curG===0)?' selected':'')+'>Unassigned</option>';
+      for (var _tgi=1; _tgi<=_ng0; _tgi++){
+        _ttOpts += '<option value="'+_tgi+'"'+((_curG===_tgi)?' selected':'')+'>Tee Time '+_tgi+'</option>';
+      }
+      ttRowHtml = '<div class="player-tee-row"><span class="ptr-label">Tee Time:</span><select class="ptr-sel" data-player-group="'+idx+'">'+_ttOpts+'</select></div>';
+    }
     var isPlus = p.hi && p.hi.charAt(0) === '+';
     var hiDisplay = isPlus ? p.hi.slice(1) : (p.hi || '');
     html += '<div class="player-row">'+
@@ -4300,6 +4382,7 @@ function renderPlayerRows(){
       (state.players.length>2 ? '<button class="btn-remove-player" data-remove-player="'+idx+'">✕</button>' : '')+
       '</div>'+
       teeRowHtml+
+      ttRowHtml+
       '<div class="ghin-row">'+
         '<input type="text" class="ghin-input" id="ghin-input-'+idx+'" data-ghin-idx="'+idx+'" value="'+escapeHtml(ghinVal)+'" placeholder="GHIN # (optional)" maxlength="8" inputmode="numeric">'+
         '<button class="btn-ghin-lookup" id="ghin-btn-'+idx+'" data-ghin-btn="'+idx+'"'+(isValidGhin?'':' disabled')+'>Look up HI</button>'+
@@ -4416,6 +4499,15 @@ function renderPlayerRows(){
     });
   });
 
+  // Tee Time group selectors (single-day events)
+  Array.prototype.forEach.call(document.querySelectorAll('[data-player-group]'), function(el){
+    el.addEventListener('change', function(){
+      var i = parseInt(el.getAttribute('data-player-group'),10);
+      if (state.days.length) state.days[0].assignments[i] = parseInt(el.value, 10);
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    });
+  });
+
   // Remove player buttons
   Array.prototype.forEach.call(document.querySelectorAll('[data-remove-player]'), function(el){
     el.addEventListener('click', function(){
@@ -4456,7 +4548,11 @@ function renderPlayerRows(){
 
 // ================= EVENT SCHEDULE (event branch) =================
 function addDay(){
-  state.days.push({ id: nextDayId++, courseIdx:null, teeName:null, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{}, groupHcpPct:{}, playerTees:{}, singlesPairings:{}, status:'pending' });
+  // Pre-populate course + tee from the event-level selection (step 3) so the
+  // Event Schedule step doesn't redundantly ask for the course again.
+  var _defCourseIdx = state.course != null ? state.course : null;
+  var _defTee = state.tee || null;
+  state.days.push({ id: nextDayId++, courseIdx:_defCourseIdx, teeName:_defTee, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{}, groupHcpPct:{}, playerTees:{}, singlesPairings:{}, status:'pending' });
   if (state.selectedDayForGames==null) state.selectedDayForGames = state.days[0].id;
 }
 if (state.days.length===0) addDay();
@@ -4754,7 +4850,8 @@ function renderSideGameList(){
 
 // ================= SIDE GAMES: event branch (per day, per tee-time group) =================
 function renderEventSideGames(){
-  if (!state.days.length){ $('content-6').innerHTML = '<div class="empty-state">Set up your event schedule first (Step 5).</div>'; return; }
+  var _esgContainer = isMultiDay() ? 'content-6' : 'content-5';
+  if (!state.days.length){ $(  _esgContainer).innerHTML = '<div class="empty-state">Set up your event schedule first (Step 5).</div>'; return; }
   if (!state.selectedDayForGames || !state.days.some(function(d){return d.id===state.selectedDayForGames;})){
     state.selectedDayForGames = state.days[0].id;
   }
@@ -4791,7 +4888,7 @@ function renderEventSideGames(){
   if (!anyGroup){
     html += '<div class="empty-state">No players assigned to tee times for this day yet. Go to Day Setup to assign players.</div>';
   }
-  $('content-6').innerHTML = html;
+  $(_esgContainer).innerHTML = html;
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-select-day]'), function(el){
     el.addEventListener('click', function(){
@@ -9681,6 +9778,7 @@ function resetState() {
   state.course = null;
   state.tee = null;
   state.date = '';
+  state.multiDay = null; // null=not chosen, false=single-day event, true=multi-day event
   state.sideGames = [];
   state.days = [];
   state.selectedDayForGames = null;
