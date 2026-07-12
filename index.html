@@ -8120,12 +8120,88 @@ function leaderboardHtml(rows, title, opts){
       var primary = opts.useGross ? r.grossVsPar : r.netVsPar;
       var valStr = formatVsPar(primary);
       if (!opts.useGross) valStr += ' <span style="font-size:11.5px;color:var(--muted);">(gross '+formatVsPar(r.grossVsPar)+')</span>';
-      html += '<div class="summary-row"><span class="lbl">'+(i+1)+'. '+escapeHtml(r.name)+' <span style="color:var(--muted);">(thru '+r.thru+')</span></span><span class="val">'+valStr+'</span></div>';
+      var nameLink = '<span onclick="openPlayerScorecard(this.dataset.name)" data-name="'+escapeHtml(r.name)+'" style="cursor:pointer;text-decoration:underline;color:inherit;">'+escapeHtml(r.name)+'</span>';
+      html += '<div class="summary-row"><span class="lbl">'+(i+1)+'. '+nameLink+' <span style="color:var(--muted);">(thru '+r.thru+')</span></span><span class="val">'+valStr+'</span></div>';
     });
   }
   html += '</div>';
   return html;
 }
+
+// Per-player scorecard overlay — opened by tapping a name on the leaderboard
+window.openPlayerScorecard = function(name) {
+  var pIdx = -1;
+  for (var i = 0; i < state.players.length; i++) {
+    if ((state.players[i].name||'') === name) { pIdx = i; break; }
+  }
+  var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">';
+  html += '<div style="font-size:16px;font-weight:700;">'+escapeHtml(name)+'</div>';
+  html += '<button onclick="document.getElementById(\'sgPscOverlay\').style.display=\'none\'" style="background:none;border:none;font-size:24px;line-height:1;cursor:pointer;color:var(--muted);">×</button>';
+  html += '</div>';
+  var hasData = false;
+  (state.days || []).forEach(function(d, dIdx) {
+    var course = d.courseIdx != null ? MOCK_COURSES[d.courseIdx] : null;
+    var tee = course && d.teeName ? course.tees.filter(function(t){ return t.name===d.teeName; })[0] : null;
+    if (!tee && course && course.tees && course.tees.length) tee = course.tees[0];
+    var gn = (pIdx >= 0 && d.assignments) ? d.assignments[pIdx] : null;
+    if (!gn) return;
+    var scData = d.scorecards && d.scorecards[gn] ? d.scorecards[gn] : {};
+    var scores = (scData.scores && scData.scores[pIdx]) ? scData.scores[pIdx] : {};
+    var parByHole = tee && tee.parByHole ? tee.parByHole : [];
+    hasData = true;
+    if ((state.days||[]).length > 1) {
+      html += '<div style="font-size:11px;font-weight:700;color:var(--green-dark,#1a5c36);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px;">Day '+(dIdx+1)+(course?' — '+escapeHtml(course.name):'')+'</div>';
+    }
+    function nineHtml(start, end, label) {
+      var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">';
+      h += '<tr style="background:var(--bg,#f5f5f5);"><td style="padding:3px 5px;font-weight:600;white-space:nowrap;">Hole</td>';
+      for (var n=start;n<=end;n++) h += '<td style="text-align:center;padding:3px 3px;min-width:22px;">'+n+'</td>';
+      h += '<td style="text-align:center;padding:3px 5px;font-weight:600;">'+label+'</td></tr>';
+      h += '<tr style="color:var(--muted,#888);"><td style="padding:3px 5px;">Par</td>';
+      var pTot=0;
+      for (var p=start;p<=end;p++){var pv=parByHole[p-1]||4;pTot+=pv;h+='<td style="text-align:center;padding:3px 3px;">'+pv+'</td>';}
+      h += '<td style="text-align:center;font-weight:600;padding:3px 5px;">'+pTot+'</td></tr>';
+      h += '<tr><td style="padding:3px 5px;font-weight:600;">Score</td>';
+      var sTot=0, played=0;
+      for (var s=start;s<=end;s++){
+        var sv=scores[s]!=null?scores[s]:null;
+        var par=parByHole[s-1]||4;
+        var cs='text-align:center;padding:3px 3px;';
+        var cv=sv!=null?sv:'—';
+        if(sv!=null){sTot+=sv;played++;var d2=sv-par;
+          if(d2<=-2)cs+='background:#7b2fbe;color:#fff;border-radius:50%;font-weight:700;';
+          else if(d2===-1)cs+='background:#1a7a4a;color:#fff;border-radius:50%;';
+          else if(d2===1)cs+='outline:1px solid #c0392b;border-radius:2px;';
+          else if(d2>=2)cs+='outline:2px solid #c0392b;border-radius:2px;color:#c0392b;font-weight:600;';
+        }
+        h+='<td style="'+cs+'">'+cv+'</td>';
+      }
+      h+='<td style="text-align:center;font-weight:700;padding:3px 5px;">'+(played>0?sTot:'—')+'</td></tr>';
+      h+='</table></div>';
+      return h;
+    }
+    html += nineHtml(1,9,'OUT');
+    html += nineHtml(10,18,'IN');
+    var gTot=0,gPlayed=0;
+    for(var hh=1;hh<=18;hh++){if(scores[hh]!=null){gTot+=scores[hh];gPlayed++;}}
+    if(gPlayed>0){
+      var tPar=0;for(var pp=0;pp<18;pp++)tPar+=(parByHole[pp]||4);
+      html+='<div style="text-align:right;font-size:13px;font-weight:700;margin-top:4px;">Total: '+gTot+' ('+formatVsPar(gTot-tPar)+' vs par, thru '+gPlayed+')</div>';
+    }
+  });
+  if(!hasData) html+='<div style="color:var(--muted,#888);font-size:13px;">No scores entered yet.</div>';
+  var ov=document.getElementById('sgPscOverlay');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='sgPscOverlay';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 12px;box-sizing:border-box;';
+    ov.innerHTML='<div id="sgPscInner" style="background:var(--card,#fff);border-radius:14px;padding:18px;width:100%;max-width:520px;margin:auto;"></div>';
+    ov.addEventListener('click',function(e){if(e.target===ov)ov.style.display='none';});
+    document.body.appendChild(ov);
+  }
+  document.getElementById('sgPscInner').innerHTML=html;
+  ov.style.display='flex';
+};
 
 function sfPtCell(pts, isModified){
   if (pts === null || pts === undefined) return '<span style="color:#ccc;">—</span>';
@@ -8778,7 +8854,7 @@ function buildEventLeaderboardAndLedgerHtml(){
   try { ledger = SidieGolfEngine.computeLedger(allEntries); } catch(e){ ledger = {}; }
 
   window._sidieLastLedger = ledger; // cached for Settle Up overlay
-  html += ledgerCardHtml(ledger, 'Final Settlement — Trip-Wide (All Sidie Games)', { isFinal: true });
+  html += ledgerCardHtml(ledger, 'Final Settlement — Event-Wide (All Sidie Games)', { isFinal: true });
   return html;
 }
 
