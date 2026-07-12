@@ -10387,6 +10387,11 @@ fbAuth.onAuthStateChanged(function(user) {
   }
 });
 
+// Expose scorekeeper UI functions to global scope (called from renderReview in script block 2)
+window.buildScorekeeperPanelHtml = buildScorekeeperPanelHtml;
+window.wireScorekeeperPanel = wireScorekeeperPanel;
+window.renderScorekeeperScorecardView = renderScorekeeperScorecardView;
+
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
