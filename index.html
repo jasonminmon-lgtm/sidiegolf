@@ -9681,6 +9681,12 @@ window.fbScorekeeperUnclaim = function(dayId, gn) {
 
 // Build scorekeeper claim panel (shown above leaderboard for non-host event rounds)
 function buildScorekeeperPanelHtml() {
+  // Resolve current user's name for "is this my group?" check.
+  // Checks fbMyPlayerEntry first, then localStorage profile, then Firebase display name.
+  var _me = (window.fbMyPlayerEntry && window.fbMyPlayerEntry.name || '').trim().toLowerCase();
+  if (!_me) { try { var _mp=JSON.parse(localStorage.getItem('sg_user_profile')||'null'); if(_mp&&_mp.name) _me=_mp.name.trim().toLowerCase(); } catch(ex){} }
+  if (!_me && window.fbUser && window.fbUser.displayName) _me = window.fbUser.displayName.trim().toLowerCase();
+
   var html = '<div class="card" id="skPanel">';
   html += '<div class="section-title">📋 Scorekeeper</div>';
   var hasGroups = false;
@@ -9697,6 +9703,14 @@ function buildScorekeeperPanelHtml() {
       var key = d.id + '_' + gn;
       var claimedBy = window.fbScorekeeperClaims[key];
       var isMine = window.fbMyScoreGroups.some(function(g){ return g.dayId===d.id && g.gn===gn; });
+      // Self-correct: if this group is claimed under my name but fbMyScoreGroups is stale/empty,
+      // treat it as mine and register it so Enter Scores appears correctly.
+      if (!isMine && _me && claimedBy && claimedBy.trim().toLowerCase() === _me) {
+        isMine = true;
+        if (!window.fbMyScoreGroups.some(function(g){ return g.dayId===d.id && g.gn===gn; })) {
+          window.fbMyScoreGroups.push({ dayId: d.id, gn: gn });
+        }
+      }
       var names = idxs.map(function(i){ return (state.players[i].name||'').split(' ')[0]; }).join(', ');
       html += '<div class="sk-group-row">';
       html += '<div class="sk-group-info"><div class="sk-group-label">Group '+gn+'</div><div class="sk-group-players">'+escapeHtml(names)+'</div></div>';
@@ -9706,6 +9720,7 @@ function buildScorekeeperPanelHtml() {
         html += '<span class="sk-unclaim" data-sk-unclaim="'+d.id+'|'+gn+'">Release</span>';
       } else if (claimedBy) {
         html += '<span class="sk-claimed-badge">'+escapeHtml(claimedBy)+'</span>';
+        html += '<span class="sk-claim-link" data-sk-claim="'+d.id+'|'+gn+'" style="font-size:11px;color:var(--muted,#aaa);cursor:pointer;text-decoration:underline;display:block;margin-top:2px;">Claim instead</span>';
       } else {
         html += '<button class="sk-claim-btn" data-sk-claim="'+d.id+'|'+gn+'">Claim</button>';
       }
