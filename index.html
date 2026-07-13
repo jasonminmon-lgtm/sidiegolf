@@ -3322,14 +3322,7 @@ $('nextBtn').addEventListener('click', function(){
 $('editScoresLink').addEventListener('click', function(){ goToStep(6); });
 $('restartLink').addEventListener('click', function(){
   if (!confirm('Start a new round? Your current round will be cleared (a backup is saved automatically — tap "Resume Round" on the home screen to recover it).')) return;
-  state = { step:1, roundType:null, scoringMethod:null,
-    modifiedStablefordTable: { albatross: 5, eagle: 4, birdie: 3, par: 2, bogey: 1, dblBogey: 0 },
-    players:[{name:'Player 1',hi:'',ghin:'',ghinName:'',ghinUpdated:''},{name:'Player 2',hi:'',ghin:'',ghinName:'',ghinUpdated:''},{name:'Player 3',hi:'',ghin:'',ghinName:'',ghinUpdated:''},{name:'Player 4',hi:'',ghin:'',ghinName:'',ghinUpdated:''}],
-    course:null, tee:null, sideGames:[], days:[], selectedDayForGames:null,
-    selectedDayForScorecard:null, selectedGroupForScorecard:null,
-    scorecard:{ scores:{}, events:{} },
-    rcTeamNames:{ A:'USA', B:'Europe' }, rcTeamAssign:{}, hostUid:null };
-  nextSideGameId = 1; nextDayId = 1;
+  resetState();
   goToStep(1);
 });
 
@@ -5870,13 +5863,13 @@ function buildDayResultsSummaryText(dayId) {
     games.forEach(function(game){
       try {
         var ctx4=buildCtx(giS,courseS,teeS,scS,100);
-        var res4=SidieGolfEngine.computeGame(ctx4,game);
-        if (!res4||!res4.playerTotals) return;
+        var res4=SidieGolfEngine.computeGamePayouts(game,ctx4);
+        if (!res4) return;
         hasSidies=true;
         lines.push('Tee Time '+gnS+' — '+game.type+':');
         giS.forEach(function(idx){
           var p=state.players[idx];if(!p||!p.name.trim())return;
-          var amt=res4.playerTotals[String(idx)];
+          var amt=res4[String(idx)];
           if(amt==null)return;
           var amtStr=(amt>=0?'+':'')+amt.toFixed(2).replace('.00','');
           lines.push('  '+p.name+': $'+amtStr);
