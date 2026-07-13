@@ -10407,15 +10407,9 @@ function fbFriendlyError(err) {
 // ── Welcome email (EmailJS) ────────────────────────────────────────────────────
 function sgSendWelcomeEmail(user) {
   if (!user || !user.email || user.isAnonymous) return;
-  // Only send once per UID — flag stored in localStorage
+  // Send once per UID per device — localStorage flag prevents duplicate sends
   var flagKey = 'sg_welcome_sent_' + user.uid;
   if (localStorage.getItem(flagKey)) return;
-  // Only fire for accounts created within the last 5 minutes
-  var created = (user.metadata && user.metadata.creationTime) ? new Date(user.metadata.creationTime).getTime() : 0;
-  if (!created || (Date.now() - created) > 300000) {
-    console.log('[SidieGolf] Welcome email skipped — account not new (created:', user.metadata && user.metadata.creationTime, ')');
-    return;
-  }
   if (typeof emailjs === 'undefined') { console.warn('[SidieGolf] EmailJS not loaded'); return; }
   var firstName = (user.displayName || user.email.split('@')[0]).split(' ')[0];
   console.log('[SidieGolf] Sending welcome email to', user.email);
