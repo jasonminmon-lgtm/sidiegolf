@@ -3828,7 +3828,29 @@ function renderNetworkedPlayersStep(){
     html += '</div>';
   }
   html += '</div>';
+  // Top-level multi-add from Buddies — mirrors Golf Event path
+  html += '<button id="nps-from-buddies-btn" style="width:100%;margin-top:4px;padding:9px 10px;border:1.5px solid var(--green-dark,#1a5c36);border-radius:8px;background:transparent;color:var(--green-dark,#1a5c36);font-size:13px;font-weight:600;cursor:pointer;">&#128101; From Buddies</button>';
+  html += '</div>';
   target.innerHTML = html;
+  // Wire multi-add Buddies button
+  var _npsBuddiesBtn = document.getElementById('nps-from-buddies-btn');
+  if (_npsBuddiesBtn) {
+    _npsBuddiesBtn.addEventListener('click', function() {
+      showBuddies(function(buddy) {
+        var entry = { name: buddy.name||'', hi: buddy.hi||'', ghin: buddy.ghin||'', ghinName:'', ghinUpdated:'', tee: state.tee||'' };
+        // Fill first empty/placeholder slot, or expand the list up to 20
+        var emptyIdx = -1;
+        for (var _bi = 0; _bi < state.players.length; _bi++) {
+          var _bn = (state.players[_bi].name||'').trim();
+          if (!_bn || /^player\s*\d+$/i.test(_bn)) { emptyIdx = _bi; break; }
+        }
+        if (emptyIdx >= 0) state.players[emptyIdx] = entry;
+        else if (state.players.length < 20) state.players.push(entry);
+        if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+        renderNetworkedPlayersStep();
+      }, true /* multiMode — stay open for bulk add */);
+    });
+  }
 }
 // Expose globally so inline onclick="renderNetworkedPlayersStep()" (Cancel button) works
 window.renderNetworkedPlayersStep = renderNetworkedPlayersStep;
