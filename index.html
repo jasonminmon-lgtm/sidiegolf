@@ -9261,6 +9261,10 @@ window.fbSignUp = function() {
   if (pw.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
   var btn = document.getElementById('fb-up-btn');
   btn.disabled = true; btn.textContent = 'Creating…';
+  // Save profile to localStorage BEFORE creating the account so onAuthStateChanged
+  // (which fires before updateProfile resolves) can already read the name.
+  var profile = { name: name, ghin: ghin };
+  try { localStorage.setItem('sg_user_profile', JSON.stringify(profile)); } catch(e) {}
   fbAuth.createUserWithEmailAndPassword(email, pw)
     .then(function(cred) {
       return cred.user.updateProfile({ displayName: name });
@@ -9270,9 +9274,6 @@ window.fbSignUp = function() {
       // so fbUser.displayName is null at that point. Refresh it now.
       fbUser = fbAuth.currentUser;
       window.fbUser = fbUser; // expose globally so renderPlayerRows() can see it
-      // Save profile to localStorage so Who's Playing can auto-populate
-      var profile = { name: name, ghin: ghin };
-      try { localStorage.setItem('sg_user_profile', JSON.stringify(profile)); } catch(e) {}
       // If they entered a GHIN, look up their handicap index now
       if (ghin) {
         lookupGhinHandicap(ghin, function(err, result) {
@@ -10433,7 +10434,19 @@ function sgSendWelcomeEmail(user) {
   var flagKey = 'sg_welcome_sent_' + user.uid;
   if (localStorage.getItem(flagKey)) return;
   if (typeof emailjs === 'undefined') { console.warn('[SidieGolf] EmailJS not loaded'); return; }
-  var firstName = (user.displayName || user.email.split('@')[0]).split(' ')[0];
+  // Name priority: Firebase displayName → saved profile in localStorage → email prefix
+  var firstName = '';
+  if (user.displayName) {
+    firstName = user.displayName.split(' ')[0];
+  } else {
+    try {
+      var _prof = JSON.parse(localStorage.getItem('sg_user_profile') || 'null');
+      if (_prof && _prof.name) firstName = _prof.name.trim().split(' ')[0];
+    } catch(e) {}
+  }
+  if (!firstName) firstName = user.email.split('@')[0];
+  // Capitalize first letter in case source was lowercase (e.g. email prefix)
+  firstName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
   console.log('[SidieGolf] Sending welcome email to', user.email);
   emailjs.send('service_m1kqxhb', 'template_z4ln7ep', {
     to_name: firstName,
