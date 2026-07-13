@@ -616,6 +616,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <script>
 /* ==========================================================================
@@ -8139,56 +8140,79 @@ window.openPlayerScorecard = function(name) {
   html += '<button onclick="document.getElementById(\'sgPscOverlay\').style.display=\'none\'" style="background:none;border:none;font-size:24px;line-height:1;cursor:pointer;color:var(--muted);">×</button>';
   html += '</div>';
   var hasData = false;
-  (state.days || []).forEach(function(d, dIdx) {
-    var course = d.courseIdx != null ? MOCK_COURSES[d.courseIdx] : null;
-    var tee = course && d.teeName ? course.tees.filter(function(t){ return t.name===d.teeName; })[0] : null;
-    if (!tee && course && course.tees && course.tees.length) tee = course.tees[0];
-    var gn = (pIdx >= 0 && d.assignments) ? d.assignments[pIdx] : null;
-    if (!gn) return;
-    var scData = d.scorecards && d.scorecards[gn] ? d.scorecards[gn] : {};
-    var scores = (scData.scores && scData.scores[pIdx]) ? scData.scores[pIdx] : {};
-    var parByHole = tee && tee.parByHole ? tee.parByHole : [];
-    hasData = true;
-    if ((state.days||[]).length > 1) {
-      html += '<div style="font-size:11px;font-weight:700;color:var(--green-dark,#1a5c36);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px;">Day '+(dIdx+1)+(course?' — '+escapeHtml(course.name):'')+'</div>';
-    }
-    function nineHtml(start, end, label) {
-      var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">';
-      h += '<tr style="background:var(--bg,#f5f5f5);"><td style="padding:3px 5px;font-weight:600;white-space:nowrap;">Hole</td>';
-      for (var n=start;n<=end;n++) h += '<td style="text-align:center;padding:3px 3px;min-width:22px;">'+n+'</td>';
-      h += '<td style="text-align:center;padding:3px 5px;font-weight:600;">'+label+'</td></tr>';
-      h += '<tr style="color:var(--muted,#888);"><td style="padding:3px 5px;">Par</td>';
-      var pTot=0;
-      for (var p=start;p<=end;p++){var pv=parByHole[p-1]||4;pTot+=pv;h+='<td style="text-align:center;padding:3px 3px;">'+pv+'</td>';}
-      h += '<td style="text-align:center;font-weight:600;padding:3px 5px;">'+pTot+'</td></tr>';
-      h += '<tr><td style="padding:3px 5px;font-weight:600;">Score</td>';
-      var sTot=0, played=0;
-      for (var s=start;s<=end;s++){
-        var sv=scores[s]!=null?scores[s]:null;
-        var par=parByHole[s-1]||4;
-        var cs='text-align:center;padding:3px 3px;';
-        var cv=sv!=null?sv:'—';
-        if(sv!=null){sTot+=sv;played++;var d2=sv-par;
-          if(d2<=-2)cs+='background:#7b2fbe;color:#fff;border-radius:50%;font-weight:700;';
-          else if(d2===-1)cs+='background:#1a7a4a;color:#fff;border-radius:50%;';
-          else if(d2===1)cs+='outline:1px solid #c0392b;border-radius:2px;';
-          else if(d2>=2)cs+='outline:2px solid #c0392b;border-radius:2px;color:#c0392b;font-weight:600;';
-        }
-        h+='<td style="'+cs+'">'+cv+'</td>';
+
+  // Shared helper: renders a 9-hole scoring table
+  function nineHtml(scores, parByHole, start, end, label) {
+    var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    h += '<tr style="background:var(--bg,#f5f5f5);"><td style="padding:3px 5px;font-weight:600;white-space:nowrap;">Hole</td>';
+    for (var n=start;n<=end;n++) h += '<td style="text-align:center;padding:3px 3px;min-width:22px;">'+n+'</td>';
+    h += '<td style="text-align:center;padding:3px 5px;font-weight:600;">'+label+'</td></tr>';
+    h += '<tr style="color:var(--muted,#888);"><td style="padding:3px 5px;">Par</td>';
+    var pTot=0;
+    for (var p=start;p<=end;p++){var pv=parByHole[p-1]||4;pTot+=pv;h+='<td style="text-align:center;padding:3px 3px;">'+pv+'</td>';}
+    h += '<td style="text-align:center;font-weight:600;padding:3px 5px;">'+pTot+'</td></tr>';
+    h += '<tr><td style="padding:3px 5px;font-weight:600;">Score</td>';
+    var sTot=0, played=0;
+    for (var s=start;s<=end;s++){
+      var sv=scores[s]!=null?scores[s]:null;
+      var par=parByHole[s-1]||4;
+      var cs='text-align:center;padding:3px 3px;';
+      var cv=sv!=null?sv:'—';
+      if(sv!=null){sTot+=sv;played++;var d2=sv-par;
+        if(d2<=-2)cs+='background:#7b2fbe;color:#fff;border-radius:50%;font-weight:700;';
+        else if(d2===-1)cs+='background:#1a7a4a;color:#fff;border-radius:50%;';
+        else if(d2===1)cs+='outline:1px solid #c0392b;border-radius:2px;';
+        else if(d2>=2)cs+='outline:2px solid #c0392b;border-radius:2px;color:#c0392b;font-weight:600;';
       }
-      h+='<td style="text-align:center;font-weight:700;padding:3px 5px;">'+(played>0?sTot:'—')+'</td></tr>';
-      h+='</table></div>';
-      return h;
+      h+='<td style="'+cs+'">'+cv+'</td>';
     }
-    html += nineHtml(1,9,'OUT');
-    html += nineHtml(10,18,'IN');
-    var gTot=0,gPlayed=0;
+    h+='<td style="text-align:center;font-weight:700;padding:3px 5px;">'+(played>0?sTot:'—')+'</td></tr>';
+    h+='</table></div>';
+    return h;
+  }
+
+  function renderScores(scores, parByHole) {
+    var out = nineHtml(scores, parByHole, 1, 9, 'OUT');
+    out += nineHtml(scores, parByHole, 10, 18, 'IN');
+    var gTot=0, gPlayed=0;
     for(var hh=1;hh<=18;hh++){if(scores[hh]!=null){gTot+=scores[hh];gPlayed++;}}
     if(gPlayed>0){
-      var tPar=0;for(var pp=0;pp<18;pp++)tPar+=(parByHole[pp]||4);
-      html+='<div style="text-align:right;font-size:13px;font-weight:700;margin-top:4px;">Total: '+gTot+' ('+formatVsPar(gTot-tPar)+' vs par, thru '+gPlayed+')</div>';
+      var tPar=0; for(var pp=0;pp<18;pp++) tPar+=(parByHole[pp]||4);
+      out+='<div style="text-align:right;font-size:13px;font-weight:700;margin-top:4px;">Total: '+gTot+' ('+formatVsPar(gTot-tPar)+' vs par, thru '+gPlayed+')</div>';
     }
-  });
+    return out;
+  }
+
+  // ── Golf Event path: scores live in state.days[n].scorecards[gn].scores ──
+  if (isEvent() && state.days && state.days.length) {
+    state.days.forEach(function(d, dIdx) {
+      var course = d.courseIdx != null ? MOCK_COURSES[d.courseIdx] : null;
+      var tee = course && d.teeName ? course.tees.filter(function(t){ return t.name===d.teeName; })[0] : null;
+      if (!tee && course && course.tees && course.tees.length) tee = course.tees[0];
+      var gn = (pIdx >= 0 && d.assignments) ? d.assignments[pIdx] : null;
+      if (!gn) return;
+      var scData = d.scorecards && d.scorecards[gn] ? d.scorecards[gn] : {};
+      var scores = scData.scores ? (scData.scores[String(pIdx)] || scData.scores[pIdx] || {}) : {};
+      var parByHole = tee && tee.parByHole ? tee.parByHole : [];
+      hasData = true;
+      if (state.days.length > 1) {
+        html += '<div style="font-size:11px;font-weight:700;color:var(--green-dark,#1a5c36);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px;">Day '+(dIdx+1)+(course?' — '+escapeHtml(course.name):'')+'</div>';
+      }
+      html += renderScores(scores, parByHole);
+    });
+  } else {
+    // ── Single-day path: scores live in state.scorecard.scores ──
+    var course = state.course != null ? MOCK_COURSES[state.course] : null;
+    var tee = course && state.tee ? course.tees.filter(function(t){ return t.name===state.tee; })[0] : null;
+    if (!tee && course && course.tees && course.tees.length) tee = course.tees[0];
+    if (pIdx >= 0 && state.scorecard && state.scorecard.scores) {
+      var scores = state.scorecard.scores[String(pIdx)] || state.scorecard.scores[pIdx] || {};
+      var parByHole = tee && tee.parByHole ? tee.parByHole : [];
+      hasData = true;
+      html += renderScores(scores, parByHole);
+    }
+  }
+
   if(!hasData) html+='<div style="color:var(--muted,#888);font-size:13px;">No scores entered yet.</div>';
   var ov=document.getElementById('sgPscOverlay');
   if(!ov){
@@ -10376,6 +10400,32 @@ function fbFriendlyError(err) {
   return err.message || 'Something went wrong. Please try again.';
 }
 
+// ── Welcome email (EmailJS) ────────────────────────────────────────────────────
+function sgSendWelcomeEmail(user) {
+  if (!user || !user.email || user.isAnonymous) return;
+  // Only send once per UID — flag stored in localStorage
+  var flagKey = 'sg_welcome_sent_' + user.uid;
+  if (localStorage.getItem(flagKey)) return;
+  // Only fire for accounts created within the last 5 minutes
+  var created = (user.metadata && user.metadata.creationTime) ? new Date(user.metadata.creationTime).getTime() : 0;
+  if (!created || (Date.now() - created) > 300000) {
+    console.log('[SidieGolf] Welcome email skipped — account not new (created:', user.metadata && user.metadata.creationTime, ')');
+    return;
+  }
+  if (typeof emailjs === 'undefined') { console.warn('[SidieGolf] EmailJS not loaded'); return; }
+  var firstName = (user.displayName || user.email.split('@')[0]).split(' ')[0];
+  console.log('[SidieGolf] Sending welcome email to', user.email);
+  emailjs.send('service_m1kqxhb', 'template_z4ln7ep', {
+    to_name: firstName,
+    to_email: user.email
+  }, { publicKey: 'myhgHG7DxOdWMyXLc' }).then(function() {
+    console.log('[SidieGolf] Welcome email sent to', user.email);
+    localStorage.setItem(flagKey, '1');
+  }).catch(function(err) {
+    console.warn('[SidieGolf] Welcome email failed:', err);
+  });
+}
+
 // ── Auth state observer ────────────────────────────────────────────────────────
 fbAuth.onAuthStateChanged(function(user) {
   fbUser = user;
@@ -10420,6 +10470,9 @@ fbAuth.onAuthStateChanged(function(user) {
       }
       return;
     }
+
+    // Send welcome email to brand-new signups
+    sgSendWelcomeEmail(user);
 
     // Preload buddies + custom courses cache for non-anonymous (registered) users
     if (typeof fbLoadBuddies === 'function') fbLoadBuddies();
