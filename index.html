@@ -3826,6 +3826,7 @@ function renderNetworkedPlayersStep(){
       var _meta = [];
       if (_p.hi!=null&&_p.hi!=='') _meta.push('HI '+escapeHtml(formatHi(_p.hi)));
       if (_p.ghin) _meta.push('GHIN '+escapeHtml(_p.ghin));
+      if (!isEvent() && (_p.tee || state.tee)) _meta.push(escapeHtml(_p.tee || state.tee)+' Tees');
       if (_meta.length) html += '<div style="font-size:12px;color:var(--muted,#666);margin-top:2px;">'+_meta.join(' · ')+'</div>';
       html += '</div>';
       html += '<button onclick="npsEditPlayer('+_pi+')" style="background:none;border:none;color:var(--muted,#999);font-size:14px;cursor:pointer;padding:4px 6px;" title="Edit">✏️</button>';
@@ -3884,6 +3885,14 @@ window.npsEditPlayer = function(idx) {
   f += '</div>';
   // Lookup result message
   f += '<div id="nps-gm-'+idx+'" style="font-size:12px;min-height:16px;margin-bottom:6px;"></div>';
+  // Tee box selector (if course is loaded)
+  if (!isEvent() && state.course != null && MOCK_COURSES[state.course]) {
+    var _nTees = MOCK_COURSES[state.course].tees;
+    var _curTee = _p.tee || state.tee || '';
+    f += '<select id="nps-ft-'+idx+'" style="width:100%;padding:8px 10px;border:1.5px solid var(--border,#ddd);border-radius:6px;font-size:13px;margin-bottom:8px;box-sizing:border-box;">';
+    _nTees.forEach(function(t){ f += '<option value="'+escapeHtml(t.name)+'"'+(_curTee===t.name?' selected':'')+'>'+escapeHtml(t.name)+' Tees</option>'; });
+    f += '</select>';
+  }
   // From Buddies button
   f += '<button type="button" onclick="npsPickFromBuddies('+idx+')" style="width:100%;padding:8px;margin-bottom:8px;border:1.5px solid var(--border,#ddd);border-radius:6px;background:#f7f7f7;font-size:12px;font-weight:600;cursor:pointer;color:var(--green-dark,#1a5c36);">&#128101; From Buddies</button>';
   // Save / Cancel
@@ -3904,6 +3913,7 @@ window.npsSavePlayer = function(idx) {
   var ghinEl = document.getElementById('nps-fg-'+idx);
   var hiEl   = document.getElementById('nps-fh-'+idx);
   var hiPlus = document.getElementById('nps-fp-'+idx);
+  var teeEl  = document.getElementById('nps-ft-'+idx);
   var newName = nameEl ? nameEl.value.trim() : '';
   var newGhin = ghinEl ? ghinEl.value.trim() : '';
   var newHi   = hiEl   ? hiEl.value.trim()   : '';
@@ -3916,13 +3926,14 @@ window.npsSavePlayer = function(idx) {
     return;
   }
   var existing = state.players[idx] || {};
+  var newTee = teeEl ? teeEl.value : (existing.tee || state.tee || '');
   state.players[idx] = {
     name:        newName,
     ghin:        newGhin,
     hi:          newHi,
     ghinName:    existing.ghinName    || '',
     ghinUpdated: existing.ghinUpdated || '',
-    tee:         existing.tee         || state.tee || '',
+    tee:         newTee,
     isManager:   (idx === 0) ? true : (existing.isManager || false)
   };
   if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
