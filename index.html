@@ -335,6 +335,25 @@
   .help-body ul{margin:6px 0 6px 4px;padding:0 0 0 14px;}
   .help-body li{margin-bottom:5px;}
   .help-tip{background:var(--green-light);border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12.5px;color:var(--green-dark);font-weight:500;}
+  /* Feedback FAB + overlay */
+  .feedback-fab{position:fixed;bottom:84px;right:16px;width:50px;height:50px;border-radius:50%;background:var(--green-dark);color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 3px 14px rgba(0,0,0,0.28);z-index:800;display:flex;align-items:center;justify-content:center;transition:transform .15s;}
+  .feedback-fab:active{transform:scale(0.9);}
+  .feedback-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:0 0 40px;max-height:82vh;overflow-y:auto;}
+  .feedback-head{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff;z-index:1;}
+  .feedback-title{font-size:17px;font-weight:700;color:var(--green-dark);}
+  .feedback-inner{padding:16px;}
+  .feedback-sub{font-size:13.5px;color:var(--muted);margin:0 0 16px;line-height:1.5;}
+  .feedback-label{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px;display:block;}
+  .feedback-select{width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:14px;margin-bottom:14px;background:#fafafa;-webkit-appearance:none;appearance:none;}
+  .feedback-textarea{width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:14px;min-height:110px;resize:vertical;font-family:inherit;box-sizing:border-box;margin-bottom:6px;}
+  .feedback-select:focus,.feedback-textarea:focus{outline:none;border-color:var(--green-dark);}
+  .feedback-err{color:#c0392b;font-size:13px;margin-bottom:10px;min-height:16px;}
+  .feedback-submit{width:100%;padding:13px;background:var(--green-dark);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;}
+  .feedback-submit:disabled{opacity:0.5;cursor:default;}
+  .feedback-success{text-align:center;padding:36px 20px;}
+  .feedback-success-icon{font-size:52px;margin-bottom:14px;}
+  .feedback-success-title{font-size:17px;font-weight:700;color:var(--green-dark);margin-bottom:8px;}
+  .feedback-success-sub{font-size:13.5px;color:var(--muted);line-height:1.5;}
   .su-section-title{font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--muted);margin:16px 0 8px;}
   .su-player-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);}
   .su-player-row:last-of-type{border-bottom:none;}
@@ -2294,13 +2313,12 @@
       </div>
       <div class="help-body">
         <ul>
-          <li><strong>Manager opens the app</strong> and taps <em>Start a Round</em>.</li>
-          <li>Choose a <strong>round type</strong>: Stroke Play, Match Play, or Golf Event (multi-day).</li>
-          <li>Select a <strong>scoring method</strong> (e.g. Net Stroke Play). For Golf Events, choose Ryder Cup for team match play.</li>
-          <li>Pick a <strong>course and date</strong>. Then add players — each player gets their own <strong>tee box</strong> assignment (useful when different players play different tees).</li>
-          <li>Enter each <strong>player's name and Handicap Index</strong> (HI). Tap 🔍 to look up via GHIN, or use <em>👥 From Buddies</em> to quickly add saved players.</li>
-          <li>Add <strong>side games</strong> with stakes (Nassau, Wolf, Skins, etc.).</li>
-          <li>Share the <strong>join code</strong> so playing partners can join. Lock the round when everyone is in.</li>
+          <li><strong>Step 1 — Round Type:</strong> Choose Stroke Play, Match Play, or Golf Event. For Golf Events, also pick Single Day or Multi-Day.</li>
+          <li><strong>Step 2 — Scoring Method:</strong> e.g. Net Stroke Play, Gross, Stableford. For Golf Events, Ryder Cup is the team match-play format.</li>
+          <li><strong>Step 3 — Course &amp; Date:</strong> Search by name, use 📍 Near Me for GPS, or add a course manually. Pick the round date.</li>
+          <li><strong>Step 4 — Who's Playing:</strong> Add players, assign tee boxes, and enter each player's <strong>Handicap Index (HI)</strong>. Tap 🔍 to look up via GHIN, or use <em>👥 From Buddies</em>.</li>
+          <li><strong>Step 5 — Side Games:</strong> Add Nassau, Wolf, Skins, etc. with stakes. A <strong>join code</strong> is shown here — share it so others can join before you lock.</li>
+          <li>When everyone has joined, tap <strong>Lock &amp; Start</strong> to begin the round.</li>
         </ul>
         <div class="help-tip">💡 A 6-digit round code is generated at setup. The same code works for all days of a multi-day event.</div>
       </div>
@@ -2325,20 +2343,23 @@
     <div class="help-section">
       <div class="help-sec-head" onclick="toggleHelpSection(this)">
         <span class="help-sec-icon">🏆</span>
-        <span class="help-sec-label">Golf Events (Ryder Cup)</span>
+        <span class="help-sec-label">Golf Events</span>
         <span class="help-sec-arrow">▼</span>
       </div>
       <div class="help-body">
-        Golf Events are <strong>multi-day, multi-group</strong> tournaments — perfect for golf trips.
+        Golf Events are for <strong>large groups, tournaments, and golf trips</strong> — multiple tee times or multiple days.
         <ul>
-          <li>Choose <strong>Ryder Cup</strong> as the scoring method for team match play across multiple days.</li>
-          <li>Assign players to <strong>Team A (e.g. USA) and Team B (e.g. Europe)</strong> during setup.</li>
-          <li>Add the number of days — <strong>course, groups, and match format are set each morning</strong> from the Event Hub, not upfront. Things can change daily.</li>
-          <li>After locking the round, the <strong>Event Hub</strong> shows each day as a card. Tap <em>Set Up →</em> on the day of play to pick the course, assign players to tee times, and choose match format (Foursomes / Four-Ball / Singles).</li>
-          <li>Each group gets a <strong>live match banner</strong> on the scorecard showing the current hole-by-hole standing.</li>
-          <li>The leaderboard shows running <strong>Ryder Cup points</strong> for both teams across all days.</li>
-          <li>When a day is done, tap <strong>✓ Mark Day Complete</strong> — a shareable results summary is generated automatically.</li>
-          <li>After all days, tap <strong>Event Results</strong> to share the final standings with the whole group.</li>
+          <li><strong>Single Day:</strong> one course, multiple tee times. Perfect for a club tournament or group outing. Add all players, assign tee times, and run event-wide side games (like Skins) across the full field.</li>
+          <li><strong>Multi-Day:</strong> different courses or formats each day — ideal for golf trips. The same join code works every day.</li>
+        </ul>
+        <strong>Multi-Day / Ryder Cup:</strong>
+        <ul>
+          <li>Choose <strong>Ryder Cup</strong> for team match play. Assign players to <strong>Team A and Team B</strong> during setup.</li>
+          <li>Course, groups, and match format are set <strong>each morning from the Event Hub</strong> — things can change daily.</li>
+          <li>The <strong>Event Hub</strong> shows each day as a card. Tap <em>Set Up →</em> to pick the course, assign tee times, and choose match format (Foursomes / Four-Ball / Singles).</li>
+          <li>Each group gets a <strong>live match banner</strong> showing the hole-by-hole standing.</li>
+          <li>The leaderboard shows running <strong>Ryder Cup points</strong> across all days.</li>
+          <li>Tap <strong>✓ Mark Day Complete</strong> when done — a shareable results summary generates automatically.</li>
         </ul>
         <div class="help-tip">💡 Each day's format can be completely different — Foursomes on Day 1, Four-Ball on Day 2, Singles on Day 3.</div>
       </div>
@@ -2418,6 +2439,24 @@
 
     <div class="help-section">
       <div class="help-sec-head" onclick="toggleHelpSection(this)">
+        <span class="help-sec-icon">🔔</span>
+        <span class="help-sec-label">Nassau Press</span>
+        <span class="help-sec-arrow">▼</span>
+      </div>
+      <div class="help-body">
+        A press is a <strong>new side bet</strong> that starts mid-round — separate from the original Nassau bets.
+        <ul>
+          <li><strong>Auto-Press:</strong> set in the Nassau game card — a press triggers automatically when a player is down by 1 or 2 holes.</li>
+          <li><strong>Manual Press:</strong> tap the <em>🔔 Press</em> button on the scorecard at any time to start a press on demand. Any player can call one.</li>
+          <li>Each press is its own bet, tracked separately. Multiple presses can stack.</li>
+          <li>The final ledger shows all original bets plus every press, settled individually.</li>
+        </ul>
+        <div class="help-tip">💡 Manual presses let you call a press at a strategic moment — not just when you're automatically down.</div>
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-sec-head" onclick="toggleHelpSection(this)">
         <span class="help-sec-icon">🐺</span>
         <span class="help-sec-label">Wolf</span>
         <span class="help-sec-arrow">▼</span>
@@ -2429,6 +2468,8 @@
           <li><strong>Blind Wolf:</strong> Wolf calls it before any tee shots are hit — pays out at <strong>3×</strong> if they win.</li>
           <li>Winners collect <strong>$ Per Man</strong> from every loser individually.</li>
           <li>Set tee order in the Wolf game card — it determines who is Wolf on each hole.</li>
+          <li><strong>Hammer On:</strong> enable the Hammer toggle in the Wolf card to allow anyone to throw a hammer mid-hole and double the current bet. Hammers stack; the opponent can decline (forfeit at the pre-hammer rate).</li>
+          <li><strong>Eagle Multiplier:</strong> optionally set gross eagles to pay out at 3× or 4× instead of the standard rate.</li>
         </ul>
         <div class="help-tip">💡 Recommend using 80% handicap allowance for Wolf since it's a team game.</div>
       </div>
@@ -2436,16 +2477,19 @@
 
     <div class="help-section">
       <div class="help-sec-head" onclick="toggleHelpSection(this)">
-        <span class="help-sec-icon">🔨</span>
-        <span class="help-sec-label">Hammer Wolf</span>
+        <span class="help-sec-icon">🐺</span>
+        <span class="help-sec-label">3-Man Wolf</span>
         <span class="help-sec-arrow">▼</span>
       </div>
       <div class="help-body">
-        Same as Wolf with one addition: <strong>anyone can throw a hammer</strong> at any point during a hole to double the current bet.
+        A Wolf variant designed for <strong>exactly 3 players</strong>.
         <ul>
-          <li>Hammers <strong>stack</strong> — a hole could be worth many times the starting bet.</li>
-          <li>The hammered side can <strong>decline</strong> instead of playing out the hole — they forfeit at the pre-hammer rate.</li>
+          <li>The Wolf rotates each hole (same tee order logic as standard Wolf).</li>
+          <li>Wolf picks <strong>one partner</strong> — making a 2v1 — or goes <strong>Lone Wolf (2×)</strong> to play solo against both opponents.</li>
+          <li>No four-player dynamics — a cleaner format for a threesome.</li>
+          <li>Hammer and Eagle Multiplier options are available the same as standard Wolf.</li>
         </ul>
+        <div class="help-tip">💡 Use 3-Man Wolf when one player is missing or you only have 3 in the group.</div>
       </div>
     </div>
 
@@ -10596,6 +10640,80 @@ window.renderScorekeeperScorecardView = renderScorekeeperScorecardView;
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
+
+<!-- ── Feedback FAB ──────────────────────────────────────────────────────── -->
+<button class="feedback-fab" onclick="openFeedback()" title="Send Feedback" aria-label="Send Feedback">💬</button>
+
+<!-- Feedback overlay -->
+<div id="feedbackOverlay" class="smart-payout-overlay" style="display:none;" onclick="if(event.target===this)closeFeedback()">
+  <div class="feedback-sheet">
+    <div class="feedback-head">
+      <span class="feedback-title">💬 Send Feedback</span>
+      <button class="help-close" onclick="closeFeedback()">×</button>
+    </div>
+    <div class="feedback-inner" id="feedbackForm">
+      <p class="feedback-sub">Found a bug? Have an idea? We read every submission and use it to make SidieGolf better.</p>
+      <label class="feedback-label">Category</label>
+      <select class="feedback-select" id="feedbackCategory">
+        <option value="bug">🐛 Bug Report</option>
+        <option value="feature">✨ Feature Request</option>
+        <option value="ux">📱 User Experience</option>
+        <option value="general">💬 General Feedback</option>
+      </select>
+      <label class="feedback-label">Your Feedback</label>
+      <textarea class="feedback-textarea" id="feedbackMessage" placeholder="Describe what happened, what you'd like to see, or anything else…"></textarea>
+      <div class="feedback-err" id="feedbackErr"></div>
+      <button class="feedback-submit" id="feedbackSubmitBtn" onclick="submitFeedback()">Send Feedback</button>
+    </div>
+    <div id="feedbackSuccess" class="feedback-success" style="display:none;">
+      <div class="feedback-success-icon">🙏</div>
+      <div class="feedback-success-title">Thanks for your feedback!</div>
+      <div class="feedback-success-sub">We read every submission and use it to improve SidieGolf.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Feedback ─────────────────────────────────────────────────────────────────
+function openFeedback() {
+  document.getElementById('feedbackMessage').value = '';
+  document.getElementById('feedbackErr').textContent = '';
+  document.getElementById('feedbackForm').style.display = '';
+  document.getElementById('feedbackSuccess').style.display = 'none';
+  var btn = document.getElementById('feedbackSubmitBtn');
+  btn.disabled = false; btn.textContent = 'Send Feedback';
+  document.getElementById('feedbackOverlay').style.display = 'flex';
+}
+function closeFeedback() {
+  document.getElementById('feedbackOverlay').style.display = 'none';
+}
+function submitFeedback() {
+  var msg  = (document.getElementById('feedbackMessage').value || '').trim();
+  var cat  = document.getElementById('feedbackCategory').value;
+  var err  = document.getElementById('feedbackErr');
+  var btn  = document.getElementById('feedbackSubmitBtn');
+  if (!msg) { err.textContent = 'Please enter your feedback before submitting.'; return; }
+  err.textContent = '';
+  btn.disabled = true; btn.textContent = 'Sending…';
+  var db = window.fbDb;
+  if (!db) { err.textContent = 'Not connected — please try again.'; btn.disabled = false; btn.textContent = 'Send Feedback'; return; }
+  db.collection('feedback').add({
+    category:    cat,
+    message:     msg,
+    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    userUid:     (window.fbUser ? window.fbUser.uid : 'anonymous'),
+    userEmail:   (window.fbUser && !window.fbUser.isAnonymous ? window.fbUser.email : ''),
+    roundCode:   (window.fbRoundCode || '')
+  }).then(function() {
+    document.getElementById('feedbackForm').style.display = 'none';
+    document.getElementById('feedbackSuccess').style.display = '';
+  }).catch(function(e) {
+    err.textContent = 'Failed to send — please try again.';
+    btn.disabled = false; btn.textContent = 'Send Feedback';
+    console.warn('[SidieGolf] Feedback error:', e);
   });
 }
 </script>
