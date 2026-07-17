@@ -10710,6 +10710,19 @@ function submitFeedback() {
   }).then(function() {
     document.getElementById('feedbackForm').style.display = 'none';
     document.getElementById('feedbackSuccess').style.display = '';
+    // Fire-and-forget email notification — don't block success state on it
+    try {
+      emailjs.send('service_m1kqxhb', 'template_0wha6nu', {
+        category:   cat,
+        message:    msg,
+        round_code: (window.fbRoundCode || 'none'),
+        user_email: (window.fbUser && !window.fbUser.isAnonymous ? window.fbUser.email : 'anonymous')
+      }, 'myhgHG7DxOdWMyXLc').catch(function(e) {
+        console.warn('[SidieGolf] Feedback email error:', e);
+      });
+    } catch(e) {
+      console.warn('[SidieGolf] Feedback email error:', e);
+    }
   }).catch(function(e) {
     err.textContent = 'Failed to send — please try again.';
     btn.disabled = false; btn.textContent = 'Send Feedback';
