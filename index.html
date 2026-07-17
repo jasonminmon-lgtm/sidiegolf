@@ -9989,6 +9989,9 @@ function resetState() {
   nextSideGameId = 1;
   nextDayId = 1;
 }
+// Expose resetState globally so the restartLink click handler (in script block 2)
+// can call it — it lives inside this IIFE and is not in the shared window scope otherwise.
+window.resetState = resetState;
 
 // ── Serialize / merge state ───────────────────────────────────────────────────
 function fbSerializeState() {
