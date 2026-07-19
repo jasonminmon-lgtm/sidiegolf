@@ -354,6 +354,12 @@
   .feedback-success-icon{font-size:52px;margin-bottom:14px;}
   .feedback-success-title{font-size:17px;font-weight:700;color:var(--green-dark);margin-bottom:8px;}
   .feedback-success-sub{font-size:13.5px;color:var(--muted);line-height:1.5;}
+  /* Sign-out modal */
+  .signout-code{font-size:22px;font-weight:800;letter-spacing:3px;color:var(--green-dark);text-align:center;margin:8px 0 16px;}
+  .signout-msg{font-size:14px;color:var(--ink-2);text-align:center;line-height:1.55;margin:0 0 20px;}
+  .signout-save{width:100%;padding:13px;background:var(--green-dark);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;display:block;}
+  .signout-discard{width:100%;padding:13px;background:#e53935;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;display:block;}
+  .signout-cancel{width:100%;padding:12px;background:transparent;color:var(--ink-2);border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;display:block;}
   .su-section-title{font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--muted);margin:16px 0 8px;}
   .su-player-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);}
   .su-player-row:last-of-type{border-bottom:none;}
@@ -9396,13 +9402,53 @@ window.fbWatchRound = function() {
 // ── Sign Out ──────────────────────────────────────────────────────────────────
 window.fbSignOut = function() {
   var isAnon = fbUser && fbUser.isAnonymous;
-  var msg = isAnon ? 'Exit this round?' : 'Sign out? You can rejoin with your round code.';
-  if (!confirm(msg)) return;
+  // Anonymous viewers: simple exit confirm
+  if (isAnon) {
+    if (!confirm('Exit this round?')) return;
+    fbStopListening();
+    fbRoundCode = null; window.fbRoundCode = null;
+    localStorage.removeItem(ROUND_CODE_KEY);
+    fbAuth.signOut();
+    return;
+  }
+  // No active round: just sign out directly
+  if (!fbRoundCode) {
+    fbAuth.signOut();
+    return;
+  }
+  // Active round: show Save vs Discard modal
+  var codeEl = document.getElementById('signoutCode');
+  if (codeEl) codeEl.textContent = fbRoundCode;
+  var subEl = document.getElementById('signoutSubMsg');
+  if (subEl) subEl.textContent = isCurrentUserHost()
+    ? 'Save so you can rejoin later, or discard the round completely.'
+    : 'Save so you can rejoin later, or leave without saving.';
+  // Non-hosts can't delete the round — hide discard for joiners
+  var discardBtn = document.querySelector('.signout-discard');
+  if (discardBtn) discardBtn.style.display = isCurrentUserHost() ? '' : 'none';
+  document.getElementById('signoutOverlay').style.display = 'flex';
+};
+
+function closeSignoutModal() {
+  document.getElementById('signoutOverlay').style.display = 'none';
+}
+
+function doSignOut(discard) {
+  closeSignoutModal();
+  var code = fbRoundCode;
+  var wasHost = isCurrentUserHost();
   fbStopListening();
   fbRoundCode = null; window.fbRoundCode = null;
   localStorage.removeItem(ROUND_CODE_KEY);
+  if (discard && code && wasHost) {
+    // Delete round from Firestore — fire and forget
+    fbDb.collection('rounds').doc(code).delete().catch(function(e) {
+      console.warn('[SidieGolf] Round delete error:', e);
+    });
+  }
+  resetState();
   fbAuth.signOut();
-};
+}
 
 // ── Create Round ──────────────────────────────────────────────────────────────
 window.fbCreateRound = function() {
@@ -9442,6 +9488,7 @@ window.fbCreateRound = function() {
   }).then(function() {
     btn.disabled = false; btn.textContent = 'Start New Round';
     fbActivateRound(code);
+    goToStep(1); // ensure DOM shows step 1, not whatever step was visible before
   }).catch(function(err) {
     btn.disabled = false; btn.textContent = 'Start New Round';
     errEl.textContent = 'Error: ' + err.message;
@@ -10643,6 +10690,24 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+
+<!-- ── Sign-out modal ────────────────────────────────────────────────────── -->
+<div id="signoutOverlay" class="smart-payout-overlay" style="display:none;" onclick="if(event.target===this)closeSignoutModal()">
+  <div class="feedback-sheet" style="max-width:380px;">
+    <div class="feedback-head">
+      <span class="feedback-title">Sign Out</span>
+      <button class="help-close" onclick="closeSignoutModal()">×</button>
+    </div>
+    <div class="feedback-inner">
+      <p class="signout-msg">Your round code is</p>
+      <div class="signout-code" id="signoutCode"></div>
+      <p class="signout-msg" id="signoutSubMsg">Save so you can rejoin later, or discard the round completely.</p>
+      <button class="signout-save" onclick="doSignOut(false)">💾 Save &amp; Sign Out</button>
+      <button class="signout-discard" onclick="doSignOut(true)">🗑️ Discard Round &amp; Sign Out</button>
+      <button class="signout-cancel" onclick="closeSignoutModal()">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── Feedback FAB ──────────────────────────────────────────────────────── -->
 <button class="feedback-fab" onclick="openFeedback()" title="Send Feedback" aria-label="Send Feedback">💬</button>

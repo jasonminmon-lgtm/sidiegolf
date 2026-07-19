@@ -1,5 +1,5 @@
 // SidieGolf Service Worker
-const CACHE_NAME = 'sidiegolf-v1';
+const CACHE_NAME = 'sidiegolf-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -37,7 +37,7 @@ self.addEventListener('fetch', event => {
   // HTML pages: network-first so the app is always fresh
   if (request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-store' })
         .then(res => {
           const clone = res.clone();
           caches.open(CACHE_NAME).then(c => c.put(request, clone));
