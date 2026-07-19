@@ -9427,11 +9427,11 @@ window.fbSignOut = function() {
   document.getElementById('signoutOverlay').style.display = 'flex';
 };
 
-function closeSignoutModal() {
+window.closeSignoutModal = function() {
   document.getElementById('signoutOverlay').style.display = 'none';
-}
+};
 
-function doSignOut(discard) {
+window.doSignOut = function(discard) {
   closeSignoutModal();
   var code = fbRoundCode;
   var wasHost = isCurrentUserHost();
@@ -10690,11 +10690,11 @@ if ('serviceWorker' in navigator) {
 </script>
 
 <!-- ── Sign-out modal ────────────────────────────────────────────────────── -->
-<div id="signoutOverlay" class="smart-payout-overlay" style="display:none;" onclick="if(event.target===this)closeSignoutModal()">
+<div id="signoutOverlay" class="smart-payout-overlay" style="display:none;" onclick="if(event.target===this)document.getElementById('signoutOverlay').style.display='none'">
   <div class="feedback-sheet" style="max-width:380px;">
     <div class="feedback-head">
       <span class="feedback-title">Sign Out</span>
-      <button class="help-close" onclick="closeSignoutModal()">×</button>
+      <button class="help-close" onclick="document.getElementById('signoutOverlay').style.display='none'">×</button>
     </div>
     <div class="feedback-inner">
       <p class="signout-msg">Your round code is</p>
@@ -10702,10 +10702,31 @@ if ('serviceWorker' in navigator) {
       <p class="signout-msg" id="signoutSubMsg">Save so you can rejoin later, or discard the round completely.</p>
       <button class="signout-save" onclick="doSignOut(false)">💾 Save &amp; Sign Out</button>
       <button class="signout-discard" onclick="doSignOut(true)">🗑️ Discard Round &amp; Sign Out</button>
-      <button class="signout-cancel" onclick="closeSignoutModal()">Cancel</button>
+      <button class="signout-cancel" onclick="document.getElementById('signoutOverlay').style.display='none'">Cancel</button>
     </div>
   </div>
 </div>
+<script>
+// Standalone — defined outside the Firebase IIFE so onclick attrs always reach it
+function closeSignoutModal() {
+  document.getElementById('signoutOverlay').style.display = 'none';
+}
+function doSignOut(discard) {
+  closeSignoutModal();
+  var code = window.fbRoundCode;
+  var wasHost = typeof window.isCurrentUserHost === 'function' ? window.isCurrentUserHost() : true;
+  if (typeof window.fbStopListening === 'function') window.fbStopListening();
+  window.fbRoundCode = null;
+  try { localStorage.removeItem('sg_round_code'); } catch(e) {}
+  if (discard && code && wasHost && window.fbDb) {
+    window.fbDb.collection('rounds').doc(code).delete().catch(function(e) {
+      console.warn('[SidieGolf] Round delete error:', e);
+    });
+  }
+  if (typeof window.resetState === 'function') window.resetState();
+  if (window.fbAuth) window.fbAuth.signOut();
+}
+</script>
 
 <!-- ── Feedback FAB ──────────────────────────────────────────────────────── -->
 <button class="feedback-fab" onclick="openFeedback()" title="Send Feedback" aria-label="Send Feedback">💬</button>
