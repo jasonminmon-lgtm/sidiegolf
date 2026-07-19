@@ -3958,8 +3958,6 @@ window.npsEditPlayer = function(idx) {
     _nTees.forEach(function(t){ f += '<option value="'+escapeHtml(t.name)+'"'+(_curTee===t.name?' selected':'')+'>'+escapeHtml(t.name)+' Tees</option>'; });
     f += '</select>';
   }
-  // From Buddies button
-  f += '<button type="button" onclick="npsPickFromBuddies('+idx+')" style="width:100%;padding:8px;margin-bottom:8px;border:1.5px solid var(--border,#ddd);border-radius:6px;background:#f7f7f7;font-size:12px;font-weight:600;cursor:pointer;color:var(--green-dark,#1a5c36);">&#128101; From Buddies</button>';
   // Save / Cancel
   f += '<div style="display:flex;gap:8px;">';
   f += '<button onclick="npsSavePlayer('+idx+')" style="flex:1;padding:9px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">Save</button>';
