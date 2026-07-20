@@ -9568,9 +9568,6 @@ window.fbJoinRound = function(autoCode) {
     var data = snap.data();
     if (data.completed) { if (errEl) errEl.textContent = 'This round has already been completed.'; return; }
 
-    // Store pending data and show confirmation screen
-    window.fbPendingJoin = { code: code, data: data };
-
     var savedState  = data.state || {};
     var hostName    = data.createdByName || 'your group';
     var courseIdx   = (savedState.course != null) ? savedState.course : null;
@@ -9584,18 +9581,31 @@ window.fbJoinRound = function(autoCode) {
 
     var _isEventRound = !!(savedState.days && savedState.days.length > 0);
     var _isAnonUser   = !!(fbUser && fbUser.isAnonymous);
+    // Detect if this is the original host rejoining their own saved round
+    var _isHostRejoin = !!(savedState.hostUid && fbUser && !fbUser.isAnonymous && savedState.hostUid === fbUser.uid);
+    var _savedStep    = savedState.step || 6;
+
+    // Store pending data and show confirmation screen
+    window.fbPendingJoin = { code: code, data: data, isHostRejoin: _isHostRejoin, savedStep: _savedStep };
+
     var _joinDesc, _joinBtn;
-    if (_isEventRound && !_isAnonUser) {
+    if (_isHostRejoin) {
+      _joinDesc = 'Welcome back! You\'re the <strong>manager</strong> of this round.<br>Pick up right where you left off — your players, scores, and settings are all saved.';
+      _joinBtn  = 'Continue as Manager';
+    } else if (_isEventRound && !_isAnonUser) {
       _joinDesc = 'You\'ll see the <strong>live leaderboard, scorecard, and money standings</strong> in real time.<br>Once inside, you can <strong>claim the scorekeeper role</strong> for your tee time group.';
       _joinBtn  = 'Join Round';
     } else {
       _joinDesc = 'You\'ll join as a <strong>viewer</strong>. The manager controls all player info, handicaps, and scores.<br>You\'ll see the <strong>live leaderboard, scorecard, and money standings</strong> in real time.';
       _joinBtn  = 'Join as Viewer';
     }
+    var _confirmTitle = _isHostRejoin
+      ? 'Your saved round'
+      : ('Joining ' + escapeHtml(hostName) + '\'s round');
     var confirmHtml =
       '<div id="fb-join-confirm">'+
       '<button class="fjc-back" onclick="fbCancelJoin()">‹ Back</button>'+
-      '<div class="fjc-host">Joining '+escapeHtml(hostName)+'\'s round</div>'+
+      '<div class="fjc-host">'+_confirmTitle+'</div>'+
       '<div class="fjc-course">'+(courseName ? escapeHtml(courseName) : 'Round '+escapeHtml(code))+'</div>'+
       '<div style="margin:14px 0 18px;font-size:13px;color:var(--muted,#666);text-align:center;line-height:1.6;">'+
         _joinDesc+
@@ -9639,28 +9649,34 @@ window.fbConfirmJoin = function() {
 
     // Apply state before starting the listener (no render yet — goToStep handles that)
     if (freshData.state) fbApplyRemoteState(freshData.state);
-    state.step = 7;
+    // Host rejoin: restore to their saved step (scorecard, who's playing, etc.)
+    // Viewer join: always land on step 7 (leaderboard)
+    var _destStep = pending.isHostRejoin ? (pending.savedStep || 6) : 7;
+    state.step = _destStep;
 
-    // Record participation — do NOT set lastModifiedBy so the host's echo-check
-    // still passes (host.uid remains in lastModifiedBy) and the host's listener
-    // returns early without calling fbMergeState and clobbering manager state.
-    fbDb.collection('rounds').doc(pending.code).update({
-      participants: firebase.firestore.FieldValue.arrayUnion(fbUser.uid)
-    }).catch(function(){});
+    if (!pending.isHostRejoin) {
+      // Record participation for non-host joiners only
+      fbDb.collection('rounds').doc(pending.code).update({
+        participants: firebase.firestore.FieldValue.arrayUnion(fbUser.uid)
+      }).catch(function(){});
+    }
 
     fbActivateRound(pending.code);
-    goToStep(7);
+    goToStep(_destStep);
   }).catch(function(err) {
     console.warn('fbConfirmJoin fetch error:', err);
-    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = 'Join as Viewer'; }
+    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = pending.isHostRejoin ? 'Continue as Manager' : 'Join as Viewer'; }
     // Fall back to stale data so the user isn't completely blocked
-    state.step = 7;
+    var _destStep = pending.isHostRejoin ? (pending.savedStep || 6) : 7;
+    state.step = _destStep;
     if (pending.data && pending.data.state) fbApplyRemoteState(pending.data.state);
-    fbDb.collection('rounds').doc(pending.code).update({
-      participants: firebase.firestore.FieldValue.arrayUnion(fbUser.uid)
-    }).catch(function(){});
+    if (!pending.isHostRejoin) {
+      fbDb.collection('rounds').doc(pending.code).update({
+        participants: firebase.firestore.FieldValue.arrayUnion(fbUser.uid)
+      }).catch(function(){});
+    }
     fbActivateRound(pending.code);
-    goToStep(7);
+    goToStep(_destStep);
   });
 };
 
