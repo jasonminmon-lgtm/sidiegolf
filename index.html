@@ -3672,12 +3672,18 @@ function renderRyderCupTeamSetup(containerId){
   });
 }
 
+// ── Utility: generate holes array [1..n] for match-play engine calls ─────────
+function makeHoles(n) {
+  var a = []; for (var i = 1; i <= (n || 18); i++) a.push(i); return a;
+}
+
 // ================= RYDER CUP SCORECARD MATCH BANNER =================
 function buildRcMatchBannerHtml(day, gn, course, tee, idxs, sc) {
   var matchType = (day.groupMatchType && day.groupMatchType[gn]) || 'Four-Ball';
   var teamAIdxs = idxs.filter(function(i){ return rcTeamFor(i) === 'A'; });
   var teamBIdxs = idxs.filter(function(i){ return rcTeamFor(i) === 'B'; });
   if (!teamAIdxs.length || !teamBIdxs.length) return '';
+  var nh = tee && tee.parByHole ? tee.parByHole.length : 18;
   var rcHcpPct = (matchType === 'Singles') ? 100 : ((day.groupHcpPct && day.groupHcpPct[gn] != null) ? day.groupHcpPct[gn] : 100);
   var ctx;
   try { ctx = buildCtx(idxs, course, tee, sc, rcHcpPct); } catch(e) { return ''; }
@@ -3697,8 +3703,8 @@ function buildRcMatchBannerHtml(day, gn, course, tee, idxs, sc) {
       var pairCtx;
       try { pairCtx = buildCtx([aIdx, bIdx], course, tee, sc, 100); } catch(e) { parts.push(escapeHtml(aName)+' v '+escapeHtml(bName)); continue; }
       try {
-        var mRes = SidieGolfEngine.computeMatchPlayResult(pairCtx, [String(aIdx)], [String(bIdx)]);
-        var mPts = SidieGolfEngine.ryderCupMatchPoints(mRes, pThru, 18);
+        var mRes = SidieGolfEngine.computeMatchPlayResult(pairCtx, [String(aIdx)], [String(bIdx)], makeHoles(nh));
+        var mPts = SidieGolfEngine.ryderCupMatchPoints(mRes, pThru, nh);
         totalA += mPts.A; totalB += mPts.B;
         var curUp = pThru > 0 ? mRes.holeResults[pThru - 1].runningAUp : 0;
         var status;
@@ -3717,8 +3723,8 @@ function buildRcMatchBannerHtml(day, gn, course, tee, idxs, sc) {
     var aIds = teamAIdxs.map(String), bIds = teamBIdxs.map(String);
     var thru = commonThruHoles(idxs, sc);
     try {
-      var res = SidieGolfEngine.computeMatchPlayResult(ctx, aIds, bIds);
-      var pts = SidieGolfEngine.ryderCupMatchPoints(res, thru, 18);
+      var res = SidieGolfEngine.computeMatchPlayResult(ctx, aIds, bIds, makeHoles(nh));
+      var pts = SidieGolfEngine.ryderCupMatchPoints(res, thru, nh);
       totalA = pts.A; totalB = pts.B;
       var curUp2 = thru > 0 ? res.holeResults[thru - 1].runningAUp : 0;
       var statusStr;
@@ -5839,6 +5845,7 @@ function buildDayResultsSummaryText(dayId) {
     var tee = course && d.teeName ? course.tees.filter(function(t){return t.name===d.teeName;})[0] : null;
     var dayA = 0, dayB = 0;
     if (course && tee) {
+      var nh = tee.parByHole ? tee.parByHole.length : 18;
       for (var gn=1; gn<=d.numGroups; gn++){
         var matchType = (d.groupMatchType && d.groupMatchType[gn]) || 'Four-Ball';
         var groupIdxs = Object.keys(d.assignments||{}).filter(function(k){return d.assignments[k]===gn;}).map(function(k){return parseInt(k,10);});
@@ -5853,9 +5860,9 @@ function buildDayResultsSummaryText(dayId) {
           pairs.forEach(function(pair){
             try {
               var ctx = buildCtx([pair[0],pair[1]], course, tee, sc, 100);
-              var res = SidieGolfEngine.computeMatchPlayResult(ctx,[String(pair[0])],[String(pair[1])]);
+              var res = SidieGolfEngine.computeMatchPlayResult(ctx,[String(pair[0])],[String(pair[1])],makeHoles(nh));
               var thru = Object.keys(sc.scores[String(pair[0])]||{}).filter(function(h){return sc.scores[String(pair[0])][h]!=null;}).length;
-              var pts = SidieGolfEngine.ryderCupMatchPoints(res, thru, 18);
+              var pts = SidieGolfEngine.ryderCupMatchPoints(res, thru, nh);
               var pa = state.players[pair[0]] ? state.players[pair[0]].name : '?';
               var pb = state.players[pair[1]] ? state.players[pair[1]].name : '?';
               var resultStr;
@@ -5881,8 +5888,8 @@ function buildDayResultsSummaryText(dayId) {
                 return Math.min(mx,cnt);
               }, 18);
               var ctx2 = buildCtx(groupIdxs, course, tee, sc, (d.groupHcpPct&&d.groupHcpPct[gn]!=null)?d.groupHcpPct[gn]:100);
-              var res2 = SidieGolfEngine.computeMatchPlayResult(ctx2, aIdxs.map(String), bIdxs.map(String));
-              var pts2 = SidieGolfEngine.ryderCupMatchPoints(res2, thru2, 18);
+              var res2 = SidieGolfEngine.computeMatchPlayResult(ctx2, aIdxs.map(String), bIdxs.map(String), makeHoles(nh));
+              var pts2 = SidieGolfEngine.ryderCupMatchPoints(res2, thru2, nh);
               var aNames = aIdxs.map(function(i){return state.players[i]?state.players[i].name:'?';}).join(' & ');
               var bNames = bIdxs.map(function(i){return state.players[i]?state.players[i].name:'?';}).join(' & ');
               var rStr;
@@ -5923,9 +5930,10 @@ function buildDayResultsSummaryText(dayId) {
           pairs2.forEach(function(pr){
             var a3=mt2==='Singles'?[pr[0]]:pr[0], b3=mt2==='Singles'?[pr[1]]:pr[1];
             var thru3=a3.reduce(function(mx,i){var cnt=Object.keys(sc2.scores[String(i)]||{}).filter(function(h){return sc2.scores[String(i)][h]!=null;}).length;return Math.min(mx,cnt);},18);
+            var nh3=t2&&t2.parByHole?t2.parByHole.length:18;
             var ctx3=buildCtx(mt2==='Singles'?[a3[0],b3[0]]:gi2,c2,t2,sc2,100);
-            var res3=SidieGolfEngine.computeMatchPlayResult(ctx3,a3.map(String),b3.map(String));
-            var pts3=SidieGolfEngine.ryderCupMatchPoints(res3,thru3,18);
+            var res3=SidieGolfEngine.computeMatchPlayResult(ctx3,a3.map(String),b3.map(String),makeHoles(nh3));
+            var pts3=SidieGolfEngine.ryderCupMatchPoints(res3,thru3,nh3);
             totA+=pts3.A; totB+=pts3.B;
           });
         } catch(e){}
@@ -6012,6 +6020,7 @@ function buildEventResultsSummaryText() {
       var course=d.courseIdx!=null?MOCK_COURSES[d.courseIdx]:null;
       var tee=course&&d.teeName?course.tees.filter(function(t){return t.name===d.teeName;})[0]:null;
       if(!course||!tee)return;
+      var nh=tee.parByHole?tee.parByHole.length:18;
       var dA=0,dB=0;
       for(var gn=1;gn<=d.numGroups;gn++){
         var mt=(d.groupMatchType&&d.groupMatchType[gn])||'Four-Ball';
@@ -6026,15 +6035,15 @@ function buildEventResultsSummaryText() {
             pairs.forEach(function(pr){
               var thruP=Object.keys(sc.scores[String(pr[0])]||{}).filter(function(h){return sc.scores[String(pr[0])][h]!=null;}).length;
               var ctxP=buildCtx([pr[0],pr[1]],course,tee,sc,100);
-              var resP=SidieGolfEngine.computeMatchPlayResult(ctxP,[String(pr[0])],[String(pr[1])]);
-              var ptsP=SidieGolfEngine.ryderCupMatchPoints(resP,thruP,18);
+              var resP=SidieGolfEngine.computeMatchPlayResult(ctxP,[String(pr[0])],[String(pr[1])],makeHoles(nh));
+              var ptsP=SidieGolfEngine.ryderCupMatchPoints(resP,thruP,nh);
               dA+=ptsP.A;dB+=ptsP.B;
             });
           } else {
             var thruG=aI.reduce(function(mx,i){var cnt=Object.keys(sc.scores[String(i)]||{}).filter(function(h){return sc.scores[String(i)][h]!=null;}).length;return Math.min(mx,cnt);},18);
             var ctxG=buildCtx(gi,course,tee,sc,(d.groupHcpPct&&d.groupHcpPct[gn]!=null)?d.groupHcpPct[gn]:100);
-            var resG=SidieGolfEngine.computeMatchPlayResult(ctxG,aI.map(String),bI.map(String));
-            var ptsG=SidieGolfEngine.ryderCupMatchPoints(resG,thruG,18);
+            var resG=SidieGolfEngine.computeMatchPlayResult(ctxG,aI.map(String),bI.map(String),makeHoles(nh));
+            var ptsG=SidieGolfEngine.ryderCupMatchPoints(resG,thruG,nh);
             dA+=ptsG.A;dB+=ptsG.B;
           }
         } catch(e){}
@@ -7106,6 +7115,7 @@ var _mcActiveSections = {};// { ns: onPickedCallback } — live search sections
 var _mcTeeIds = [];        // active tee block ids in current form
 var _mcTeeCounter = 0;
 var _mcEditingId = null;
+var _mcNumHoles = 18;      // hole count for the course being created/edited
 var _DEFAULT_SI = [1,3,5,7,9,11,13,15,17,2,4,6,8,10,12,14,16,18];
 
 // ── Firestore CRUD ──────────────────────────────────────────────────────────
@@ -7124,7 +7134,7 @@ function fbSaveMyCourse(data, callback) {
   var uid = window.fbUser && window.fbUser.uid;
   if (!uid || !window.fbDb) { if (callback) callback(new Error('Not signed in')); return; }
   var col = window.fbDb.collection('users').doc(uid).collection('myCourses');
-  var payload = { name: data.name, tees: data.tees, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+  var payload = { name: data.name, numHoles: data.numHoles || 18, tees: data.tees, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
   var p = data.id ? col.doc(data.id).set(payload) : col.add(payload);
   p.then(function(ref) { if (callback) callback(null, ref ? ref.id : data.id); })
    .catch(function(e) { if (callback) callback(e); });
@@ -7140,16 +7150,22 @@ function fbDeleteMyCourse(id, callback) {
 
 // ── Shape + inject custom course into MOCK_COURSES ──────────────────────────
 function mcShapeCourse(course) {
+  var nh = course.numHoles ||
+    (course.tees && course.tees[0] && course.tees[0].parByHole && course.tees[0].parByHole.length) || 18;
   return {
     name: course.name,
+    numHoles: nh,
     tees: (course.tees || []).map(function(t) {
+      var defPar = [], defSI = [];
+      for (var _i = 0; _i < nh; _i++) { defPar.push(4); defSI.push(_i + 1); }
+      var defTotalPar = nh === 9 ? 36 : nh === 12 ? 48 : 72;
       return {
         name: t.name || 'Tee',
         rating: parseFloat(t.rating) || 72.0,
         slope: parseInt(t.slope, 10) || 113,
-        par: parseInt(t.par, 10) || 72,
-        parByHole: (t.parByHole && t.parByHole.length === 18) ? t.parByHole : PAR72_LAYOUT.slice(),
-        strokeIndex: (t.strokeIndex && t.strokeIndex.length === 18) ? t.strokeIndex : _DEFAULT_SI.slice()
+        par: parseInt(t.par, 10) || defTotalPar,
+        parByHole: (t.parByHole && t.parByHole.length) ? t.parByHole : defPar,
+        strokeIndex: (t.strokeIndex && t.strokeIndex.length) ? t.strokeIndex : defSI
       };
     })
   };
@@ -7240,8 +7256,13 @@ function renderMyCoursesList(list) {
 }
 
 // ── Course entry form ───────────────────────────────────────────────────────
-function buildTeeBlockHtml(tid, tee) {
-  var t = tee || { name: '', rating: '', slope: '', par: 72, parByHole: PAR72_LAYOUT.slice(), strokeIndex: _DEFAULT_SI.slice() };
+function buildTeeBlockHtml(tid, tee, numHoles) {
+  numHoles = numHoles || _mcNumHoles || 18;
+  // Build default par and SI arrays for this hole count
+  var defPar = [], defSI = [];
+  for (var _di = 0; _di < numHoles; _di++) { defPar.push(4); defSI.push(_di + 1); }
+  var defTotalPar = numHoles === 9 ? 36 : numHoles === 18 ? 72 : numHoles * 4;
+  var t = tee || { name: '', rating: '', slope: '', par: defTotalPar, parByHole: defPar, strokeIndex: defSI };
   var h = '<div class="mc-tee-block" id="mcTeeBlock-'+tid+'">';
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
   h += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--green-dark);letter-spacing:.4px;">Tee Box</div>';
@@ -7252,7 +7273,7 @@ function buildTeeBlockHtml(tid, tee) {
   h += '<input id="mcTn-'+tid+'" type="text" placeholder="Name (e.g. Blue)" value="'+escapeHtml(t.name||'')+'" style="padding:7px 8px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box;">';
   h += '<input id="mcTr-'+tid+'" type="text" inputmode="decimal" placeholder="Rating" value="'+escapeHtml(String(t.rating||''))+'" style="padding:7px 4px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;text-align:center;box-sizing:border-box;">';
   h += '<input id="mcTs-'+tid+'" type="text" inputmode="numeric" placeholder="Slope" value="'+escapeHtml(String(t.slope||''))+'" style="padding:7px 4px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;text-align:center;box-sizing:border-box;">';
-  h += '<input id="mcTp-'+tid+'" type="text" inputmode="numeric" placeholder="Par" value="'+escapeHtml(String(t.par||72))+'" style="padding:7px 4px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;text-align:center;box-sizing:border-box;">';
+  h += '<input id="mcTp-'+tid+'" type="text" inputmode="numeric" placeholder="Par" value="'+escapeHtml(String(t.par||defTotalPar))+'" style="padding:7px 4px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;text-align:center;box-sizing:border-box;">';
   h += '</div>';
   // Column headers
   h += '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:5px;margin-bottom:-4px;padding:0 2px;">';
@@ -7261,14 +7282,14 @@ function buildTeeBlockHtml(tid, tee) {
   h += '<div style="font-size:9px;color:var(--muted);text-align:center;">Slope</div>';
   h += '<div style="font-size:9px;color:var(--muted);text-align:center;">Par</div>';
   h += '</div>';
-  // Par by hole
+  // Par by hole — split into groups of 9 (or single group if ≤9 holes)
   h += '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:10px 0 2px;">Par by Hole <span style="font-weight:400;text-transform:none;letter-spacing:0;">(tap to set)</span></div>';
-  [0, 9].forEach(function(offset) {
-    var label = offset === 0 ? 'Front 9 (holes 1-9)' : 'Back 9 (holes 10-18)';
-    h += '<div style="font-size:9px;color:var(--muted);margin-bottom:2px;">'+label+'</div>';
+  var parGroups = numHoles <= 9 ? [[0, numHoles, 'Holes 1–'+numHoles]] : [[0, 9, 'Front 9 (holes 1–9)'], [9, numHoles, 'Back (holes 10–'+numHoles+')']];
+  parGroups.forEach(function(grp) {
+    h += '<div style="font-size:9px;color:var(--muted);margin-bottom:2px;">'+grp[2]+'</div>';
     h += '<div class="par-hole-grid">';
-    for (var i = offset; i < offset + 9; i++) {
-      var p = (t.parByHole && t.parByHole[i]) ? t.parByHole[i] : 4;
+    for (var i = grp[0]; i < grp[1]; i++) {
+      var p = (t.parByHole && t.parByHole[i] != null) ? t.parByHole[i] : 4;
       h += '<div class="par-hole-cell"><div class="par-hole-num">'+(i+1)+'</div>';
       [3,4,5].forEach(function(pv) {
         h += '<button type="button" class="par-btn'+(p===pv?' sel':'')+'" data-ptid="'+tid+'" data-phole="'+i+'" data-pval="'+pv+'" onclick="mcPar(this,'+tid+','+i+','+pv+')">'+pv+'</button>';
@@ -7280,15 +7301,15 @@ function buildTeeBlockHtml(tid, tee) {
   // Stroke Index
   h += '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;margin-bottom:2px;">';
   h += '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">Stroke Index</div>';
-  h += '<button type="button" onclick="mcFillSI('+tid+')" style="font-size:10px;color:var(--green-dark);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">Use template (1-18)</button>';
+  h += '<button type="button" onclick="mcFillSI('+tid+')" style="font-size:10px;color:var(--green-dark);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">Use template (1–'+numHoles+')</button>';
   h += '</div>';
-  [0, 9].forEach(function(offset) {
-    var label = offset === 0 ? 'Front 9' : 'Back 9';
-    h += '<div style="font-size:9px;color:var(--muted);margin-bottom:2px;">'+label+'</div>';
+  var siGroups = numHoles <= 9 ? [[0, numHoles, 'Holes 1–'+numHoles]] : [[0, 9, 'Front 9'], [9, numHoles, 'Back']];
+  siGroups.forEach(function(grp) {
+    h += '<div style="font-size:9px;color:var(--muted);margin-bottom:2px;">'+grp[2]+'</div>';
     h += '<div class="si-hole-grid">';
-    for (var i = offset; i < offset + 9; i++) {
-      var sv = (t.strokeIndex && t.strokeIndex[i]) ? t.strokeIndex[i] : (i + 1);
-      h += '<input class="si-hole-input" type="number" min="1" max="18" id="mcSi-'+tid+'-'+i+'" value="'+sv+'">';
+    for (var i = grp[0]; i < grp[1]; i++) {
+      var sv = (t.strokeIndex && t.strokeIndex[i] != null) ? t.strokeIndex[i] : (i + 1);
+      h += '<input class="si-hole-input" type="number" min="1" max="'+numHoles+'" id="mcSi-'+tid+'-'+i+'" value="'+sv+'">';
     }
     h += '</div>';
   });
@@ -7302,6 +7323,10 @@ window.showMcCourseForm = function(course) {
   if (!body) return;
   if (addBtn) addBtn.style.display = 'none';
   _mcEditingId = course ? course.id : null;
+  // Derive hole count from existing course or default to 18
+  _mcNumHoles = (course && course.numHoles) ||
+                (course && course.tees && course.tees[0] && course.tees[0].parByHole && course.tees[0].parByHole.length) ||
+                18;
   _mcTeeIds = [];
   _mcTeeCounter = 0;
   var initialTees = (course && course.tees && course.tees.length) ? course.tees : [null];
@@ -7309,11 +7334,23 @@ window.showMcCourseForm = function(course) {
   initialTees.forEach(function(tee) {
     var tid = _mcTeeCounter++;
     _mcTeeIds.push(tid);
-    teesHtml += buildTeeBlockHtml(tid, tee);
+    teesHtml += buildTeeBlockHtml(tid, tee, _mcNumHoles);
   });
+  var quickBtns = [9, 12, 18].map(function(n) {
+    return '<button type="button" onclick="var inp=document.getElementById(\'mcHoleCountInput\');if(inp)inp.value='+n+';setMcNumHoles('+n+')" style="padding:5px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;font-weight:500;background:#f5f5f5;color:var(--ink,#1a1a1a);cursor:pointer;">'+n+'</button>';
+  }).join('');
   body.innerHTML =
     '<div style="font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted);margin-bottom:10px;">'+(course ? 'EDIT COURSE' : 'NEW COURSE')+'</div>' +
     '<input id="mc-course-name" type="text" placeholder="Course name" value="'+escapeHtml((course && course.name) || '')+'" style="width:100%;padding:9px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:14px;margin-bottom:10px;box-sizing:border-box;">' +
+    '<div style="margin-bottom:12px;">' +
+      '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:6px;">Number of Holes</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+        '<input type="number" id="mcHoleCountInput" min="1" max="27" value="'+_mcNumHoles+'" onchange="setMcNumHoles(Math.max(1,Math.min(27,parseInt(this.value,10)||18)))" style="width:68px;padding:7px 4px;border:1.5px solid var(--green-dark,#1a5c36);border-radius:6px;font-size:16px;font-weight:700;text-align:center;box-sizing:border-box;">' +
+        '<span style="font-size:11px;color:var(--muted);">Quick:</span>' +
+        quickBtns +
+      '</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:5px;">⚠️ Changing hole count resets par and stroke index entries.</div>' +
+    '</div>' +
     '<div id="mcTeeList">'+teesHtml+'</div>' +
     '<button type="button" onclick="mcAddTee()" style="width:100%;padding:8px;border:1.5px dashed var(--green-dark);background:transparent;color:var(--green-dark);border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:14px;">+ Add Another Tee</button>' +
     '<div style="display:flex;gap:8px;">' +
@@ -7328,13 +7365,28 @@ window.mcAddTee = function() {
   var tid = _mcTeeCounter++;
   _mcTeeIds.push(tid);
   var list = document.getElementById('mcTeeList');
-  if (list) list.insertAdjacentHTML('beforeend', buildTeeBlockHtml(tid, null));
+  if (list) list.insertAdjacentHTML('beforeend', buildTeeBlockHtml(tid, null, _mcNumHoles));
 };
 
 window.mcRemoveTee = function(tid) {
   var block = document.getElementById('mcTeeBlock-'+tid);
   if (block) block.remove();
   _mcTeeIds = _mcTeeIds.filter(function(x){ return x !== tid; });
+};
+
+window.setMcNumHoles = function(n) {
+  _mcNumHoles = n;
+  // Rebuild all tee blocks with the new hole count (resets entered hole data)
+  var list = document.getElementById('mcTeeList');
+  if (!list) return;
+  _mcTeeIds = [];
+  _mcTeeCounter = 0;
+  list.innerHTML = buildTeeBlockHtml(0, null, _mcNumHoles);
+  _mcTeeIds.push(0);
+  _mcTeeCounter = 1;
+  // Sync number input
+  var inp = document.getElementById('mcHoleCountInput');
+  if (inp) inp.value = n;
 };
 
 window.mcPar = function(btn, tid, hole, val) {
@@ -7347,9 +7399,9 @@ window.mcPar = function(btn, tid, hole, val) {
 };
 
 window.mcFillSI = function(tid) {
-  for (var i = 0; i < 18; i++) {
+  for (var i = 0; i < _mcNumHoles; i++) {
     var el = document.getElementById('mcSi-'+tid+'-'+i);
-    if (el) el.value = _DEFAULT_SI[i];
+    if (el) el.value = i + 1; // sequential 1..numHoles default
   }
 };
 
@@ -7366,7 +7418,7 @@ window.mcSaveCourse = function() {
     var slope  = parseInt((document.getElementById('mcTs-'+tid)||{value:''}).value, 10) || 113;
     var par    = parseInt((document.getElementById('mcTp-'+tid)||{value:''}).value, 10) || 72;
     var parByHole = [], strokeIndex = [];
-    for (var h = 0; h < 18; h++) {
+    for (var h = 0; h < _mcNumHoles; h++) {
       var activeBtn = block.querySelector('[data-ptid="'+tid+'"][data-phole="'+h+'"].sel');
       parByHole.push(activeBtn ? parseInt(activeBtn.getAttribute('data-pval'), 10) : 4);
       var siEl = document.getElementById('mcSi-'+tid+'-'+h);
@@ -7377,7 +7429,7 @@ window.mcSaveCourse = function() {
   if (!tees.length) { alert('Please add at least one tee box.'); return; }
   var saveBtn = document.getElementById('mcSaveBtn');
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
-  var data = { id: _mcEditingId, name: name, tees: tees };
+  var data = { id: _mcEditingId, name: name, numHoles: _mcNumHoles, tees: tees };
   fbSaveMyCourse(data, function(err, newId) {
     if (err) {
       alert('Save failed: '+(err.message||'unknown error'));
@@ -8771,6 +8823,7 @@ function buildRyderCupScoreboardHtml(){
     var course = d.courseIdx!=null ? MOCK_COURSES[d.courseIdx] : null;
     var tee = course && d.teeName ? course.tees.filter(function(t){return t.name===d.teeName;})[0] : null;
     if (!course || !tee) return;
+    var nh = tee.parByHole ? tee.parByHole.length : 18;
     if (!d.scorecards) d.scorecards = {};
 
     for (var gn=1; gn<=d.numGroups; gn++){
@@ -8802,8 +8855,8 @@ function buildRyderCupScoreboardHtml(){
             continue;
           }
           try {
-            var mRes=SidieGolfEngine.computeMatchPlayResult(pairCtx2,[String(aIdx)],[String(bIdx)]);
-            var mPts=SidieGolfEngine.ryderCupMatchPoints(mRes,pThru,18);
+            var mRes=SidieGolfEngine.computeMatchPlayResult(pairCtx2,[String(aIdx)],[String(bIdx)],makeHoles(nh));
+            var mPts=SidieGolfEngine.ryderCupMatchPoints(mRes,pThru,nh);
             var mUp=pThru>0?mRes.holeResults[pThru-1].runningAUp:0;
             matchSummaries.push({dayLabel:'Day '+(dIdx+1),matchType:matchType,label:aLbl+' v '+bLbl,
               teamAPoints:mPts.A,teamBPoints:mPts.B,complete:mPts.complete,started:pThru>0,thru:pThru,curUp:mUp,winnerSide:mRes.winnerSide||null});
@@ -8818,8 +8871,8 @@ function buildRyderCupScoreboardHtml(){
         var bLbl2=teamBIdxs.map(function(i){return (state.players[i]?state.players[i].name:('P'+(i+1))).split(' ').pop();}).join('/');
         var thru2=commonThruHoles(idxs,sc);
         try {
-          var res=SidieGolfEngine.computeMatchPlayResult(ctx,aIds,bIds);
-          var pts=SidieGolfEngine.ryderCupMatchPoints(res,thru2,18);
+          var res=SidieGolfEngine.computeMatchPlayResult(ctx,aIds,bIds,makeHoles(nh));
+          var pts=SidieGolfEngine.ryderCupMatchPoints(res,thru2,nh);
           var up2=thru2>0?res.holeResults[thru2-1].runningAUp:0;
           matchSummaries.push({dayLabel:'Day '+(dIdx+1),matchType:matchType,label:aLbl2+' v '+bLbl2,
             teamAPoints:pts.A,teamBPoints:pts.B,complete:pts.complete,started:thru2>0,thru:thru2,curUp:up2,winnerSide:res.winnerSide||null});
@@ -9785,7 +9838,7 @@ function fbApplyRemoteState(remote) {
     remote.days.forEach(function(d) {
       if (d && d._courseData && d.courseIdx != null) {
         while (MOCK_COURSES.length <= d.courseIdx) MOCK_COURSES.push(null);
-        if (!MOCK_COURSES[d.courseIdx]) MOCK_COURSES[d.courseIdx] = d._courseData;
+        MOCK_COURSES[d.courseIdx] = d._courseData;
       }
     });
   }
@@ -10276,7 +10329,7 @@ function fbResumeState(remote, roundStatus) {
       remote.days.forEach(function(d) {
         if (d && d._courseData && d.courseIdx != null) {
           while (MOCK_COURSES.length <= d.courseIdx) MOCK_COURSES.push(null);
-          if (!MOCK_COURSES[d.courseIdx]) MOCK_COURSES[d.courseIdx] = d._courseData;
+          MOCK_COURSES[d.courseIdx] = d._courseData;
         }
       });
     }
