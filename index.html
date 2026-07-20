@@ -9625,7 +9625,7 @@ window.fbLockRound = function() {
   if (errEl) errEl.textContent = '';
   // Navigate immediately — don't block manager on Firestore round-trip
   window.fbRoundStatus = 'active';
-  goToStep(6);
+  goToStep(isMultiDay() ? 7 : 6);
   // Write lock + full state to Firestore in the background so joiners get redirected
   fbDb.collection('rounds').doc(fbRoundCode).update({
     roundStatus: 'active',
