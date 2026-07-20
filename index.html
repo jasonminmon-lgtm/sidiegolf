@@ -10706,27 +10706,6 @@ if ('serviceWorker' in navigator) {
     </div>
   </div>
 </div>
-<script>
-// Standalone — defined outside the Firebase IIFE so onclick attrs always reach it
-function closeSignoutModal() {
-  document.getElementById('signoutOverlay').style.display = 'none';
-}
-function doSignOut(discard) {
-  closeSignoutModal();
-  var code = window.fbRoundCode;
-  var wasHost = typeof window.isCurrentUserHost === 'function' ? window.isCurrentUserHost() : true;
-  if (typeof window.fbStopListening === 'function') window.fbStopListening();
-  window.fbRoundCode = null;
-  try { localStorage.removeItem('sg_round_code'); } catch(e) {}
-  if (discard && code && wasHost && window.fbDb) {
-    window.fbDb.collection('rounds').doc(code).delete().catch(function(e) {
-      console.warn('[SidieGolf] Round delete error:', e);
-    });
-  }
-  if (typeof window.resetState === 'function') window.resetState();
-  if (window.fbAuth) window.fbAuth.signOut();
-}
-</script>
 
 <!-- ── Feedback FAB ──────────────────────────────────────────────────────── -->
 <button class="feedback-fab" onclick="openFeedback()" title="Send Feedback" aria-label="Send Feedback">💬</button>
