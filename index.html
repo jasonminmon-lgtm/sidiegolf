@@ -3788,9 +3788,30 @@ function renderPlayersInto(containerId){
       }
       if (emptyIdx >= 0) state.players[emptyIdx] = entry;
       else state.players.push(entry);
+      var _autoIdx = emptyIdx >= 0 ? emptyIdx : state.players.length - 1;
+      if (entry.ghin) autoRefreshHI(_autoIdx, function(){ renderPlayerRows(); updateNextButton(); });
       renderPlayerRows();
       updateNextButton();
     }, true /* multiMode — stay open for bulk add */);
+  });
+}
+
+// ================= GHIN AUTO-REFRESH =================
+// Called after a buddy is added to a slot — looks up their CURRENT HCI live from
+// GHIN so the value is always fresh, not whatever was stored when the buddy was saved.
+function autoRefreshHI(slotIdx, renderFn) {
+  var p = state.players[slotIdx];
+  if (!p || !p.ghin) return;
+  var _ghin = p.ghin;
+  lookupGhinHandicap(_ghin, function(err, result) {
+    if (err || !result || result.handicapIndex == null) return;
+    var cur = state.players[slotIdx];
+    if (!cur || cur.ghin !== _ghin) return; // slot changed — bail
+    cur.hi          = String(result.handicapIndex);
+    cur.ghinName    = ((result.firstName || '') + ' ' + (result.lastName || '')).trim();
+    cur.ghinUpdated = new Date().toISOString().slice(0, 10);
+    if (typeof renderFn === 'function') renderFn();
+    if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
   });
 }
 
@@ -3896,6 +3917,8 @@ function renderNetworkedPlayersStep(){
         }
         if (emptyIdx >= 0) state.players[emptyIdx] = entry;
         else if (state.players.length < 20) state.players.push(entry);
+        var _autoIdx = emptyIdx >= 0 ? emptyIdx : state.players.length - 1;
+        if (entry.ghin) autoRefreshHI(_autoIdx, renderNetworkedPlayersStep);
         if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
         renderNetworkedPlayersStep();
       }, true /* multiMode — stay open for bulk add */);
@@ -4031,6 +4054,27 @@ window.npsPickFromBuddies = function(idx) {
           plusBtn.style.borderColor = _isPlus ? 'var(--green-dark,#1a5c36)' : '#d0d0d0';
           plusBtn.style.color       = _isPlus ? '#fff' : '#aaa';
         }
+      }
+      // Auto-lookup current HCI live from GHIN if this buddy has a GHIN#
+      if (buddy.ghin) {
+        var _glGhin = buddy.ghin;
+        var _glIdx  = idx;
+        lookupGhinHandicap(_glGhin, function(err, result) {
+          if (err || !result || result.handicapIndex == null) return;
+          var _fhEl = document.getElementById('nps-fh-'+_glIdx);
+          var _fpBtn = document.getElementById('nps-fp-'+_glIdx);
+          if (!_fhEl) return;
+          var _freshHi = String(result.handicapIndex).trim();
+          var _isP = _freshHi.charAt(0) === '+' || parseFloat(_freshHi) < 0;
+          var _fmag = _isP ? String(Math.abs(parseFloat(_freshHi)||0)) : _freshHi;
+          _fhEl.value = _fmag;
+          if (_fpBtn) {
+            _fpBtn.setAttribute('data-plus', _isP ? '1' : '0');
+            _fpBtn.style.background  = _isP ? 'var(--green-dark,#1a5c36)' : '#f0f0f0';
+            _fpBtn.style.borderColor = _isP ? 'var(--green-dark,#1a5c36)' : '#d0d0d0';
+            _fpBtn.style.color       = _isP ? '#fff' : '#aaa';
+          }
+        });
       }
     }, 50);
   });
@@ -6816,7 +6860,10 @@ function renderReview(){
     html += buildSingleLeaderboardAndLedgerHtml();
   }
 
-  html += '<button class="su-share-btn" onclick="openSettleUp()" type="button" style="margin-bottom:20px;">💸 Settle Up</button>';
+  var _isAnonReview = !!(window.fbUser && window.fbUser.isAnonymous);
+  if (!_isAnonReview) {
+    html += '<button class="su-share-btn" onclick="openSettleUp()" type="button" style="margin-bottom:20px;">💸 Settle Up</button>';
+  }
 
   $('reviewArea').innerHTML = html;
   } catch(e) {
@@ -7710,6 +7757,7 @@ window.nassauPressClose = function() {
 // ============================================================
 
 window.openSettleUp = function() {
+  if (window.fbUser && window.fbUser.isAnonymous) return; // view-only — no access
   var overlay = $('settleUpOverlay');
   overlay.innerHTML = renderSettleUp();
   overlay.style.display = 'flex';
@@ -9322,12 +9370,16 @@ window.fbSignUp = function() {
       // so fbUser.displayName is null at that point. Refresh it now.
       fbUser = fbAuth.currentUser;
       window.fbUser = fbUser; // expose globally so renderPlayerRows() can see it
+      // Persist profile to Firestore so GHIN survives browser clears
+      fbDb.collection('users').doc(fbUser.uid).set({ name: name, ghin: ghin || '' }, { merge: true }).catch(function(){});
       // If they entered a GHIN, look up their handicap index now
       if (ghin) {
         lookupGhinHandicap(ghin, function(err, result) {
           if (!err && result && result.handicapIndex != null) {
             profile.hi = result.handicapIndex;
             try { localStorage.setItem('sg_user_profile', JSON.stringify(profile)); } catch(e) {}
+            // Also persist HI to Firestore
+            fbDb.collection('users').doc(fbUser.uid).set({ hi: result.handicapIndex }, { merge: true }).catch(function(){});
           }
         });
       }
@@ -10614,6 +10666,27 @@ fbAuth.onAuthStateChanged(function(user) {
 
     // Send welcome email to brand-new signups
     sgSendWelcomeEmail(user);
+
+    // Sync user profile (name/ghin/hi) between Firestore and localStorage so
+    // GHIN survives browser-data clears. Firestore is the persistent source of
+    // truth; localStorage is the fast read path for round creation.
+    fbDb.collection('users').doc(user.uid).get().then(function(snap) {
+      var fp = snap.exists ? snap.data() : {};
+      var lp = {};
+      try { lp = JSON.parse(localStorage.getItem('sg_user_profile') || '{}'); } catch(e){}
+      // Merge: prefer whichever side has the value
+      var merged = {
+        name: lp.name || fp.name || (user.displayName || ''),
+        ghin: lp.ghin || fp.ghin || '',
+        hi:   lp.hi   || fp.hi   || ''
+      };
+      try { localStorage.setItem('sg_user_profile', JSON.stringify(merged)); } catch(e){}
+      // Backfill Firestore if it's missing data that localStorage had
+      var needsUpdate = (!fp.ghin && merged.ghin) || (!fp.hi && merged.hi) || (!fp.name && merged.name);
+      if (needsUpdate) {
+        fbDb.collection('users').doc(user.uid).set(merged, { merge: true }).catch(function(){});
+      }
+    }).catch(function(){});
 
     // Preload buddies + custom courses cache for non-anonymous (registered) users
     if (typeof fbLoadBuddies === 'function') fbLoadBuddies();
