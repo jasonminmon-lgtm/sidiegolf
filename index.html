@@ -3754,7 +3754,7 @@ function renderPlayersInto(containerId){
     '</div>';
   }
   var html = numGroupsHtml + '<div class="card"><div id="playerListInner"></div>' +
-    '<div style="display:flex;gap:8px;margin-top:4px;">' +
+    '<div style="display:flex;gap:8px;margin-top:4px;margin-bottom:90px;">' +
       '<button class="btn-add-player" id="addPlayerBtn" style="flex:1;">+ Add Player</button>' +
       '<button id="addFromBuddiesBtn" style="flex:1;padding:8px 10px;border:1.5px solid var(--green-dark,#1a5c36);border-radius:8px;background:transparent;color:var(--green-dark,#1a5c36);font-size:13px;font-weight:600;cursor:pointer;">&#128101; From Buddies</button>' +
     '</div>' +
@@ -3879,7 +3879,7 @@ function renderNetworkedPlayersStep(){
   }
   html += '</div>';
   // Top-level multi-add from Buddies — mirrors Golf Event path
-  html += '<button id="nps-from-buddies-btn" style="width:100%;margin-top:4px;padding:9px 10px;border:1.5px solid var(--green-dark,#1a5c36);border-radius:8px;background:transparent;color:var(--green-dark,#1a5c36);font-size:13px;font-weight:600;cursor:pointer;">&#128101; From Buddies</button>';
+  html += '<button id="nps-from-buddies-btn" style="width:100%;margin-top:4px;margin-bottom:90px;padding:9px 10px;border:1.5px solid var(--green-dark,#1a5c36);border-radius:8px;background:transparent;color:var(--green-dark,#1a5c36);font-size:13px;font-weight:600;cursor:pointer;">&#128101; From Buddies</button>';
   html += '</div>';
   target.innerHTML = html;
   // Wire multi-add Buddies button
