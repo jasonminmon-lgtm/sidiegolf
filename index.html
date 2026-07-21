@@ -4223,7 +4223,9 @@ function refreshLobbySection(){
     return;
   }
   var _lobbyStep = isMultiDay() ? 6 : 5; // Sidie Games step (where lobby is appended for networked rounds)
-  if (state.step === _lobbyStep && isCurrentUserHost()) {
+  // Once the round is active the lobby no longer exists — don't try to refresh it
+  // (would overwrite the Event Hub / day scorecard that now lives on step 6)
+  if (state.step === _lobbyStep && isCurrentUserHost() && window.fbRoundStatus !== 'active') {
     var inlineEl = document.getElementById('compact-lobby-section');
     if (inlineEl) {
       // Replace just the inline lobby section, leaving Sidie Games intact
