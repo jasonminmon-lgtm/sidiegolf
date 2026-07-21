@@ -3695,7 +3695,7 @@ function buildRcMatchBannerHtml(day, gn, course, tee, idxs, sc) {
   var ctx;
   try { ctx = buildCtx(idxs, course, tee, sc, rcHcpPct); } catch(e) { return ''; }
   var nameA = rcTeamName('A'), nameB = rcTeamName('B');
-  var html = '<div class="rc-match-banner">';
+  var html = '<div class="rc-match-banner" id="rc-banner-'+day.id+'-'+gn+'">';
   html += '<span class="rc-mb-label">'+escapeHtml(matchType)+'</span>';
   var totalA = 0, totalB = 0;
   if (matchType === 'Singles') {
@@ -8155,6 +8155,26 @@ function setScoreEntry(rawScore){
     if (inner){
       inner.textContent = rawScore != null ? rawScore : '—';
       inner.className = 'score-tap-inner ' + scoreRelClass(rawScore, e.par);
+    }
+  }
+  // Re-render Ryder Cup match banner in-place so result updates without a tab switch
+  if (isRyderCup()) {
+    var _bParts = (e.ns || '').split('-');
+    if (_bParts[0] === 'sc' && _bParts.length >= 3) {
+      var _bDayId = parseInt(_bParts[1], 10), _bGn = parseInt(_bParts[2], 10);
+      var _bannerEl = document.getElementById('rc-banner-' + _bDayId + '-' + _bGn);
+      if (_bannerEl) {
+        var _bDay = state.days.filter(function(d){ return d.id === _bDayId; })[0];
+        if (_bDay) {
+          var _bCourse = _bDay.courseIdx != null ? MOCK_COURSES[_bDay.courseIdx] : null;
+          var _bTee = _bCourse && _bDay.teeName ? _bCourse.tees.filter(function(t){ return t.name === _bDay.teeName; })[0] : null;
+          var _bIdxs = Object.keys(_bDay.assignments).filter(function(k){ return _bDay.assignments[k] === _bGn; }).map(Number);
+          var _bSc = (_bDay.scorecards && _bDay.scorecards[_bGn]) || { scores:{}, events:{} };
+          var _bTmp = document.createElement('div');
+          _bTmp.innerHTML = buildRcMatchBannerHtml(_bDay, _bGn, _bCourse, _bTee, _bIdxs, _bSc);
+          if (_bTmp.firstChild) _bannerEl.parentNode.replaceChild(_bTmp.firstChild, _bannerEl);
+        }
+      }
     }
   }
   closeScoreEntry();
