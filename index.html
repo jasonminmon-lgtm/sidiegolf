@@ -3195,7 +3195,7 @@ function stepLabelText(n){
   if (n===3) return 'Course & Date';
   if (n===4) return "Who's Playing";
   if (n===5) return isMultiDay() ? 'Event Schedule' : 'Sidie-Games';
-  if (n===6) return isMultiDay() ? 'Sidie-Games' : 'Scorecard';
+  if (n===6) return isMultiDay() ? (window.fbRoundStatus === 'active' ? 'Event Hub' : 'Sidie-Games') : 'Scorecard';
   if (n===7) return 'Review';
 }
 
@@ -5831,6 +5831,10 @@ window.markDayComplete = function(dayId) {
     }).catch(function(e){ console.warn('markDayComplete Firestore:', e); });
   }
 
+  // Navigate to Event Hub immediately so the updated status is visible right away,
+  // then show results overlay on top (user sees the hub when they close it)
+  window._showEventHub = true;
+  renderEventScorecard();
   showResultsSummary(dayId);
 };
 
