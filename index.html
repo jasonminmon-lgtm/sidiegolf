@@ -2720,9 +2720,9 @@ var SCORING_METHODS = {
     {name:'Stableford', desc:'Point-based scoring across the event.'},
     {name:'Modified Stableford', desc:'Stableford with steeper point swings — configure the table below.'},
     {name:'Match Play', desc:'Head-to-head format across the event.'},
+    {name:'Ryder Cup Format', desc:'Mixed session formats (Foursomes, Four-Ball, Singles) across a multi-day trip. Two teams compete for points — 1 for a win, ½ for a halve.'},
     {name:'Scramble', desc:'Team picks the best shot each stroke.', comingSoon:true},
-    {name:'Shamble', desc:'Best drive, then play your own ball in.', comingSoon:true},
-    {name:'Ryder Cup Format', desc:'Mixed session formats (Foursomes, Four-Ball, Singles) across a multi-day trip. Two teams compete for points — 1 for a win, ½ for a halve.'}
+    {name:'Shamble', desc:'Best drive, then play your own ball in.', comingSoon:true}
   ]
 };
 
@@ -3750,6 +3750,110 @@ function buildRcMatchBannerHtml(day, gn, course, tee, idxs, sc) {
   return html;
 }
 
+// ================= TEAM STROKE PLAY ENGINE =================
+// Returns combined net totals per team across ALL groups of the day.
+// Uses each player's full course handicap (not relative) so net = gross - CHI strokes.
+function computeTeamStrokePlayResult(day, course, tee) {
+  var nh = tee && tee.parByHole ? tee.parByHole.length : 18;
+  var strokeIdx = (tee && tee.strokeIndex) || (course && course.strokeIndex) || [];
+  var totals = { A:0, B:0, holesA:0, holesB:0 };
+  for (var gn=1; gn<=day.numGroups; gn++) {
+    var idxs = Object.keys(day.assignments||{}).filter(function(k){ return day.assignments[k]===gn; }).map(Number);
+    if (!idxs.length) continue;
+    var sc = (day.scorecards && day.scorecards[gn]) || { scores:{}, events:{} };
+    idxs.forEach(function(idx){
+      var team = rcTeamFor(idx);
+      var p = state.players[idx];
+      if (!p) return;
+      var chi = courseHandicap(p.hi, tee, tee.par);
+      if (chi == null) chi = 0;
+      var gross = sc.scores[String(idx)] || {};
+      for (var h=1; h<=nh; h++) {
+        var g = gross[h];
+        if (g == null) continue;
+        var si = strokeIdx[h-1] || h;
+        var strokes = 0;
+        if (chi > 0) {
+          if (si <= Math.min(chi, nh)) strokes++;
+          if (chi > nh && si <= (chi-nh)) strokes++;
+        } else if (chi < 0) {
+          if (si > nh+chi) strokes = -1; // plus handicap — subtract stroke on easiest holes
+        }
+        totals[team] += (g - strokes);
+        if (team==='A') totals.holesA++; else totals.holesB++;
+      }
+    });
+  }
+  var winner = totals.A < totals.B ? 'A' : totals.B < totals.A ? 'B' : 'tie';
+  return { teamA:totals.A, teamB:totals.B, winner:winner, holesA:totals.holesA, holesB:totals.holesB };
+}
+
+// ================= PAR 3 BIRDIE COUNT ENGINE =================
+// Returns total birdies (score ≤ par-1) per team across ALL groups of the day.
+function computeParThreeBirdieResult(day, course, tee) {
+  var nh = tee && tee.parByHole ? tee.parByHole.length : 18;
+  var pars = (tee && tee.parByHole) || [];
+  var birdies = { A:0, B:0 };
+  for (var gn=1; gn<=day.numGroups; gn++) {
+    var idxs = Object.keys(day.assignments||{}).filter(function(k){ return day.assignments[k]===gn; }).map(Number);
+    if (!idxs.length) continue;
+    var sc = (day.scorecards && day.scorecards[gn]) || { scores:{}, events:{} };
+    idxs.forEach(function(idx){
+      var team = rcTeamFor(idx);
+      var gross = sc.scores[String(idx)] || {};
+      for (var h=1; h<=nh; h++) {
+        var g = gross[h];
+        var par = pars[h-1] || 3;
+        if (g != null && g <= par-1) birdies[team]++;
+      }
+    });
+  }
+  var winner = birdies.A > birdies.B ? 'A' : birdies.B > birdies.A ? 'B' : 'tie';
+  return { teamA:birdies.A, teamB:birdies.B, winner:winner };
+}
+
+// ================= TEAM STROKE PLAY BANNER =================
+function buildTeamStrokePlayBannerHtml(day, course, tee) {
+  var nameA = rcTeamName('A'), nameB = rcTeamName('B');
+  var r = computeTeamStrokePlayResult(day, course, tee);
+  var html = '<div class="rc-match-banner" id="rc-banner-tsp-'+day.id+'">';
+  html += '<span class="rc-mb-label">Team Stroke Play</span>';
+  var statusStr;
+  if (r.holesA === 0 && r.holesB === 0) {
+    statusStr = 'Not started yet';
+  } else if (r.winner === 'tie') {
+    statusStr = 'Tied — '+nameA+': '+r.teamA+' net, '+nameB+': '+r.teamB+' net';
+  } else {
+    var ldr = r.winner==='A' ? nameA : nameB;
+    var ldrNet = r.winner==='A' ? r.teamA : r.teamB;
+    var trlNet = r.winner==='A' ? r.teamB : r.teamA;
+    statusStr = ldr+' leads by '+(Math.abs(r.teamA-r.teamB))+' ('+ldrNet+' vs '+trlNet+' net)';
+  }
+  html += '<span class="rc-mb-status">'+escapeHtml(statusStr)+'</span>';
+  html += '</div>';
+  return html;
+}
+
+// ================= PAR 3 BIRDIE COUNT BANNER =================
+function buildParThreeBirdieBannerHtml(day, course, tee) {
+  var nameA = rcTeamName('A'), nameB = rcTeamName('B');
+  var r = computeParThreeBirdieResult(day, course, tee);
+  var html = '<div class="rc-match-banner" id="rc-banner-p3b-'+day.id+'">';
+  html += '<span class="rc-mb-label">Par 3 Birdie Count 🏆 Tiebreaker</span>';
+  var statusStr;
+  if (r.teamA===0 && r.teamB===0) {
+    statusStr = 'Not started';
+  } else if (r.winner==='tie') {
+    statusStr = 'Tied — '+nameA+': '+r.teamA+' birdies, '+nameB+': '+r.teamB+' birdies';
+  } else {
+    var winName = r.winner==='A' ? nameA : nameB;
+    statusStr = winName+' leads on birdies — '+nameA+': '+r.teamA+', '+nameB+': '+r.teamB;
+  }
+  html += '<span class="rc-mb-status">'+escapeHtml(statusStr)+'</span>';
+  html += '</div>';
+  return html;
+}
+
 // ================= PLAYERS (shared by both branches) =================
 function renderPlayersInto(containerId){
   // Single-day events: numGroups (tee times) control above player list
@@ -4702,7 +4806,7 @@ function addDay(){
   // Event Schedule step doesn't redundantly ask for the course again.
   var _defCourseIdx = state.course != null ? state.course : null;
   var _defTee = state.tee || null;
-  state.days.push({ id: nextDayId++, courseIdx:_defCourseIdx, teeName:_defTee, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{}, groupHcpPct:{}, playerTees:{}, singlesPairings:{}, status:'pending' });
+  state.days.push({ id: nextDayId++, courseIdx:_defCourseIdx, teeName:_defTee, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{}, groupHcpPct:{}, playerTees:{}, singlesPairings:{}, status:'pending', dayFormat:'match', pointValue:1 });
   if (state.selectedDayForGames==null) state.selectedDayForGames = state.days[0].id;
 }
 if (state.days.length===0) addDay();
@@ -5654,7 +5758,27 @@ function renderDaySetupContent(dayId) {
   var d = state.days.filter(function(x){return x.id===dayId;})[0];
   if (!d) return;
   var course = d.courseIdx != null ? MOCK_COURSES[d.courseIdx] : null;
+  var _df = d.dayFormat || 'match';
+  var _pv = d.pointValue != null ? d.pointValue : 1;
   var html = '';
+
+  // Day Format + Points selector (Ryder Cup only)
+  if (isRyderCup()) {
+    html += '<div class="card" style="margin-bottom:10px;">';
+    html += '<label class="field-label">Day Format</label>';
+    html += '<div class="rc-match-type-sel">';
+    [['match','Match Play'],['teamStroke','Team Stroke Play'],['par3Birdie','Par 3 Birdies']].forEach(function(pair){
+      html += '<button class="rc-mt-btn'+(_df===pair[0]?' active':'')+'" onclick="setDsoDayFormat('+dayId+',\''+pair[0]+'\')">'+pair[1]+'</button>';
+    });
+    html += '</div>';
+    if (_df !== 'par3Birdie') {
+      html += '<label class="field-label" style="margin-top:10px;">Points Available This Day</label>';
+      html += '<input type="number" min="0" max="20" step="0.5" id="dsePointValue-'+dayId+'" value="'+_pv+'" style="width:80px;">';
+    } else {
+      html += '<div style="font-size:11.5px;color:var(--muted);margin-top:8px;padding:6px 8px;background:#f5f5f5;border-radius:6px;">🏆 Tiebreaker only — no Ryder Cup points awarded for this day.</div>';
+    }
+    html += '</div>';
+  }
 
   // Course search
   html += courseSearchHtml('dso-'+dayId);
@@ -5703,22 +5827,28 @@ function renderDaySetupContent(dayId) {
   if (course && d.teeName && isRyderCup()) {
     var tee = course.tees.filter(function(t){return t.name===d.teeName;})[0];
     if (tee) {
-      if (!d.groupMatchType) d.groupMatchType = {};
-      html += '<div class="group-summary" style="margin-top:12px;">';
-      for (var gn=1; gn<=d.numGroups; gn++){
-        var idxs = Object.keys(d.assignments).filter(function(k){return d.assignments[k]===gn;}).map(function(k){return parseInt(k,10);});
-        if (!idxs.length) continue;
-        html += '<div class="group-summary-card">';
-        html += '<div class="gtitle">Tee Time '+gn+' ('+idxs.length+' players)</div>';
-        var mt = d.groupMatchType[gn] || 'Four-Ball';
-        html += '<div style="margin-top:6px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.3px;margin-bottom:4px;">Match Format</div>';
-        html += '<div class="rc-match-type-sel">';
-        ['Foursomes','Four-Ball','Singles'].forEach(function(fmt){
-          html += '<button class="rc-mt-btn'+(mt===fmt?' active':'')+'" onclick="setDsoMatchType('+dayId+','+gn+',\''+fmt+'\')">'+fmt+'</button>';
-        });
-        html += '</div></div></div>';
+      if (_df === 'match') {
+        if (!d.groupMatchType) d.groupMatchType = {};
+        html += '<div class="group-summary" style="margin-top:12px;">';
+        for (var gn=1; gn<=d.numGroups; gn++){
+          var idxs = Object.keys(d.assignments).filter(function(k){return d.assignments[k]===gn;}).map(function(k){return parseInt(k,10);});
+          if (!idxs.length) continue;
+          html += '<div class="group-summary-card">';
+          html += '<div class="gtitle">Tee Time '+gn+' ('+idxs.length+' players)</div>';
+          var mt = d.groupMatchType[gn] || 'Four-Ball';
+          html += '<div style="margin-top:6px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.3px;margin-bottom:4px;">Match Format</div>';
+          html += '<div class="rc-match-type-sel">';
+          ['Foursomes','Four-Ball','Singles'].forEach(function(fmt){
+            html += '<button class="rc-mt-btn'+(mt===fmt?' active':'')+'" onclick="setDsoMatchType('+dayId+','+gn+',\''+fmt+'\')">'+fmt+'</button>';
+          });
+          html += '</div></div></div>';
+        }
+        html += '</div>';
+      } else if (_df === 'teamStroke') {
+        html += '<div class="note-box" style="margin-top:10px;">🏌️ Team Stroke Play: all players\' combined net score. Lower team total wins '+_pv+' point'+(_pv===1?'':'s')+'. Tourney rules — play every shot, no pick-ups.</div>';
+      } else if (_df === 'par3Birdie') {
+        html += '<div class="note-box" style="margin-top:10px;">🐦 Par 3 Birdie Count: tally every team birdie (score ≤ par−1) across all groups. Higher birdie count wins the tiebreaker.</div>';
       }
-      html += '</div>';
     }
   }
   html += '</div>';
@@ -5733,6 +5863,13 @@ function renderDaySetupContent(dayId) {
     d.courseIdx = newIdx;
     d.teeName = null;
     renderDaySetupContent(dayId);
+  });
+
+  // Wire point value input
+  var pvEl = document.getElementById('dsePointValue-'+dayId);
+  if (pvEl) pvEl.addEventListener('change', function(){
+    d.pointValue = parseFloat(pvEl.value) || 0;
+    if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
   });
 
   // Wire tee select
@@ -5781,6 +5918,17 @@ window.setDsoMatchType = function(dayId, gn, fmt) {
   if (!d) return;
   if (!d.groupMatchType) d.groupMatchType = {};
   d.groupMatchType[gn] = fmt;
+  renderDaySetupContent(dayId);
+};
+
+window.setDsoDayFormat = function(dayId, fmt) {
+  var d = state.days.filter(function(x){return x.id===dayId;})[0];
+  if (!d) return;
+  d.dayFormat = fmt;
+  // Auto-set sensible default point values when switching formats
+  if (fmt === 'match' && (d.pointValue == null || d.pointValue === 0)) d.pointValue = 1;
+  else if (fmt === 'teamStroke') d.pointValue = 2;
+  else if (fmt === 'par3Birdie') d.pointValue = 0;
   renderDaySetupContent(dayId);
 };
 
@@ -5857,67 +6005,94 @@ function buildDayResultsSummaryText(dayId) {
     var nameA = rcTeamName('A'), nameB = rcTeamName('B');
     var tee = course && d.teeName ? course.tees.filter(function(t){return t.name===d.teeName;})[0] : null;
     var dayA = 0, dayB = 0;
+    var _dFmt = d.dayFormat || 'match';
+    var _dPv = d.pointValue != null ? d.pointValue : 1;
     if (course && tee) {
       var nh = tee.parByHole ? tee.parByHole.length : 18;
-      for (var gn=1; gn<=d.numGroups; gn++){
-        var matchType = (d.groupMatchType && d.groupMatchType[gn]) || 'Four-Ball';
-        var groupIdxs = Object.keys(d.assignments||{}).filter(function(k){return d.assignments[k]===gn;}).map(function(k){return parseInt(k,10);});
-        if (!groupIdxs.length) continue;
-        var sc = d.scorecards && d.scorecards[gn] ? d.scorecards[gn] : {scores:{},events:{}};
+
+      if (_dFmt === 'teamStroke') {
+        var tspR2 = computeTeamStrokePlayResult(d, course, tee);
         lines.push('');
-        lines.push(matchType.toUpperCase() + ' — Tee Time ' + gn);
-        if (matchType === 'Singles') {
-          var sTeamA = groupIdxs.filter(function(i){return rcTeamFor(i)==='A';});
-          var sTeamB = groupIdxs.filter(function(i){return rcTeamFor(i)==='B';});
-          var pairs = getSinglesPairings(d, gn, sTeamA, sTeamB);
-          pairs.forEach(function(pair){
-            try {
-              var ctx = buildCtx([pair[0],pair[1]], course, tee, sc, 100);
-              var res = SidieGolfEngine.computeMatchPlayResult(ctx,[String(pair[0])],[String(pair[1])],makeHoles(nh));
-              var thru = Object.keys(sc.scores[String(pair[0])]||{}).filter(function(h){return sc.scores[String(pair[0])][h]!=null;}).length;
-              var pts = SidieGolfEngine.ryderCupMatchPoints(res, thru, nh);
-              var pa = state.players[pair[0]] ? state.players[pair[0]].name : '?';
-              var pb = state.players[pair[1]] ? state.players[pair[1]].name : '?';
-              var resultStr;
-              if (pts.complete) {
-                if (res.winnerSide==='A') resultStr = pa + ' wins';
-                else if (res.winnerSide==='B') resultStr = pb + ' wins';
-                else resultStr = 'Halved';
-              } else {
-                var up = thru>0 ? res.holeResults[thru-1].runningAUp : 0;
-                resultStr = up>0 ? pa+' '+up+'UP (thru '+thru+')' : up<0 ? pb+' '+Math.abs(up)+'UP (thru '+thru+')' : 'AS (thru '+thru+')';
-              }
-              lines.push('  ' + pa + ' vs ' + pb + ': ' + resultStr + ' ('+pts.A+'–'+pts.B+')');
-              dayA += pts.A; dayB += pts.B;
-            } catch(e){ lines.push('  ' + (state.players[pair[0]]?state.players[pair[0]].name:'?') + ' vs ' + (state.players[pair[1]]?state.players[pair[1]].name:'?') + ': —'); }
-          });
+        lines.push('TEAM STROKE PLAY ('+_dPv+' pts)');
+        lines.push('  '+nameA+' net: '+tspR2.teamA+'  |  '+nameB+' net: '+tspR2.teamB);
+        if (tspR2.winner==='tie') {
+          var tspHalf = _dPv/2;
+          lines.push('  Tied — each team earns '+tspHalf+' pt'+(tspHalf!==1?'s':''));
+          dayA += tspHalf; dayB += tspHalf;
         } else {
-          var aIdxs = groupIdxs.filter(function(i){return rcTeamFor(i)==='A';});
-          var bIdxs = groupIdxs.filter(function(i){return rcTeamFor(i)==='B';});
-          if (aIdxs.length && bIdxs.length) {
-            try {
-              var thru2 = aIdxs.reduce(function(mx,i){
-                var cnt=Object.keys(sc.scores[String(i)]||{}).filter(function(h){return sc.scores[String(i)][h]!=null;}).length;
-                return Math.min(mx,cnt);
-              }, 18);
-              var ctx2 = buildCtx(groupIdxs, course, tee, sc, (d.groupHcpPct&&d.groupHcpPct[gn]!=null)?d.groupHcpPct[gn]:100);
-              var res2 = SidieGolfEngine.computeMatchPlayResult(ctx2, aIdxs.map(String), bIdxs.map(String), makeHoles(nh));
-              var pts2 = SidieGolfEngine.ryderCupMatchPoints(res2, thru2, nh);
-              var aNames = aIdxs.map(function(i){return state.players[i]?state.players[i].name:'?';}).join(' & ');
-              var bNames = bIdxs.map(function(i){return state.players[i]?state.players[i].name:'?';}).join(' & ');
-              var rStr;
-              if (pts2.complete) {
-                if (res2.winnerSide==='A') rStr = nameA + ' win (' + aNames + ')';
-                else if (res2.winnerSide==='B') rStr = nameB + ' win (' + bNames + ')';
-                else rStr = 'Halved';
-              } else {
-                var up2 = thru2>0 ? res2.holeResults[thru2-1].runningAUp : 0;
-                rStr = up2>0 ? nameA+' '+up2+'UP (thru '+thru2+')' : up2<0 ? nameB+' '+Math.abs(up2)+'UP (thru '+thru2+')' : 'AS (thru '+thru2+')';
-              }
-              lines.push('  ' + aNames + ' vs ' + bNames);
-              lines.push('  Result: ' + rStr + ' (' + pts2.A + '–' + pts2.B + ')');
-              dayA += pts2.A; dayB += pts2.B;
-            } catch(e){ lines.push('  (scoring data unavailable)'); }
+          var tspWinName = tspR2.winner==='A' ? nameA : nameB;
+          lines.push('  '+tspWinName+' wins by '+Math.abs(tspR2.teamA-tspR2.teamB));
+          if (tspR2.winner==='A') dayA += _dPv; else dayB += _dPv;
+        }
+      } else if (_dFmt === 'par3Birdie') {
+        var p3bR2 = computeParThreeBirdieResult(d, course, tee);
+        lines.push('');
+        lines.push('PAR 3 BIRDIE COUNT (Tiebreaker — no points)');
+        lines.push('  '+nameA+': '+p3bR2.teamA+' birdies  |  '+nameB+': '+p3bR2.teamB+' birdies');
+        if (p3bR2.winner==='tie') lines.push('  Tied on birdies');
+        else lines.push('  '+(p3bR2.winner==='A'?nameA:nameB)+' wins the tiebreaker');
+      } else {
+        // Match Play
+        for (var gn=1; gn<=d.numGroups; gn++){
+          var matchType = (d.groupMatchType && d.groupMatchType[gn]) || 'Four-Ball';
+          var groupIdxs = Object.keys(d.assignments||{}).filter(function(k){return d.assignments[k]===gn;}).map(function(k){return parseInt(k,10);});
+          if (!groupIdxs.length) continue;
+          var sc = d.scorecards && d.scorecards[gn] ? d.scorecards[gn] : {scores:{},events:{}};
+          lines.push('');
+          lines.push(matchType.toUpperCase() + ' — Tee Time ' + gn + ' ('+_dPv+' pt'+(_dPv!==1?'s':'')+'/match)');
+          if (matchType === 'Singles') {
+            var sTeamA = groupIdxs.filter(function(i){return rcTeamFor(i)==='A';});
+            var sTeamB = groupIdxs.filter(function(i){return rcTeamFor(i)==='B';});
+            var pairs = getSinglesPairings(d, gn, sTeamA, sTeamB);
+            pairs.forEach(function(pair){
+              try {
+                var ctx = buildCtx([pair[0],pair[1]], course, tee, sc, 100);
+                var res = SidieGolfEngine.computeMatchPlayResult(ctx,[String(pair[0])],[String(pair[1])],makeHoles(nh));
+                var thru = Object.keys(sc.scores[String(pair[0])]||{}).filter(function(h){return sc.scores[String(pair[0])][h]!=null;}).length;
+                var pts = SidieGolfEngine.ryderCupMatchPoints(res, thru, nh);
+                var pa = state.players[pair[0]] ? state.players[pair[0]].name : '?';
+                var pb = state.players[pair[1]] ? state.players[pair[1]].name : '?';
+                var resultStr;
+                if (pts.complete) {
+                  if (res.winnerSide==='A') resultStr = pa + ' wins';
+                  else if (res.winnerSide==='B') resultStr = pb + ' wins';
+                  else resultStr = 'Halved';
+                } else {
+                  var up = thru>0 ? res.holeResults[thru-1].runningAUp : 0;
+                  resultStr = up>0 ? pa+' '+up+'UP (thru '+thru+')' : up<0 ? pb+' '+Math.abs(up)+'UP (thru '+thru+')' : 'AS (thru '+thru+')';
+                }
+                lines.push('  ' + pa + ' vs ' + pb + ': ' + resultStr + ' ('+(pts.A*_dPv)+'–'+(pts.B*_dPv)+')');
+                dayA += pts.A*_dPv; dayB += pts.B*_dPv;
+              } catch(e){ lines.push('  ' + (state.players[pair[0]]?state.players[pair[0]].name:'?') + ' vs ' + (state.players[pair[1]]?state.players[pair[1]].name:'?') + ': —'); }
+            });
+          } else {
+            var aIdxs = groupIdxs.filter(function(i){return rcTeamFor(i)==='A';});
+            var bIdxs = groupIdxs.filter(function(i){return rcTeamFor(i)==='B';});
+            if (aIdxs.length && bIdxs.length) {
+              try {
+                var thru2 = aIdxs.reduce(function(mx,i){
+                  var cnt=Object.keys(sc.scores[String(i)]||{}).filter(function(h){return sc.scores[String(i)][h]!=null;}).length;
+                  return Math.min(mx,cnt);
+                }, 18);
+                var ctx2 = buildCtx(groupIdxs, course, tee, sc, (d.groupHcpPct&&d.groupHcpPct[gn]!=null)?d.groupHcpPct[gn]:100);
+                var res2 = SidieGolfEngine.computeMatchPlayResult(ctx2, aIdxs.map(String), bIdxs.map(String), makeHoles(nh));
+                var pts2 = SidieGolfEngine.ryderCupMatchPoints(res2, thru2, nh);
+                var aNames = aIdxs.map(function(i){return state.players[i]?state.players[i].name:'?';}).join(' & ');
+                var bNames = bIdxs.map(function(i){return state.players[i]?state.players[i].name:'?';}).join(' & ');
+                var rStr;
+                if (pts2.complete) {
+                  if (res2.winnerSide==='A') rStr = nameA + ' win (' + aNames + ')';
+                  else if (res2.winnerSide==='B') rStr = nameB + ' win (' + bNames + ')';
+                  else rStr = 'Halved';
+                } else {
+                  var up2 = thru2>0 ? res2.holeResults[thru2-1].runningAUp : 0;
+                  rStr = up2>0 ? nameA+' '+up2+'UP (thru '+thru2+')' : up2<0 ? nameB+' '+Math.abs(up2)+'UP (thru '+thru2+')' : 'AS (thru '+thru2+')';
+                }
+                lines.push('  ' + aNames + ' vs ' + bNames);
+                lines.push('  Result: ' + rStr + ' ('+(pts2.A*_dPv)+'–'+(pts2.B*_dPv)+')');
+                dayA += pts2.A*_dPv; dayB += pts2.B*_dPv;
+              } catch(e){ lines.push('  (scoring data unavailable)'); }
+            }
           }
         }
       }
@@ -5925,12 +6100,23 @@ function buildDayResultsSummaryText(dayId) {
     lines.push('');
     lines.push(divider);
     lines.push('DAY ' + (dIdx+1) + ' SCORE: ' + nameA + ' ' + dayA + ' — ' + nameB + ' ' + dayB);
-    // Running event total
+    // Running event total (applies pointValue + handles all day formats)
     var totA=0, totB=0;
     state.days.forEach(function(day2){
       var c2=day2.courseIdx!=null?MOCK_COURSES[day2.courseIdx]:null;
       var t2=c2&&day2.teeName?c2.tees.filter(function(t){return t.name===day2.teeName;})[0]:null;
       if (!c2||!t2) return;
+      var df2 = day2.dayFormat || 'match';
+      var pv2 = day2.pointValue != null ? day2.pointValue : 1;
+      if (df2 === 'teamStroke') {
+        try {
+          var tspRt = computeTeamStrokePlayResult(day2, c2, t2);
+          totA += tspRt.winner==='A' ? pv2 : (tspRt.winner==='tie' ? pv2/2 : 0);
+          totB += tspRt.winner==='B' ? pv2 : (tspRt.winner==='tie' ? pv2/2 : 0);
+        } catch(e){}
+        return;
+      }
+      if (df2 === 'par3Birdie') return; // no points
       for (var gn2=1; gn2<=day2.numGroups; gn2++){
         var mt2=(day2.groupMatchType&&day2.groupMatchType[gn2])||'Four-Ball';
         var gi2=Object.keys(day2.assignments||{}).filter(function(k){return day2.assignments[k]===gn2;}).map(function(k){return parseInt(k,10);});
@@ -5947,7 +6133,7 @@ function buildDayResultsSummaryText(dayId) {
             var ctx3=buildCtx(mt2==='Singles'?[a3[0],b3[0]]:gi2,c2,t2,sc2,100);
             var res3=SidieGolfEngine.computeMatchPlayResult(ctx3,a3.map(String),b3.map(String),makeHoles(nh3));
             var pts3=SidieGolfEngine.ryderCupMatchPoints(res3,thru3,nh3);
-            totA+=pts3.A; totB+=pts3.B;
+            totA+=pts3.A*pv2; totB+=pts3.B*pv2;
           });
         } catch(e){}
       }
@@ -6035,38 +6221,50 @@ function buildEventResultsSummaryText() {
       if(!course||!tee)return;
       var nh=tee.parByHole?tee.parByHole.length:18;
       var dA=0,dB=0;
-      for(var gn=1;gn<=d.numGroups;gn++){
-        var mt=(d.groupMatchType&&d.groupMatchType[gn])||'Four-Ball';
-        var gi=Object.keys(d.assignments||{}).filter(function(k){return d.assignments[k]===gn;}).map(function(k){return parseInt(k,10);});
-        if(!gi.length)continue;
-        var sc=d.scorecards&&d.scorecards[gn]?d.scorecards[gn]:{scores:{},events:{}};
-        var aI=gi.filter(function(i){return rcTeamFor(i)==='A';}), bI=gi.filter(function(i){return rcTeamFor(i)==='B';});
-        if(!aI.length||!bI.length)continue;
-        try {
-          if(mt==='Singles'){
-            var pairs=getSinglesPairings(d,gn,aI,bI);
-            pairs.forEach(function(pr){
-              var thruP=Object.keys(sc.scores[String(pr[0])]||{}).filter(function(h){return sc.scores[String(pr[0])][h]!=null;}).length;
-              var ctxP=buildCtx([pr[0],pr[1]],course,tee,sc,100);
-              var resP=SidieGolfEngine.computeMatchPlayResult(ctxP,[String(pr[0])],[String(pr[1])],makeHoles(nh));
-              var ptsP=SidieGolfEngine.ryderCupMatchPoints(resP,thruP,nh);
-              dA+=ptsP.A;dB+=ptsP.B;
-            });
-          } else {
-            var thruG=aI.reduce(function(mx,i){var cnt=Object.keys(sc.scores[String(i)]||{}).filter(function(h){return sc.scores[String(i)][h]!=null;}).length;return Math.min(mx,cnt);},18);
-            var ctxG=buildCtx(gi,course,tee,sc,(d.groupHcpPct&&d.groupHcpPct[gn]!=null)?d.groupHcpPct[gn]:100);
-            var resG=SidieGolfEngine.computeMatchPlayResult(ctxG,aI.map(String),bI.map(String),makeHoles(nh));
-            var ptsG=SidieGolfEngine.ryderCupMatchPoints(resG,thruG,nh);
-            dA+=ptsG.A;dB+=ptsG.B;
-          }
-        } catch(e){}
+      var eFmt=d.dayFormat||'match';
+      var ePv=d.pointValue!=null?d.pointValue:1;
+      if(eFmt==='teamStroke'){
+        try{
+          var eTsp=computeTeamStrokePlayResult(d,course,tee);
+          dA=eTsp.winner==='A'?ePv:(eTsp.winner==='tie'?ePv/2:0);
+          dB=eTsp.winner==='B'?ePv:(eTsp.winner==='tie'?ePv/2:0);
+        }catch(e){}
+      } else if(eFmt==='par3Birdie'){
+        // tiebreaker — no points
+      } else {
+        for(var gn=1;gn<=d.numGroups;gn++){
+          var mt=(d.groupMatchType&&d.groupMatchType[gn])||'Four-Ball';
+          var gi=Object.keys(d.assignments||{}).filter(function(k){return d.assignments[k]===gn;}).map(function(k){return parseInt(k,10);});
+          if(!gi.length)continue;
+          var sc=d.scorecards&&d.scorecards[gn]?d.scorecards[gn]:{scores:{},events:{}};
+          var aI=gi.filter(function(i){return rcTeamFor(i)==='A';}), bI=gi.filter(function(i){return rcTeamFor(i)==='B';});
+          if(!aI.length||!bI.length)continue;
+          try {
+            if(mt==='Singles'){
+              var pairs=getSinglesPairings(d,gn,aI,bI);
+              pairs.forEach(function(pr){
+                var thruP=Object.keys(sc.scores[String(pr[0])]||{}).filter(function(h){return sc.scores[String(pr[0])][h]!=null;}).length;
+                var ctxP=buildCtx([pr[0],pr[1]],course,tee,sc,100);
+                var resP=SidieGolfEngine.computeMatchPlayResult(ctxP,[String(pr[0])],[String(pr[1])],makeHoles(nh));
+                var ptsP=SidieGolfEngine.ryderCupMatchPoints(resP,thruP,nh);
+                dA+=ptsP.A*ePv;dB+=ptsP.B*ePv;
+              });
+            } else {
+              var thruG=aI.reduce(function(mx,i){var cnt=Object.keys(sc.scores[String(i)]||{}).filter(function(h){return sc.scores[String(i)][h]!=null;}).length;return Math.min(mx,cnt);},18);
+              var ctxG=buildCtx(gi,course,tee,sc,(d.groupHcpPct&&d.groupHcpPct[gn]!=null)?d.groupHcpPct[gn]:100);
+              var resG=SidieGolfEngine.computeMatchPlayResult(ctxG,aI.map(String),bI.map(String),makeHoles(nh));
+              var ptsG=SidieGolfEngine.ryderCupMatchPoints(resG,thruG,nh);
+              dA+=ptsG.A*ePv;dB+=ptsG.B*ePv;
+            }
+          } catch(e){}
+        }
       }
       totA+=dA;totB+=dB;
-      lines.push('Day '+(dIdx+1)+': '+nameA+' '+dA+' — '+nameB+' '+dB);
+      var eDayLabel='Day '+(dIdx+1)+(eFmt==='teamStroke'?' (Stroke)':eFmt==='par3Birdie'?' (Birdies 🐦)':'');
+      lines.push(eDayLabel+': '+nameA+' '+dA+' — '+nameB+' '+dB);
     });
     lines.push(divider);
     lines.push('FINAL: ' + nameA + ' ' + totA + ' — ' + nameB + ' ' + totB);
-    var need = (state.days.length * 4) / 2; // rough needed to win (half the points available + 0.5)
     if (totA > totB) lines.push('🏆 ' + nameA + ' WIN!');
     else if (totB > totA) lines.push('🏆 ' + nameB + ' WIN!');
     else lines.push('🤝 THE MATCH IS TIED!');
@@ -6239,7 +6437,16 @@ function renderEventScorecard(){
   var strokes2 = strokesForGroup(idxs2, course, tee);
   var groupGames = (day.groupGames && day.groupGames[gn2]) || [];
   var wolfGames2 = groupGames.filter(function(g){ return g.type==='Wolf'||g.type==='Hammer Wolf'||g.type==='Coin Flip Wolf'||g.type==='3-Man Wolf'; });
-  if (isRyderCup()) html += buildRcMatchBannerHtml(day, gn2, course, tee, idxs2, day.scorecards[gn2]);
+  if (isRyderCup()) {
+    var _scDayFmt = day.dayFormat || 'match';
+    if (_scDayFmt === 'teamStroke') {
+      html += buildTeamStrokePlayBannerHtml(day, course, tee);
+    } else if (_scDayFmt === 'par3Birdie') {
+      html += buildParThreeBirdieBannerHtml(day, course, tee);
+    } else {
+      html += buildRcMatchBannerHtml(day, gn2, course, tee, idxs2, day.scorecards[gn2]);
+    }
+  }
   html += '<div class="note-box">'+course.name+' — '+tee.name+' tees, Par '+tee.par+'.</div>';
   html += buildScoreGridHtml(idxs2, parByHole, day.scorecards[gn2], 'sc-'+day.id+'-'+gn2, strokes2, wolfGames2);
   html += buildEventTablesHtml(groupGames, idxs2, day.scorecards[gn2], 'sc-'+day.id+'-'+gn2);
@@ -8166,17 +8373,34 @@ function setScoreEntry(rawScore){
     var _bParts = (e.ns || '').split('-');
     if (_bParts[0] === 'sc' && _bParts.length >= 3) {
       var _bDayId = parseInt(_bParts[1], 10), _bGn = parseInt(_bParts[2], 10);
-      var _bannerEl = document.getElementById('rc-banner-' + _bDayId + '-' + _bGn);
-      if (_bannerEl) {
-        var _bDay = state.days.filter(function(d){ return d.id === _bDayId; })[0];
-        if (_bDay) {
-          var _bCourse = _bDay.courseIdx != null ? MOCK_COURSES[_bDay.courseIdx] : null;
-          var _bTee = _bCourse && _bDay.teeName ? _bCourse.tees.filter(function(t){ return t.name === _bDay.teeName; })[0] : null;
-          var _bIdxs = Object.keys(_bDay.assignments).filter(function(k){ return _bDay.assignments[k] === _bGn; }).map(Number);
-          var _bSc = (_bDay.scorecards && _bDay.scorecards[_bGn]) || { scores:{}, events:{} };
-          var _bTmp = document.createElement('div');
-          _bTmp.innerHTML = buildRcMatchBannerHtml(_bDay, _bGn, _bCourse, _bTee, _bIdxs, _bSc);
-          if (_bTmp.firstChild) _bannerEl.parentNode.replaceChild(_bTmp.firstChild, _bannerEl);
+      var _bDay = state.days.filter(function(d){ return d.id === _bDayId; })[0];
+      if (_bDay) {
+        var _bDayFmt = _bDay.dayFormat || 'match';
+        var _bCourse = _bDay.courseIdx != null ? MOCK_COURSES[_bDay.courseIdx] : null;
+        var _bTee = _bCourse && _bDay.teeName ? _bCourse.tees.filter(function(t){ return t.name === _bDay.teeName; })[0] : null;
+        if (_bDayFmt === 'teamStroke') {
+          var _tspEl = document.getElementById('rc-banner-tsp-' + _bDayId);
+          if (_tspEl && _bCourse && _bTee) {
+            var _tspTmp = document.createElement('div');
+            _tspTmp.innerHTML = buildTeamStrokePlayBannerHtml(_bDay, _bCourse, _bTee);
+            if (_tspTmp.firstChild) _tspEl.parentNode.replaceChild(_tspTmp.firstChild, _tspEl);
+          }
+        } else if (_bDayFmt === 'par3Birdie') {
+          var _p3bEl = document.getElementById('rc-banner-p3b-' + _bDayId);
+          if (_p3bEl && _bCourse && _bTee) {
+            var _p3bTmp = document.createElement('div');
+            _p3bTmp.innerHTML = buildParThreeBirdieBannerHtml(_bDay, _bCourse, _bTee);
+            if (_p3bTmp.firstChild) _p3bEl.parentNode.replaceChild(_p3bTmp.firstChild, _p3bEl);
+          }
+        } else {
+          var _bannerEl = document.getElementById('rc-banner-' + _bDayId + '-' + _bGn);
+          if (_bannerEl && _bCourse && _bTee) {
+            var _bIdxs = Object.keys(_bDay.assignments).filter(function(k){ return _bDay.assignments[k] === _bGn; }).map(Number);
+            var _bSc = (_bDay.scorecards && _bDay.scorecards[_bGn]) || { scores:{}, events:{} };
+            var _bTmp = document.createElement('div');
+            _bTmp.innerHTML = buildRcMatchBannerHtml(_bDay, _bGn, _bCourse, _bTee, _bIdxs, _bSc);
+            if (_bTmp.firstChild) _bannerEl.parentNode.replaceChild(_bTmp.firstChild, _bannerEl);
+          }
         }
       }
     }
@@ -8861,7 +9085,35 @@ function buildRyderCupScoreboardHtml(){
     if (!course || !tee) return;
     var nh = tee.parByHole ? tee.parByHole.length : 18;
     if (!d.scorecards) d.scorecards = {};
+    var dayFmt = d.dayFormat || 'match';
+    var pv = d.pointValue != null ? d.pointValue : 1;
+    var dayLbl = 'Day '+(dIdx+1);
 
+    // ---- Team Stroke Play ----
+    if (dayFmt === 'teamStroke') {
+      var tspR = computeTeamStrokePlayResult(d, course, tee);
+      var tspA = tspR.winner==='A' ? pv : (tspR.winner==='tie' ? pv/2 : 0);
+      var tspB = tspR.winner==='B' ? pv : (tspR.winner==='tie' ? pv/2 : 0);
+      matchSummaries.push({ dayLabel:dayLbl, matchType:'Team Stroke Play', label:'Combined Net Score',
+        teamAPoints:tspA, teamBPoints:tspB, maxPoints:pv,
+        complete:d.status==='completed', started:tspR.holesA>0||tspR.holesB>0,
+        thru:0, curUp:0, winnerSide:tspR.winner==='tie'?null:tspR.winner,
+        dayFormat:'teamStroke', teamANet:tspR.teamA, teamBNet:tspR.teamB });
+      return;
+    }
+
+    // ---- Par 3 Birdie Count (tiebreaker) ----
+    if (dayFmt === 'par3Birdie') {
+      var p3R = computeParThreeBirdieResult(d, course, tee);
+      matchSummaries.push({ dayLabel:dayLbl, matchType:'Par 3 Birdies', label:'Team Birdie Count (Tiebreaker)',
+        teamAPoints:0, teamBPoints:0, maxPoints:0,
+        complete:d.status==='completed', started:p3R.teamA>0||p3R.teamB>0,
+        thru:0, curUp:0, winnerSide:null,
+        dayFormat:'par3Birdie', teamABirdies:p3R.teamA, teamBBirdies:p3R.teamB, birdiePWinner:p3R.winner });
+      return;
+    }
+
+    // ---- Match Play (default) ----
     for (var gn=1; gn<=d.numGroups; gn++){
       var idxs = Object.keys(d.assignments).filter(function(k){return d.assignments[k]===gn;}).map(function(k){return parseInt(k,10);});
       if (!idxs.length) continue;
@@ -8883,22 +9135,22 @@ function buildRyderCupScoreboardHtml(){
           var aLbl=(state.players[aIdx]?state.players[aIdx].name:('P'+(aIdx+1))).split(' ').pop();
           var bLbl=(state.players[bIdx]?state.players[bIdx].name:('P'+(bIdx+1))).split(' ').pop();
           var pThru=commonThruHoles([aIdx,bIdx],sc);
-          // Per-pair ctx: strokes relative to match opponent only, full handicap
           var pairCtx2;
           try { pairCtx2 = buildCtx([aIdx, bIdx], course, tee, sc, 100); } catch(e){
-            matchSummaries.push({dayLabel:'Day '+(dIdx+1),matchType:matchType,label:aLbl+' v '+bLbl,
-              teamAPoints:0,teamBPoints:0,complete:false,started:false,thru:0,curUp:0,winnerSide:null});
+            matchSummaries.push({dayLabel:dayLbl,matchType:matchType,label:aLbl+' v '+bLbl,
+              teamAPoints:0,teamBPoints:0,maxPoints:pv,complete:false,started:false,thru:0,curUp:0,winnerSide:null});
             continue;
           }
           try {
             var mRes=SidieGolfEngine.computeMatchPlayResult(pairCtx2,[String(aIdx)],[String(bIdx)],makeHoles(nh));
             var mPts=SidieGolfEngine.ryderCupMatchPoints(mRes,pThru,nh);
             var mUp=pThru>0?mRes.holeResults[pThru-1].runningAUp:0;
-            matchSummaries.push({dayLabel:'Day '+(dIdx+1),matchType:matchType,label:aLbl+' v '+bLbl,
-              teamAPoints:mPts.A,teamBPoints:mPts.B,complete:mPts.complete,started:pThru>0,thru:pThru,curUp:mUp,winnerSide:mRes.winnerSide||null});
+            matchSummaries.push({dayLabel:dayLbl,matchType:matchType,label:aLbl+' v '+bLbl,
+              teamAPoints:mPts.A*pv,teamBPoints:mPts.B*pv,maxPoints:pv,
+              complete:mPts.complete,started:pThru>0,thru:pThru,curUp:mUp,winnerSide:mRes.winnerSide||null});
           } catch(e){
-            matchSummaries.push({dayLabel:'Day '+(dIdx+1),matchType:matchType,label:aLbl+' v '+bLbl,
-              teamAPoints:0,teamBPoints:0,complete:false,started:false,thru:0,curUp:0,winnerSide:null});
+            matchSummaries.push({dayLabel:dayLbl,matchType:matchType,label:aLbl+' v '+bLbl,
+              teamAPoints:0,teamBPoints:0,maxPoints:pv,complete:false,started:false,thru:0,curUp:0,winnerSide:null});
           }
         }
       } else {
@@ -8910,18 +9162,19 @@ function buildRyderCupScoreboardHtml(){
           var res=SidieGolfEngine.computeMatchPlayResult(ctx,aIds,bIds,makeHoles(nh));
           var pts=SidieGolfEngine.ryderCupMatchPoints(res,thru2,nh);
           var up2=thru2>0?res.holeResults[thru2-1].runningAUp:0;
-          matchSummaries.push({dayLabel:'Day '+(dIdx+1),matchType:matchType,label:aLbl2+' v '+bLbl2,
-            teamAPoints:pts.A,teamBPoints:pts.B,complete:pts.complete,started:thru2>0,thru:thru2,curUp:up2,winnerSide:res.winnerSide||null});
+          matchSummaries.push({dayLabel:dayLbl,matchType:matchType,label:aLbl2+' v '+bLbl2,
+            teamAPoints:pts.A*pv,teamBPoints:pts.B*pv,maxPoints:pv,
+            complete:pts.complete,started:thru2>0,thru:thru2,curUp:up2,winnerSide:res.winnerSide||null});
         } catch(e){
-          matchSummaries.push({dayLabel:'Day '+(dIdx+1),matchType:matchType,label:aLbl2+' v '+bLbl2,
-            teamAPoints:0,teamBPoints:0,complete:false,started:false,thru:0,curUp:0,winnerSide:null});
+          matchSummaries.push({dayLabel:dayLbl,matchType:matchType,label:aLbl2+' v '+bLbl2,
+            teamAPoints:0,teamBPoints:0,maxPoints:pv,complete:false,started:false,thru:0,curUp:0,winnerSide:null});
         }
       }
     }
   });
 
   var sb = SidieGolfEngine.computeRyderCupScoreboard(matchSummaries);
-  var totalAvail = matchSummaries.length;
+  var totalAvail = matchSummaries.reduce(function(s,m){ return s+(m.maxPoints||0); }, 0);
   var detOpen = !!window._rcDetailsOpen;
 
   // Scoreboard card — tappable to expand match details
@@ -8936,7 +9189,8 @@ function buildRyderCupScoreboardHtml(){
   html += '<div style="text-align:center;font-size:11px;opacity:.65;margin-top:4px;">';
   html += sb.played+' match'+(sb.played!==1?'es':'')+' started';
   if (sb.inProgress) html += ' &bull; '+sb.inProgress+' in progress';
-  html += ' &bull; '+totalAvail+' pts available</div>';
+  if (totalAvail > 0) html += ' &bull; '+totalAvail+' pts available';
+  html += '</div>';
   html += '<div id="rc-expand-ind" style="text-align:center;font-size:11px;opacity:.5;margin-top:8px;letter-spacing:.3px;">'+(detOpen?'▲ Hide match details':'▼ Match details')+'</div>';
   html += '</div>';
 
@@ -8953,20 +9207,37 @@ function buildRyderCupScoreboardHtml(){
         html += '<div style="font-size:11px;font-weight:700;color:var(--green-dark);text-transform:uppercase;letter-spacing:.5px;padding:6px 0 3px;">'+escapeHtml(m.dayLabel)+'</div>';
       }
       html += '<div class="rc-match-row">';
-      html += '<span class="rc-match-type-badge '+m.matchType.toLowerCase().replace(/[- ]/g,'')+'">'+escapeHtml(m.matchType)+'</span>';
+      var mtBadge = m.matchType === 'Team Stroke Play' ? 'teamstrokeplay' : m.matchType === 'Par 3 Birdies' ? 'par3birdies' : m.matchType.toLowerCase().replace(/[- ]/g,'');
+      html += '<span class="rc-match-type-badge '+mtBadge+'">'+escapeHtml(m.matchType)+'</span>';
       html += '<span style="font-size:12.5px;flex:1;">'+escapeHtml(m.label)+'</span>';
       var rCls = 'rc-match-result', rTxt;
-      if (!m.started){ rTxt = 'Not started'; }
-      else if (m.complete){
-        if (m.winnerSide==='A'){ rTxt=nameA+' wins'; rCls+=' win-a'; }
-        else if (m.winnerSide==='B'){ rTxt=nameB+' wins'; rCls+=' win-b'; }
-        else { rTxt='Halved'; rCls+=' halved'; }
+      if (m.dayFormat === 'teamStroke') {
+        if (!m.started){ rTxt = 'Not started'; }
+        else if (m.winnerSide==='A'){ rTxt=nameA+' wins (net '+m.teamANet+' vs '+m.teamBNet+')'; rCls+=' win-a'; }
+        else if (m.winnerSide==='B'){ rTxt=nameB+' wins (net '+m.teamBNet+' vs '+m.teamANet+')'; rCls+=' win-b'; }
+        else { rTxt='Tied (net '+m.teamANet+')'; rCls+=' halved'; }
+      } else if (m.dayFormat === 'par3Birdie') {
+        if (!m.started){ rTxt = 'Not started'; }
+        else if (m.birdiePWinner==='A'){ rTxt=nameA+' leads ('+m.teamABirdies+' vs '+m.teamBBirdies+' birdies)'; rCls+=' live'; }
+        else if (m.birdiePWinner==='B'){ rTxt=nameB+' leads ('+m.teamBBirdies+' vs '+m.teamABirdies+' birdies)'; rCls+=' live'; }
+        else { rTxt='Tied at '+m.teamABirdies+' birdies'; rCls+=' live'; }
       } else {
-        rTxt = m.curUp>0 ? nameA+' '+m.curUp+'UP thru '+m.thru : m.curUp<0 ? nameB+' '+Math.abs(m.curUp)+'UP thru '+m.thru : 'AS thru '+m.thru;
-        rCls += ' live';
+        if (!m.started){ rTxt = 'Not started'; }
+        else if (m.complete){
+          if (m.winnerSide==='A'){ rTxt=nameA+' wins'; rCls+=' win-a'; }
+          else if (m.winnerSide==='B'){ rTxt=nameB+' wins'; rCls+=' win-b'; }
+          else { rTxt='Halved'; rCls+=' halved'; }
+        } else {
+          rTxt = m.curUp>0 ? nameA+' '+m.curUp+'UP thru '+m.thru : m.curUp<0 ? nameB+' '+Math.abs(m.curUp)+'UP thru '+m.thru : 'AS thru '+m.thru;
+          rCls += ' live';
+        }
       }
       html += '<span class="'+rCls+'">'+escapeHtml(rTxt)+'</span>';
-      html += '<span style="font-size:11.5px;color:var(--muted);white-space:nowrap;margin-left:6px;">'+m.teamAPoints+'–'+m.teamBPoints+'</span>';
+      if (m.dayFormat === 'par3Birdie') {
+        html += '<span style="font-size:11.5px;color:var(--muted);white-space:nowrap;margin-left:6px;">'+m.teamABirdies+'🐦–'+m.teamBBirdies+'🐦</span>';
+      } else {
+        html += '<span style="font-size:11.5px;color:var(--muted);white-space:nowrap;margin-left:6px;">'+m.teamAPoints+'–'+m.teamBPoints+'</span>';
+      }
       html += '</div>';
     });
   }
