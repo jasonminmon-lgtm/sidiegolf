@@ -3308,14 +3308,21 @@ function renderStep(n){
   }
   else if (n===6){
     if (isMultiDay()){
-      // Multi-day event: Sidie Games at step 6
-      $('title-6').textContent = 'Sidie-Games';
-      $('subtitle-6').textContent = 'Each tee-time group can run its own side games and stakes.';
-      renderEventSideGames(); // targets content-6
-      if (fbRoundCode && isCurrentUserHost()) {
-        var _c6m = $('content-6');
-        if (_c6m) _c6m.insertAdjacentHTML('beforeend', buildCompactLobbyHtml());
-        wirePrelobScorekeeperButtons();
+      if (fbRoundCode && window.fbRoundStatus === 'active') {
+        // Active round — show Event Hub / day scorecard
+        $('title-6').textContent = 'Event Hub';
+        $('subtitle-6').textContent = '';
+        renderEventScorecard();
+      } else {
+        // Still in lobby — Sidie Games + Lock
+        $('title-6').textContent = 'Sidie-Games';
+        $('subtitle-6').textContent = 'Each tee-time group can run its own side games and stakes.';
+        renderEventSideGames(); // targets content-6
+        if (fbRoundCode && isCurrentUserHost()) {
+          var _c6m = $('content-6');
+          if (_c6m) _c6m.insertAdjacentHTML('beforeend', buildCompactLobbyHtml());
+          wirePrelobScorekeeperButtons();
+        }
       }
     }
     else {
@@ -6774,6 +6781,9 @@ function renderReview(){
     renderScorekeeperScorecardView(window.fbScorekeeperView);
     return;
   }
+  // Update "Back to Scorecard" link text — multi-day events navigate to the Event Hub
+  var _editScLink = document.getElementById('editScoresLink');
+  if (_editScLink) _editScLink.textContent = isMultiDay() ? '← Event Hub' : '✏️ Back to Scorecard';
   try {
   var rt = ROUND_TYPES.filter(function(r){return r.id===state.roundType;})[0];
   var html = '';
@@ -9625,7 +9635,13 @@ window.fbLockRound = function() {
   if (errEl) errEl.textContent = '';
   // Navigate immediately — don't block manager on Firestore round-trip
   window.fbRoundStatus = 'active';
-  goToStep(isMultiDay() ? 7 : 6);
+  // Auto-activate any days already configured in the setup flow (so Event Hub shows "Continue Scoring →")
+  if (isMultiDay()) {
+    state.days.forEach(function(d) {
+      if (d.courseIdx != null && d.status === 'pending') d.status = 'active';
+    });
+  }
+  goToStep(6); // Multi-day: now routes to Event Hub/scorecard when active
   // Write lock + full state to Firestore in the background so joiners get redirected
   fbDb.collection('rounds').doc(fbRoundCode).update({
     roundStatus: 'active',
