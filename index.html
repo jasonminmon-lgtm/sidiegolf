@@ -1605,6 +1605,109 @@
     return deltas;
   };
 
+  // ---------------- SCOTCH (6-POINT TEAM GAME) ----------------
+  // 4-player, 2-team game. Per hole, 6 points are available:
+  //   2pts: Low Net         — best individual net from each team; lower wins
+  //   2pts: Team Net Total  — combined team net; lower sum wins
+  //   1pt:  Prox            — manual tap (game.events[h].scotchProx = player id)
+  //   1pt:  Net Birdie      — auto; any team member nets ≤ par-1
+  // Ties on scored categories split the points (1pt each).
+  // Umbrella rule: one team takes all 6 → double to 12.
+  // Team methods: Fixed Partners, Sixes (rotate every 6 by HCP rank),
+  //   High/Low HCP (lowest+highest vs middle two), Captain's Draft (stored in game.teamAssign).
+  // Payout: each player wins (own_team_pts − opp_team_pts) × $/pt per hole (zero-sum).
+  games['Scotch'] = function (game, ctx) {
+    var deltas = zero(game.participants);
+    var amount = parseFloat(game.stakes.amount) || 0;
+    var umbrella = game.stakes.umbrella === 'On';
+    var method = game.stakes.teamMethod || 'Fixed Partners';
+    var ids = game.participants;
+    if (ids.length !== 4) return deltas;
+
+    // Rank by course handicap ascending: A=lowest, B, C, D=highest
+    var ranked = ids.slice().sort(function (a, b) {
+      var chA = (ctx.strokesMap[a] && ctx.strokesMap[a].courseHandicap != null) ? ctx.strokesMap[a].courseHandicap : 999;
+      var chB = (ctx.strokesMap[b] && ctx.strokesMap[b].courseHandicap != null) ? ctx.strokesMap[b].courseHandicap : 999;
+      return chA - chB;
+    });
+
+    function getTeams(h) {
+      if (method === 'Sixes') {
+        var seg = Math.floor((h - 1) / 6); // 0=h1-6, 1=h7-12, 2=h13-18
+        var tA, tB;
+        if (seg === 0)      { tA = [ranked[0], ranked[1]]; tB = [ranked[2], ranked[3]]; }
+        else if (seg === 1) { tA = [ranked[0], ranked[2]]; tB = [ranked[1], ranked[3]]; }
+        else                { tA = [ranked[0], ranked[3]]; tB = [ranked[1], ranked[2]]; }
+        return [tA, tB];
+      }
+      if (method === 'High/Low HCP') {
+        return [[ranked[0], ranked[3]], [ranked[1], ranked[2]]];
+      }
+      if (method === "Captain's Draft" && game.teamAssign) {
+        var dA = ids.filter(function (id) { return (game.teamAssign[id] || 'A') === 'A'; });
+        var dB = ids.filter(function (id) { return game.teamAssign[id] === 'B'; });
+        if (dA.length === 2 && dB.length === 2) return [dA, dB];
+      }
+      // Fixed Partners (default): first two vs last two
+      return [[ids[0], ids[1]], [ids[2], ids[3]]];
+    }
+
+    for (var h = 1; h <= 18; h++) {
+      var ev = (game.events && game.events[h]) || {};
+      var teams = getTeams(h);
+      var tA = teams[0], tB = teams[1];
+      var ptsA = 0, ptsB = 0;
+
+      // 1. Low Net (2pts)
+      var bestA = null, bestB = null;
+      tA.forEach(function (id) { var n = netFor(ctx, id, h); if (n != null && (bestA === null || n < bestA)) bestA = n; });
+      tB.forEach(function (id) { var n = netFor(ctx, id, h); if (n != null && (bestB === null || n < bestB)) bestB = n; });
+      if (bestA !== null && bestB !== null) {
+        if (bestA < bestB) ptsA += 2;
+        else if (bestB < bestA) ptsB += 2;
+        else { ptsA += 1; ptsB += 1; }
+      }
+
+      // 2. Team Net Total (2pts)
+      var sumA = 0, sumB = 0, allA = true, allB = true;
+      tA.forEach(function (id) { var n = netFor(ctx, id, h); if (n == null) allA = false; else sumA += n; });
+      tB.forEach(function (id) { var n = netFor(ctx, id, h); if (n == null) allB = false; else sumB += n; });
+      if (allA && allB) {
+        if (sumA < sumB) ptsA += 2;
+        else if (sumB < sumA) ptsB += 2;
+        else { ptsA += 1; ptsB += 1; }
+      }
+
+      // 3. Prox (1pt) — manual
+      if (ev.scotchProx != null) {
+        var proxId = String(ev.scotchProx);
+        if (tA.indexOf(proxId) !== -1) ptsA += 1;
+        else if (tB.indexOf(proxId) !== -1) ptsB += 1;
+      }
+
+      // 4. Net Birdie (1pt) — auto
+      var par = holePar(ctx.course, h);
+      var aBird = tA.some(function (id) { var n = netFor(ctx, id, h); return n != null && n <= par - 1; });
+      var bBird = tB.some(function (id) { var n = netFor(ctx, id, h); return n != null && n <= par - 1; });
+      if (aBird && bBird) { ptsA += 0.5; ptsB += 0.5; }
+      else if (aBird) ptsA += 1;
+      else if (bBird) ptsB += 1;
+
+      // Umbrella: sweep all 6 → double
+      if (umbrella) {
+        if (ptsA === 6) ptsA = 12;
+        else if (ptsB === 6) ptsB = 12;
+      }
+
+      // Apply: each player wins (own_pts − opp_pts) × amount (zero-sum)
+      var netA = ptsA - ptsB, netB = ptsB - ptsA;
+      tA.forEach(function (id) { deltas[id] = (deltas[id] || 0) + netA * amount; });
+      tB.forEach(function (id) { deltas[id] = (deltas[id] || 0) + netB * amount; });
+    }
+
+    return deltas;
+  };
+
   // ---------------- 9 POINT (BASEBALL / 5-3-1) ----------------
   // Strictly a threesome. On each hole the 9 points are split by NET score:
   // low = 5, middle = 3, high = 1. Ties share the combined points of the
@@ -2823,6 +2926,14 @@ var SIDE_GAME_DEFS = {
   'Round Robin (2-man teams)': {
     desc:'Partners rotate every 6 holes; settle up per segment.',
     fields:[ {key:'amount', label:'$ Per Segment', type:'number', placeholder:'5'} ]
+  },
+  'Scotch': {
+    desc:'6-point team game for 4 players (2 per team). Each hole: 2pts Low Net, 2pts Team Low Net Total, 1pt Closest to Pin (tap to award on scorecard), 1pt Net Birdie (auto). Umbrella: one team sweeps all 6 → points double.',
+    fields:[
+      {key:'amount', label:'$ Per Point', type:'number', placeholder:'2'},
+      {key:'teamMethod', label:'Team Method', type:'select', options:['Fixed Partners','Sixes','High/Low HCP',"Captain's Draft"]},
+      {key:'umbrella', label:'Umbrella Rule (sweep all 6 → double)', type:'select', options:['Off','On']}
+    ]
   }
 };
 
@@ -5328,6 +5439,9 @@ function buildGameCardHtml(g, scope){
   if (g.type==='Round Robin (2-man teams)' && n !== 4 && n > 0){
     html += '<div class="player-count-warn">⚠️ Round Robin auto-rotation is designed for exactly 4 players. Currently '+n+'.</div>';
   }
+  if (g.type==='Scotch' && n !== 4 && n > 0){
+    html += '<div class="player-count-warn">⚠️ Scotch requires exactly 4 players (2 per team). Currently '+n+'.</div>';
+  }
   if (g.type==='9 Point' && n !== 3 && n > 0){
     html += '<div class="player-count-warn">⚠️ 9 Point is a threesome — it needs exactly 3 players. Currently '+n+'.</div>';
   }
@@ -5335,8 +5449,9 @@ function buildGameCardHtml(g, scope){
     html += '<div class="player-count-warn">⚠️ Nassau needs at least 2 players.</div>';
   }
 
-  // Team picker for Nassau / Vegas / Round Robin
-  if (g.type==='Nassau' || g.type==='Vegas' || g.type==='Round Robin (2-man teams)'){
+  // Team picker for Nassau / Vegas / Round Robin / Scotch (Captain's Draft)
+  if (g.type==='Nassau' || g.type==='Vegas' || g.type==='Round Robin (2-man teams)' ||
+      (g.type==='Scotch' && g.stakes.teamMethod === "Captain's Draft")){
     html += buildTeamPickerHtml(g);
   }
 
@@ -5524,7 +5639,9 @@ function wireGameCardEvents(scope){
       if (pos===-1){
         g.participants.push(pidx);
         // Assign new participant to whichever team is smaller (for team-picker games)
-        if (g.type==='Nassau'||g.type==='Vegas'||g.type==='Round Robin (2-man teams)'){
+        var _isTeamPickerGame = g.type==='Nassau'||g.type==='Vegas'||g.type==='Round Robin (2-man teams)'||
+                                (g.type==='Scotch'&&g.stakes.teamMethod==="Captain's Draft");
+        if (_isTeamPickerGame){
           if (!g.teamAssign) g.teamAssign = {};
           var nA = g.participants.filter(function(i){ return (g.teamAssign[i]||'A')==='A'; }).length;
           var nB = g.participants.filter(function(i){ return g.teamAssign[i]==='B'; }).length;
@@ -5555,6 +5672,8 @@ function wireGameCardEvents(scope){
       }
       var headEl = root.querySelector('[data-gameid="'+id+'"] .gname');
       if (headEl){ var tag = summarizeStakes(g); headEl.innerHTML = g.type + (tag?'<span class="stake-tag">'+tag+'</span>':''); }
+      // Re-render Scotch card when team method changes (shows/hides team picker)
+      if (g.type==='Scotch' && key === 'teamMethod') { rerenderScopeList(scope); return; }
       if (g.type==='Quota'){
         if (key === 'quotaPoints' || key === 'payoutStructure'){ rerenderScopeList(scope); return; }
         var payoutEl = root.querySelector('#payout-'+id);
@@ -5629,7 +5748,8 @@ var EVENT_GAME_FIELDS = {
   'Coin Flip Wolf': ['cfwFlips','hammerLog'],
   '3-Man Wolf': ['hammerLog'],
   'Snake': ['snakeBite'],
-  'Bingo Bango Bongo': ['firstOnGreen','closestToPin','firstIn']
+  'Bingo Bango Bongo': ['firstOnGreen','closestToPin','firstIn'],
+  'Scotch': ['scotchProx']
 };
 function gameNeedsPerHoleEvents(type){ return !!EVENT_GAME_FIELDS[type]; }
 
@@ -6721,6 +6841,12 @@ function buildEventTablesHtml(games, idxs, sc, ns){
       html += buildSelectRow('1st on green', g, participantIdxs, sc, ns, 'firstOnGreen', true);
       html += buildSelectRow('Closest to pin', g, participantIdxs, sc, ns, 'closestToPin', true);
       html += buildSelectRow('First in', g, participantIdxs, sc, ns, 'firstIn', true);
+    } else if (g.type==='Scotch'){
+      html += buildSelectRow('Prox (closest)', g, participantIdxs, sc, ns, 'scotchProx', true);
+      legend = [
+        'Prox — tap the dropdown to award the 1pt closest-to-pin to whichever player stuck it closest.',
+        'Low Net and Team Net Total are computed automatically from entered scores. Net Birdie (1pt) is auto-awarded when any team member nets ≤ par−1.'
+      ];
     }
     html += '</tbody></table></div>';
     if (legend.length){
