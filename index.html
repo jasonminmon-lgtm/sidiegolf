@@ -1643,12 +1643,12 @@
       if (method === 'High/Low HCP') {
         return [[ranked[0], ranked[3]], [ranked[1], ranked[2]]];
       }
-      if (method === "Captain's Draft" && game.teamAssign) {
+      // Captain's Draft (default): use teamAssign; fall back to first two vs last two
+      if (game.teamAssign) {
         var dA = ids.filter(function (id) { return (game.teamAssign[id] || 'A') === 'A'; });
         var dB = ids.filter(function (id) { return game.teamAssign[id] === 'B'; });
         if (dA.length === 2 && dB.length === 2) return [dA, dB];
       }
-      // Fixed Partners (default): first two vs last two
       return [[ids[0], ids[1]], [ids[2], ids[3]]];
     }
 
@@ -2931,7 +2931,7 @@ var SIDE_GAME_DEFS = {
     desc:'6-point team game for 4 players (2 per team). Each hole: 2pts Low Net, 2pts Team Low Net Total, 1pt Closest to Pin (tap to award on scorecard), 1pt Net Birdie (auto). Umbrella: one team sweeps all 6 → points double.',
     fields:[
       {key:'amount', label:'$ Per Point', type:'number', placeholder:'2'},
-      {key:'teamMethod', label:'Team Method', type:'select', options:['Fixed Partners','Sixes','High/Low HCP',"Captain's Draft"]},
+      {key:'teamMethod', label:'Team Method', type:'select', options:["Captain's Draft",'Sixes','High/Low HCP']},
       {key:'umbrella', label:'Umbrella Rule (sweep all 6 → double)', type:'select', options:['Off','On']}
     ]
   }
@@ -5449,9 +5449,9 @@ function buildGameCardHtml(g, scope){
     html += '<div class="player-count-warn">⚠️ Nassau needs at least 2 players.</div>';
   }
 
-  // Team picker for Nassau / Vegas / Round Robin / Scotch (Captain's Draft)
+  // Team picker for Nassau / Vegas / Round Robin / Scotch (all methods except Sixes & High/Low auto-assign)
   if (g.type==='Nassau' || g.type==='Vegas' || g.type==='Round Robin (2-man teams)' ||
-      (g.type==='Scotch' && g.stakes.teamMethod === "Captain's Draft")){
+      (g.type==='Scotch' && g.stakes.teamMethod !== 'Sixes' && g.stakes.teamMethod !== 'High/Low HCP')){
     html += buildTeamPickerHtml(g);
   }
 
@@ -5640,7 +5640,7 @@ function wireGameCardEvents(scope){
         g.participants.push(pidx);
         // Assign new participant to whichever team is smaller (for team-picker games)
         var _isTeamPickerGame = g.type==='Nassau'||g.type==='Vegas'||g.type==='Round Robin (2-man teams)'||
-                                (g.type==='Scotch'&&g.stakes.teamMethod==="Captain's Draft");
+                                (g.type==='Scotch'&&g.stakes.teamMethod!=='Sixes'&&g.stakes.teamMethod!=='High/Low HCP');
         if (_isTeamPickerGame){
           if (!g.teamAssign) g.teamAssign = {};
           var nA = g.participants.filter(function(i){ return (g.teamAssign[i]||'A')==='A'; }).length;
