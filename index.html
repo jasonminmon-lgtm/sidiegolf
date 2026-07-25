@@ -155,7 +155,13 @@
   .se-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:20px 16px 32px;max-height:80vh;overflow-y:auto;}
   .se-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
   .se-title{font-weight:700;font-size:15px;color:var(--green-dark);}
-  .se-par-info{font-size:12px;color:var(--muted);margin-bottom:14px;}
+  .se-par-info{font-size:12px;color:var(--muted);margin-bottom:10px;}
+  .se-stroke-info{background:#f4f8f4;border:1px solid #d4e8d4;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;}
+  .se-stroke-info-title{font-weight:700;color:var(--green-dark);margin-bottom:6px;font-size:11.5px;text-transform:uppercase;letter-spacing:0.04em;}
+  .se-stroke-row{display:flex;align-items:center;gap:6px;padding:3px 0;color:var(--ink);}
+  .se-stroke-yes{color:#1a6b2a;}
+  .se-stroke-no{color:var(--muted);}
+  .se-stroke-dot{font-size:10px;width:14px;text-align:center;}
   .se-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px;justify-content:center;}
   .se-chip{min-width:62px;padding:10px 6px;border:2px solid #e0e5e0;border-radius:12px;background:#f8faf8;font-size:11px;font-weight:600;text-align:center;cursor:pointer;transition:all 0.12s;}
   .se-chip .se-chip-lbl{color:var(--muted);margin-bottom:3px;}
@@ -2530,6 +2536,35 @@
 
     <div class="help-section">
       <div class="help-sec-head" onclick="toggleHelpSection(this)">
+        <span class="help-sec-icon">⚖️</span>
+        <span class="help-sec-label">Handicap Allowance (HCI %)</span>
+        <span class="help-sec-arrow">▼</span>
+      </div>
+      <div class="help-body">
+        <strong>Handicap Allowance (HCI %)</strong> scales each player's course handicap before strokes are allocated. It lets you control how much handicap is in play — 100% is full handicap, 80% is common for team formats, 0% plays scratch.
+        <ul>
+          <li><strong>100% (default):</strong> Full course handicap applied. Best for singles match play, stroke play, and Nassau.</li>
+          <li><strong>80%:</strong> The standard allowance for team formats like Four-Ball, Wolf, Scotch, BBB, and Vegas — levels competition without eliminating handicap entirely.</li>
+          <li><strong>Custom:</strong> Set any value from 0–100% in 5% increments. Use lower percentages to tighten competition in low-handicap groups.</li>
+        </ul>
+        <strong>Where to find the slider:</strong>
+        <ul>
+          <li><strong>Side games</strong> (Wolf, Four-Ball, BBB, etc.) — each game card has its own HCI % slider.</li>
+          <li><strong>Events</strong> — the Day Setup screen has a per-group HCI % slider for the main match format.</li>
+          <li><strong>Nassau</strong> — always uses 100% (strokes are calculated per pairing at full handicap).</li>
+        </ul>
+        <strong>How it shows on the scorecard:</strong>
+        <ul>
+          <li>A <span style="color:#c0392b;">●</span> <strong>red dot</strong> on a hole means that player receives a handicap stroke on that hole, at the active HCI %. The legend below the card shows the current percentage.</li>
+          <li>If multiple games have different HCI % settings, the <strong>lowest</strong> percentage across all active team games is used for the dots.</li>
+          <li><strong>Nassau strokes vary per pairing</strong> — they can't be shown as shared dots. Instead, tap any score cell to see your stroke allocation for each Nassau match on that hole.</li>
+        </ul>
+        <div class="help-tip">💡 For a fair competitive round with high handicappers, try 80% for team games and 100% for any Nassau side bets in the same group.</div>
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-sec-head" onclick="toggleHelpSection(this)">
         <span class="help-sec-icon">🤝</span>
         <span class="help-sec-label">Nassau</span>
         <span class="help-sec-arrow">▼</span>
@@ -3249,7 +3284,8 @@ function courseHandicap(hi, tee, par){
   return Math.round(val * (tee.slope/113) + (tee.rating - par));
 }
 
-function strokesForGroup(playerIdxs, course, tee){
+function strokesForGroup(playerIdxs, course, tee, handicapPct){
+  handicapPct = (handicapPct == null) ? 100 : (parseFloat(handicapPct) || 100);
   var par = tee.par;
   // Shared stroke index from the group tee — all players play the same holes
   // at the same difficulty order regardless of which tee they play from.
@@ -3262,7 +3298,9 @@ function strokesForGroup(playerIdxs, course, tee){
       var pt = course.tees.filter(function(t){ return t.name === p.tee; })[0];
       if (pt) playerTee = pt;
     }
-    return {idx:idx, ch: courseHandicap(p ? p.hi : '', playerTee, par)};
+    var fullCH = courseHandicap(p ? p.hi : '', playerTee, par);
+    var adjCH = (fullCH != null && handicapPct !== 100) ? Math.round(fullCH * handicapPct / 100) : fullCH;
+    return {idx:idx, ch: adjCH};
   });
   var valid = entries.filter(function(e){return e.ch!=null;}).map(function(e){return e.ch;});
   var result = {};
@@ -3281,6 +3319,85 @@ function strokesForGroup(playerIdxs, course, tee){
     result[e.idx] = {ch:e.ch, strokes:strokes, holes:holes};
   });
   return result;
+}
+
+// Team/Wolf game types — these drive the scorecard dots at their HCI%.
+// Nassau is excluded: per-pair strokes are shown in the score-entry popup instead.
+var TEAM_GAME_TYPES = ['Wolf','Coin Flip Wolf','3-Man Wolf','BBB','Scotch','Vegas','Round Robin'];
+
+// Returns the minimum HCI% across all active team/Wolf games (default 100 if none).
+function teamGameHcpPct(games){
+  if (!games || !games.length) return 100;
+  var pcts = [];
+  games.forEach(function(g){
+    if (TEAM_GAME_TYPES.indexOf(g.type) !== -1 && g.stakes && g.stakes.handicapPct != null){
+      var p = parseFloat(g.stakes.handicapPct);
+      if (!isNaN(p)) pcts.push(p);
+    }
+  });
+  return pcts.length ? Math.min.apply(null, pcts) : 100;
+}
+
+// Returns stroke info for a player across all Nassau games on a given hole.
+// Used in the score-entry popup so players know their match strokes per hole.
+function nassauStrokeInfoForPlayer(playerIdx, hole, games, course, tee){
+  if (!games || !course || !tee) return [];
+  var nassauGames = games.filter(function(g){
+    return g.type === 'Nassau' && g.participants.map(String).indexOf(String(playerIdx)) !== -1;
+  });
+  if (!nassauGames.length) return [];
+  var par = tee.par;
+  var strokeIdxArr = tee.strokeIndex || course.strokeIndex;
+  var results = [];
+  nassauGames.forEach(function(g){
+    var pct = parseFloat(g.stakes && g.stakes.handicapPct) || 100;
+    var entries = g.participants.map(function(idx){
+      var p = state.players[idx];
+      var playerTee = tee;
+      if (p && p.tee && course){
+        var pt = course.tees.filter(function(t){ return t.name === p.tee; })[0];
+        if (pt) playerTee = pt;
+      }
+      var fullCH = courseHandicap(p ? p.hi : '', playerTee, par);
+      var adjCH = (fullCH != null && pct !== 100) ? Math.round(fullCH * pct / 100) : fullCH;
+      return { idx: String(idx), ch: adjCH };
+    });
+    var valid = entries.filter(function(e){ return e.ch != null; }).map(function(e){ return e.ch; });
+    if (!valid.length) return;
+    var low = Math.min.apply(null, valid);
+    var myEntry = entries.filter(function(e){ return e.idx === String(playerIdx); })[0];
+    if (!myEntry || myEntry.ch == null) return;
+    var myRelStrokes = myEntry.ch - low;
+    var getsStroke = myRelStrokes > 0 && !!(strokeIdxArr && strokeIdxArr[hole-1] <= myRelStrokes);
+    var otherNames = g.participants
+      .filter(function(idx){ return String(idx) !== String(playerIdx); })
+      .map(function(idx){ var p = state.players[idx]; return p && p.name ? p.name.split(' ')[0] : ('P'+(parseInt(idx,10)+1)); });
+    var label = 'Nassau vs ' + otherNames.join(' & ') + (pct !== 100 ? ' ('+pct+'% HCI)' : '');
+    results.push({ label: label, getsStroke: getsStroke });
+  });
+  return results;
+}
+
+// Resolve course/tee/games from a score-entry namespace for use in the popup.
+function getScoreEntryContext(){
+  var e = state.__scoreEntry;
+  if (!e) return null;
+  var course, tee, games;
+  if (e.ns === 'sc'){
+    course = state.course != null ? MOCK_COURSES[state.course] : null;
+    tee = course && state.tee ? course.tees.filter(function(t){ return t.name === state.tee; })[0] : null;
+    games = state.sideGames || [];
+  } else {
+    var _parts = (e.ns || '').split('-');
+    if (_parts.length < 3) return null;
+    var _dayId = parseInt(_parts[1],10), _gn = parseInt(_parts[2],10);
+    var _day = (state.days||[]).filter(function(d){ return d.id === _dayId; })[0];
+    if (!_day) return null;
+    course = _day.courseIdx != null ? MOCK_COURSES[_day.courseIdx] : null;
+    tee = course && _day.teeName ? course.tees.filter(function(t){ return t.name === _day.teeName; })[0] : null;
+    games = (_day.groupGames && _day.groupGames[_gn]) || [];
+  }
+  return { course: course, tee: tee, games: games };
 }
 
 function courseOptionsHtml(selectedIdx){
@@ -5814,8 +5931,11 @@ function renderSingleScorecard(){
     return;
   }
   var parByHole = tee.parByHole || PAR72_LAYOUT;
-  var strokes = (state.scoringMethod === 'Stroke Play (Gross)') ? null : strokesForGroup(idxs, course, tee);
-  var wolfGames = (state.sideGames||[]).filter(function(g){ return g.type==='Wolf'||g.type==='Hammer Wolf'||g.type==='Coin Flip Wolf'||g.type==='3-Man Wolf'; });
+  var _sideGames = state.sideGames || [];
+  var _effectivePct = teamGameHcpPct(_sideGames);
+  var strokes = (state.scoringMethod === 'Stroke Play (Gross)') ? null : strokesForGroup(idxs, course, tee, _effectivePct);
+  var wolfGames = _sideGames.filter(function(g){ return g.type==='Wolf'||g.type==='Hammer Wolf'||g.type==='Coin Flip Wolf'||g.type==='3-Man Wolf'; });
+  var _nassauCount = _sideGames.filter(function(g){ return g.type==='Nassau'; }).length;
   var html = '';
   html += '<div class="note-box">'+course.name+' — '+tee.name+' tees, Par '+tee.par+'.</div>';
   if (state.scoringMethod === 'Foursomes (Alternate Shot)'){
@@ -5827,7 +5947,7 @@ function renderSingleScorecard(){
   if (state.scoringMethod === 'Four-Ball (Better Ball)' && idxs.length !== 4){
     html += '<div class="note-box" style="background:#fff8e1;border-color:#f0c040;color:#7a5a00;">⚠️ Four-Ball is designed for 4 players (2 per team). You have '+idxs.length+' — the first half will be Team A, the rest Team B.</div>';
   }
-  html += buildScoreGridHtml(idxs, parByHole, state.scorecard, 'sc', strokes, wolfGames);
+  html += buildScoreGridHtml(idxs, parByHole, state.scorecard, 'sc', strokes, wolfGames, _effectivePct, _nassauCount);
   html += buildEventTablesHtml(state.sideGames, idxs, state.scorecard, 'sc');
   $('content-6').innerHTML = html;
   wireScoreGridEvents(idxs, state.scorecard, 'sc');
@@ -6604,9 +6724,12 @@ function renderEventScorecard(){
   ensureScorecardShape(day.scorecards[gn2], idxs2);
 
   var parByHole = tee.parByHole || PAR72_LAYOUT;
-  var strokes2 = strokesForGroup(idxs2, course, tee);
   var groupGames = (day.groupGames && day.groupGames[gn2]) || [];
+  var _mainMatchPct = (day.groupHcpPct && day.groupHcpPct[gn2] != null) ? day.groupHcpPct[gn2] : 100;
+  var _evEffPct = Math.min(_mainMatchPct, teamGameHcpPct(groupGames));
+  var strokes2 = strokesForGroup(idxs2, course, tee, _evEffPct);
   var wolfGames2 = groupGames.filter(function(g){ return g.type==='Wolf'||g.type==='Hammer Wolf'||g.type==='Coin Flip Wolf'||g.type==='3-Man Wolf'; });
+  var _evNassauCount = groupGames.filter(function(g){ return g.type==='Nassau'; }).length;
   if (isRyderCup()) {
     var _scDayFmt = day.dayFormat || 'match';
     if (_scDayFmt === 'teamStroke') {
@@ -6618,7 +6741,7 @@ function renderEventScorecard(){
     }
   }
   html += '<div class="note-box">'+course.name+' — '+tee.name+' tees, Par '+tee.par+'.</div>';
-  html += buildScoreGridHtml(idxs2, parByHole, day.scorecards[gn2], 'sc-'+day.id+'-'+gn2, strokes2, wolfGames2);
+  html += buildScoreGridHtml(idxs2, parByHole, day.scorecards[gn2], 'sc-'+day.id+'-'+gn2, strokes2, wolfGames2, _evEffPct, _evNassauCount);
   html += buildEventTablesHtml(groupGames, idxs2, day.scorecards[gn2], 'sc-'+day.id+'-'+gn2);
 
   $('content-6').innerHTML = html;
@@ -6646,12 +6769,19 @@ function wireScorecardDayPills(){
 // ---------------- shared score-grid builder ----------------
 // idxs: player array indices; parByHole: [18 ints]; sc: {scores,events}; ns: namespace;
 // strokes: stroke index map; wolfGames: optional Wolf/Hammer Wolf games for team coloring.
-function buildScoreGridHtml(idxs, parByHole, sc, ns, strokes, wolfGames){
+function buildScoreGridHtml(idxs, parByHole, sc, ns, strokes, wolfGames, handicapPct, nassauCount){
+  handicapPct = (handicapPct == null) ? 100 : handicapPct;
+  nassauCount = nassauCount || 0;
   var anyStrokes = !!(strokes && idxs.some(function(idx){ return strokes[idx] && strokes[idx].holes && strokes[idx].holes.length; }));
   var html = '<div class="card"><div class="section-title">Hole-by-Hole Gross Scores</div>';
   html += '<div class="sc-hint">Tap any cell to enter a score.</div>';
   if (anyStrokes){
-    html += '<div class="sc-stroke-note"><span class="dot-sample"></span>Red dot = a handicap stroke (pop) for that player on that hole.</div>';
+    var pctLabel = handicapPct < 100 ? ' at '+handicapPct+'%' : '';
+    var pctNote = handicapPct < 100 ? ' The '+handicapPct+'% allowance is set on your team game or match format — lower than 100% reduces each player\'s course handicap proportionally before strokes are allocated.' : ' Full course handicap applied.';
+    html += '<div class="sc-stroke-note"><span class="dot-sample"></span><strong>Red dot</strong> = handicap stroke'+pctLabel+' on that hole for that player.'+pctNote+'</div>';
+  }
+  if (nassauCount > 0){
+    html += '<div class="sc-stroke-note" style="color:#2a6b3a;">⛳ <strong>Nassau strokes vary per pairing</strong> — tap any score cell to see your personal stroke allocation for each Nassau match on that hole.</div>';
   }
   html += '<div class="sc-scroll"><table class="sc-table"><thead><tr><th class="sc-rowlabel">Hole</th>';
   for (var h=1; h<=18; h++) html += '<th>'+h+'</th>';
@@ -8622,6 +8752,23 @@ function renderScoreEntrySheet(){
   html += '<div class="se-head"><div class="se-title">'+escapeHtml(playerName)+' — Hole '+e.hole+'</div>';
   html += '<button class="btn-link" id="seClose">Close ✕</button></div>';
   html += '<div class="se-par-info">Par '+par+'</div>';
+  // Nassau match stroke info for this player on this hole
+  var _seCtx = getScoreEntryContext();
+  if (_seCtx && _seCtx.course && _seCtx.tee) {
+    var _nassauInfo = nassauStrokeInfoForPlayer(e.idx, e.hole, _seCtx.games, _seCtx.course, _seCtx.tee);
+    if (_nassauInfo.length) {
+      var _siHtml = '<div class="se-stroke-info"><div class="se-stroke-info-title">Nassau strokes — Hole '+e.hole+'</div>';
+      _nassauInfo.forEach(function(info){
+        _siHtml += '<div class="se-stroke-row '+(info.getsStroke ? 'se-stroke-yes' : 'se-stroke-no')+'">';
+        _siHtml += '<span class="se-stroke-dot">'+(info.getsStroke ? '●' : '○')+'</span>';
+        _siHtml += '<span>'+escapeHtml(info.label)+'</span>';
+        _siHtml += '<span style="margin-left:auto;font-weight:700;">'+(info.getsStroke ? '+1 stroke' : 'no stroke')+'</span>';
+        _siHtml += '</div>';
+      });
+      _siHtml += '</div>';
+      html += _siHtml;
+    }
+  }
   html += '<div class="se-chips">'+chipHtml+'</div>';
   html += '<div class="se-other-label">Other score:</div>';
   html += '<div class="se-adj-row">';
@@ -10601,7 +10748,11 @@ function renderScorekeeperScorecardView(key) {
   var sc = day.scorecards[gn];
   var ns = 'sc-'+day.id+'-'+gn;
   var parByHole = tee.parByHole || PAR72_LAYOUT;
-  var strokes = strokesForGroup(idxs, course, tee);
+  var _skGroupGames = (day.groupGames && day.groupGames[gn]) || [];
+  var _skMainPct = (day.groupHcpPct && day.groupHcpPct[gn] != null) ? day.groupHcpPct[gn] : 100;
+  var _skEffPct = Math.min(_skMainPct, teamGameHcpPct(_skGroupGames));
+  var strokes = strokesForGroup(idxs, course, tee, _skEffPct);
+  var _skNassauCount = _skGroupGames.filter(function(g){ return g.type==='Nassau'; }).length;
   var matchType = (day.groupMatchType && day.groupMatchType[gn]) || 'Four-Ball';
 
   var html = '<div class="sk-scorecard-header">';
@@ -10609,7 +10760,7 @@ function renderScorekeeperScorecardView(key) {
   html += '<div class="sk-sc-title">Group '+gn+' — '+escapeHtml(matchType)+'</div>';
   html += '</div>';
   if (isRyderCup()) html += buildRcMatchBannerHtml(day, gn, course, tee, idxs, sc);
-  html += buildScoreGridHtml(idxs, parByHole, sc, ns, strokes, []);
+  html += buildScoreGridHtml(idxs, parByHole, sc, ns, strokes, [], _skEffPct, _skNassauCount);
 
   $('reviewArea').innerHTML = html;
 
