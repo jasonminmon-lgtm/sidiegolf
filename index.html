@@ -2882,6 +2882,7 @@ var SIDE_GAME_DEFS = {
     desc:'Wolf variation for 4–5 players — no rotating wolf and no tee order. Every player flips Heads or Tails on every hole. Same flip = partners. Teams can be 2v2, 1v3 (4-player) or 2v3, 1v4 (5-player). Flat $ Per Man (no solo double). Solo holds the hammer; optional ghost partner scores net par for the solo player (forfeited if solo hammers). All flip the same → everyone for themselves: bet doubles, open hammer, low net wins.',
     fields:[
       {key:'amount', label:'$ Per Man', type:'number', placeholder:'5'},
+      {key:'hammerOn', label:'Hammers', type:'select', options:['Off','On']},
       {key:'ghostPartner', label:'Ghost Partner (solo scores min of net vs par)', type:'select', options:['Off','On']},
       {key:'carryRule', label:'Carry Rule', type:'select', options:['None','Carry (unlimited)','Carry (max 1)','Carry (max 2)','Carry (max 3)']},
       {key:'birdieEagle', label:'Birdie / Eagle Bonus (winning side only)', type:'select', options:['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x']},
@@ -4021,6 +4022,8 @@ function computeTeamStrokePlayResult(day, course, tee) {
 function computeParThreeBirdieResult(day, course, tee) {
   var nh = tee && tee.parByHole ? tee.parByHole.length : 18;
   var pars = (tee && tee.parByHole) || [];
+  var strokeIdx = (tee && tee.strokeIndex) || (course && course.strokeIndex) || [];
+  var isNet = day.birdiesBasis === 'Net';
   var birdies = { A:0, B:0 };
   for (var gn=1; gn<=day.numGroups; gn++) {
     var idxs = Object.keys(day.assignments||{}).filter(function(k){ return day.assignments[k]===gn; }).map(Number);
@@ -4028,11 +4031,22 @@ function computeParThreeBirdieResult(day, course, tee) {
     var sc = (day.scorecards && day.scorecards[gn]) || { scores:{}, events:{} };
     idxs.forEach(function(idx){
       var team = rcTeamFor(idx);
+      var p = state.players[idx];
+      var chi = isNet ? (courseHandicap(p ? p.hi : '', tee, tee && tee.par) || 0) : 0;
       var gross = sc.scores[String(idx)] || {};
       for (var h=1; h<=nh; h++) {
         var g = gross[h];
-        var par = pars[h-1] || 3;
-        if (g != null && g <= par-1) birdies[team]++;
+        var par = pars[h-1] || 4;
+        if (g == null) continue;
+        var strokes = 0;
+        if (isNet && chi !== 0) {
+          var si = strokeIdx[h-1] || h;
+          if (chi > 0) {
+            if (si <= Math.min(chi, nh)) strokes++;
+            if (chi > nh && si <= (chi - nh)) strokes++;
+          } else if (chi < 0 && si > nh + chi) { strokes = -1; }
+        }
+        if (g - strokes <= par - 1) birdies[team]++;
       }
     });
   }
@@ -4066,8 +4080,11 @@ function buildTeamStrokePlayBannerHtml(day, course, tee) {
 function buildParThreeBirdieBannerHtml(day, course, tee) {
   var nameA = rcTeamName('A'), nameB = rcTeamName('B');
   var r = computeParThreeBirdieResult(day, course, tee);
+  var pv = day.pointValue != null ? day.pointValue : 0;
+  var basis = day.birdiesBasis === 'Net' ? 'Net' : 'Gross';
   var html = '<div class="rc-match-banner" id="rc-banner-p3b-'+day.id+'">';
-  html += '<span class="rc-mb-label">Par 3 Birdie Count 🏆 Tiebreaker</span>';
+  var labelSuffix = pv > 0 ? ' ('+pv+' pt'+(pv!==1?'s':'')+') 🐦' : ' 🏆 Tiebreaker';
+  html += '<span class="rc-mb-label">Birdie Count · '+basis+labelSuffix+'</span>';
   var statusStr;
   if (r.teamA===0 && r.teamB===0) {
     statusStr = 'Not started';
@@ -4078,6 +4095,11 @@ function buildParThreeBirdieBannerHtml(day, course, tee) {
     statusStr = winName+' leads on birdies — '+nameA+': '+r.teamA+', '+nameB+': '+r.teamB;
   }
   html += '<span class="rc-mb-status">'+escapeHtml(statusStr)+'</span>';
+  if (pv > 0) {
+    var ptA = r.winner==='A' ? pv : (r.winner==='tie' ? pv/2 : 0);
+    var ptB = r.winner==='B' ? pv : (r.winner==='tie' ? pv/2 : 0);
+    html += '<span class="rc-mb-pts">'+escapeHtml(nameA)+': '+ptA+'&nbsp;&nbsp;'+escapeHtml(nameB)+': '+ptB+'</span>';
+  }
   html += '</div>';
   return html;
 }
@@ -5034,7 +5056,7 @@ function addDay(){
   // Event Schedule step doesn't redundantly ask for the course again.
   var _defCourseIdx = state.course != null ? state.course : null;
   var _defTee = state.tee || null;
-  state.days.push({ id: nextDayId++, courseIdx:_defCourseIdx, teeName:_defTee, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{}, groupHcpPct:{}, playerTees:{}, singlesPairings:{}, status:'pending', dayFormat:'match', pointValue:1 });
+  state.days.push({ id: nextDayId++, courseIdx:_defCourseIdx, teeName:_defTee, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{}, groupHcpPct:{}, playerTees:{}, singlesPairings:{}, status:'pending', dayFormat:'match', pointValue:1, birdiesBasis:'Gross' });
   if (state.selectedDayForGames==null) state.selectedDayForGames = state.days[0].id;
 }
 if (state.days.length===0) addDay();
@@ -5081,16 +5103,23 @@ function renderEventSchedule(){
         html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border,#e6eae6);">';
         html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.3px;margin-bottom:6px;">Day Format</div>';
         html += '<div class="rc-match-type-sel">';
-        [['match','Match Play'],['teamStroke','Team Stroke Play'],['par3Birdie','Par 3 Birdies']].forEach(function(pair){
+        [['match','Match Play'],['teamStroke','Team Stroke Play'],['par3Birdie','Birdies']].forEach(function(pair){
           html += '<button class="rc-mt-btn'+(_df===pair[0]?' active':'')+'" data-rc-dayfmt="'+d.id+'|'+pair[0]+'">'+pair[1]+'</button>';
         });
         html += '</div>';
-        if (_df !== 'par3Birdie') {
-          html += '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;">';
-          html += '<label style="font-size:12px;color:var(--muted);font-weight:600;">Points available:</label>';
-          html += '<input type="number" min="0" max="20" step="0.5" value="'+_pv+'" data-rc-daypv="'+d.id+'" style="width:70px;padding:4px 6px;border:1px solid var(--border,#d0d7d0);border-radius:6px;font-size:13px;">';
-        } else {
-          html += '<div style="margin-top:6px;font-size:12px;color:var(--muted);">Tiebreaker — no points awarded.</div>';
+        var _pvLabel = _pv === 0 ? 'Tiebreaker' : _pv+' pt'+(_pv!==1?'s':'');
+        html += '<div style="margin-top:8px;">';
+        html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.3px;margin-bottom:4px;">Points Available</div>';
+        html += '<div class="hcp-pct-row"><input type="range" min="0" max="10" step="1" value="'+_pv+'" data-rc-ptslider="'+d.id+'">';
+        html += '<span class="hcp-pct-val" id="pts-val-'+d.id+'">'+_pvLabel+'</span></div>';
+        html += '<div class="hcp-pct-label">0 = Tiebreaker (no points). 1–10 = points awarded.</div>';
+        if (_df === 'par3Birdie') {
+          var _bb = d.birdiesBasis || 'Gross';
+          html += '<div style="margin-top:6px;"><div class="rc-match-type-sel">';
+          ['Gross','Net'].forEach(function(b){
+            html += '<button class="rc-mt-btn'+(_bb===b?' active':'')+'" data-rc-birdiebasis="'+d.id+'|'+b+'">'+b+'</button>';
+          });
+          html += '</div><div class="hcp-pct-label">Gross = actual scores. Net = after handicap strokes.</div></div>';
         }
         html += '</div>';
       }
@@ -5156,7 +5185,8 @@ function renderEventSchedule(){
           } else if (isRyderCup() && _df === 'teamStroke') {
             html += '<div style="margin-top:8px;font-size:12px;color:var(--muted);">🏌️ Combined net score — all players contribute.</div>';
           } else if (isRyderCup() && _df === 'par3Birdie') {
-            html += '<div style="margin-top:8px;font-size:12px;color:var(--muted);">🐦 Birdie count on par 3s — tiebreaker only.</div>';
+            var _gnBasis = d.birdiesBasis === 'Net' ? 'net' : 'gross';
+            html += '<div style="margin-top:8px;font-size:12px;color:var(--muted);">🐦 Birdie count ('+(d.birdiesBasis||'Gross')+') — all holes.</div>';
           }
         }
         html += '</div>';
@@ -5278,20 +5308,33 @@ function renderEventSchedule(){
       var d = state.days.filter(function(x){return x.id===dayId;})[0];
       if (!d) return;
       d.dayFormat = fmt;
-      if (fmt === 'match' && (!d.pointValue || d.pointValue === 0)) d.pointValue = 1;
-      else if (fmt === 'teamStroke') d.pointValue = 2;
-      else if (fmt === 'par3Birdie') d.pointValue = 0;
+      if (fmt === 'match' && (d.pointValue == null || d.pointValue === 0)) d.pointValue = 1;
+      else if (fmt === 'teamStroke' && (d.pointValue == null || d.pointValue === 0)) d.pointValue = 2;
+      else if (fmt === 'par3Birdie' && d.pointValue == null) d.pointValue = 0;
       renderEventSchedule();
     });
   });
-  // Ryder Cup: day point value input (pre-lock)
-  Array.prototype.forEach.call(document.querySelectorAll('[data-rc-daypv]'), function(el){
-    el.addEventListener('change', function(){
-      var dayId = parseInt(el.getAttribute('data-rc-daypv'),10);
+  // Ryder Cup: points slider (pre-lock)
+  Array.prototype.forEach.call(document.querySelectorAll('[data-rc-ptslider]'), function(el){
+    el.addEventListener('input', function(){
+      var dayId = parseInt(el.getAttribute('data-rc-ptslider'),10);
       var d = state.days.filter(function(x){return x.id===dayId;})[0];
       if (!d) return;
-      d.pointValue = parseFloat(el.value) || 0;
+      d.pointValue = parseInt(el.value, 10) || 0;
+      var dispEl = document.getElementById('pts-val-'+dayId);
+      if (dispEl) dispEl.textContent = d.pointValue === 0 ? 'Tiebreaker' : d.pointValue+' pt'+(d.pointValue!==1?'s':'');
       if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    });
+  });
+  // Ryder Cup: birdie basis toggle (pre-lock)
+  Array.prototype.forEach.call(document.querySelectorAll('[data-rc-birdiebasis]'), function(el){
+    el.addEventListener('click', function(){
+      var parts = el.getAttribute('data-rc-birdiebasis').split('|');
+      var dayId = parseInt(parts[0],10), basis = parts[1];
+      var d = state.days.filter(function(x){return x.id===dayId;})[0];
+      if (!d) return;
+      d.birdiesBasis = basis;
+      renderEventSchedule();
     });
   });
 }
@@ -6057,15 +6100,24 @@ function renderDaySetupContent(dayId) {
     html += '<div class="card" style="margin-bottom:10px;">';
     html += '<label class="field-label">Day Format</label>';
     html += '<div class="rc-match-type-sel">';
-    [['match','Match Play'],['teamStroke','Team Stroke Play'],['par3Birdie','Par 3 Birdies']].forEach(function(pair){
+    [['match','Match Play'],['teamStroke','Team Stroke Play'],['par3Birdie','Birdies']].forEach(function(pair){
       html += '<button class="rc-mt-btn'+(_df===pair[0]?' active':'')+'" onclick="setDsoDayFormat('+dayId+',\''+pair[0]+'\')">'+pair[1]+'</button>';
     });
     html += '</div>';
-    if (_df !== 'par3Birdie') {
-      html += '<label class="field-label" style="margin-top:10px;">Points Available This Day</label>';
-      html += '<input type="number" min="0" max="20" step="0.5" id="dsePointValue-'+dayId+'" value="'+_pv+'" style="width:80px;">';
-    } else {
-      html += '<div style="font-size:11.5px;color:var(--muted);margin-top:8px;padding:6px 8px;background:#f5f5f5;border-radius:6px;">🏆 Tiebreaker only — no Ryder Cup points awarded for this day.</div>';
+    var _pvLabel2 = _pv === 0 ? 'Tiebreaker' : _pv+' pt'+(_pv!==1?'s':'');
+    html += '<label class="field-label" style="margin-top:10px;">Points Available This Day</label>';
+    html += '<div class="hcp-pct-row"><input type="range" min="0" max="10" step="1" id="dsePointSlider-'+dayId+'" value="'+_pv+'">';
+    html += '<span class="hcp-pct-val" id="dse-pts-val-'+dayId+'">'+_pvLabel2+'</span></div>';
+    html += '<div class="hcp-pct-label">0 = Tiebreaker (no points). 1–10 = points awarded.</div>';
+    if (_df === 'par3Birdie') {
+      var _bbDse = d.birdiesBasis || 'Gross';
+      html += '<label class="field-label" style="margin-top:8px;">Score Basis</label>';
+      html += '<div class="rc-match-type-sel" id="dseBirdieBasis-'+dayId+'">';
+      ['Gross','Net'].forEach(function(b){
+        html += '<button class="rc-mt-btn'+(_bbDse===b?' active':'')+'" onclick="setDsoBirdieBasis('+dayId+',\''+b+'\')">'+b+'</button>';
+      });
+      html += '</div>';
+      html += '<div class="hcp-pct-label">Gross = actual scores. Net = after handicap strokes.</div>';
     }
     html += '</div>';
   }
@@ -6137,7 +6189,8 @@ function renderDaySetupContent(dayId) {
       } else if (_df === 'teamStroke') {
         html += '<div class="note-box" style="margin-top:10px;">🏌️ Team Stroke Play: all players\' combined net score. Lower team total wins '+_pv+' point'+(_pv===1?'':'s')+'. Tourney rules — play every shot, no pick-ups.</div>';
       } else if (_df === 'par3Birdie') {
-        html += '<div class="note-box" style="margin-top:10px;">🐦 Par 3 Birdie Count: tally every team birdie (score ≤ par−1) across all groups. Higher birdie count wins the tiebreaker.</div>';
+        var _bBasis = d.birdiesBasis === 'Net' ? 'net' : 'gross';
+        html += '<div class="note-box" style="margin-top:10px;">🐦 Birdie Count ('+_bBasis+'): tally every team birdie across all groups on all holes. Higher birdie count wins'+(_pv>0?' the round':' the tiebreaker')+'.</div>';
       }
     }
   }
@@ -6155,10 +6208,12 @@ function renderDaySetupContent(dayId) {
     renderDaySetupContent(dayId);
   });
 
-  // Wire point value input
-  var pvEl = document.getElementById('dsePointValue-'+dayId);
-  if (pvEl) pvEl.addEventListener('change', function(){
-    d.pointValue = parseFloat(pvEl.value) || 0;
+  // Wire point value slider
+  var pvSlider = document.getElementById('dsePointSlider-'+dayId);
+  if (pvSlider) pvSlider.addEventListener('input', function(){
+    d.pointValue = parseInt(pvSlider.value, 10) || 0;
+    var pvDisp = document.getElementById('dse-pts-val-'+dayId);
+    if (pvDisp) pvDisp.textContent = d.pointValue === 0 ? 'Tiebreaker' : d.pointValue+' pt'+(d.pointValue!==1?'s':'');
     if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
   });
 
@@ -6217,8 +6272,15 @@ window.setDsoDayFormat = function(dayId, fmt) {
   d.dayFormat = fmt;
   // Auto-set sensible default point values when switching formats
   if (fmt === 'match' && (d.pointValue == null || d.pointValue === 0)) d.pointValue = 1;
-  else if (fmt === 'teamStroke') d.pointValue = 2;
-  else if (fmt === 'par3Birdie') d.pointValue = 0;
+  else if (fmt === 'teamStroke' && (d.pointValue == null || d.pointValue === 0)) d.pointValue = 2;
+  else if (fmt === 'par3Birdie' && d.pointValue == null) d.pointValue = 0;
+  renderDaySetupContent(dayId);
+};
+
+window.setDsoBirdieBasis = function(dayId, basis) {
+  var d = state.days.filter(function(x){return x.id===dayId;})[0];
+  if (!d) return;
+  d.birdiesBasis = basis;
   renderDaySetupContent(dayId);
 };
 
@@ -6317,10 +6379,24 @@ function buildDayResultsSummaryText(dayId) {
       } else if (_dFmt === 'par3Birdie') {
         var p3bR2 = computeParThreeBirdieResult(d, course, tee);
         lines.push('');
-        lines.push('PAR 3 BIRDIE COUNT (Tiebreaker — no points)');
-        lines.push('  '+nameA+': '+p3bR2.teamA+' birdies  |  '+nameB+': '+p3bR2.teamB+' birdies');
-        if (p3bR2.winner==='tie') lines.push('  Tied on birdies');
-        else lines.push('  '+(p3bR2.winner==='A'?nameA:nameB)+' wins the tiebreaker');
+        if (_dPv > 0) {
+          lines.push('BIRDIE COUNT ('+_dPv+' pt'+(_dPv!==1?'s':'')+')');
+          lines.push('  '+nameA+': '+p3bR2.teamA+' birdies  |  '+nameB+': '+p3bR2.teamB+' birdies');
+          if (p3bR2.winner==='tie') {
+            var p3Half2 = _dPv/2;
+            lines.push('  Tied — each team earns '+p3Half2+' pt'+(p3Half2!==1?'s':''));
+            dayA += p3Half2; dayB += p3Half2;
+          } else {
+            var p3Win2 = p3bR2.winner==='A' ? nameA : nameB;
+            lines.push('  '+p3Win2+' wins');
+            if (p3bR2.winner==='A') dayA += _dPv; else dayB += _dPv;
+          }
+        } else {
+          lines.push('BIRDIE COUNT (Tiebreaker — no points)');
+          lines.push('  '+nameA+': '+p3bR2.teamA+' birdies  |  '+nameB+': '+p3bR2.teamB+' birdies');
+          if (p3bR2.winner==='tie') lines.push('  Tied on birdies');
+          else lines.push('  '+(p3bR2.winner==='A'?nameA:nameB)+' wins the tiebreaker');
+        }
       } else {
         // Match Play
         for (var gn=1; gn<=d.numGroups; gn++){
@@ -6406,7 +6482,10 @@ function buildDayResultsSummaryText(dayId) {
         } catch(e){}
         return;
       }
-      if (df2 === 'par3Birdie') return; // no points
+      if (df2 === 'par3Birdie') {
+        if (pv2 > 0) { try { var p3Rt=computeParThreeBirdieResult(day2,c2,t2); totA+=p3Rt.winner==='A'?pv2:(p3Rt.winner==='tie'?pv2/2:0); totB+=p3Rt.winner==='B'?pv2:(p3Rt.winner==='tie'?pv2/2:0); } catch(e){} }
+        return;
+      }
       for (var gn2=1; gn2<=day2.numGroups; gn2++){
         var mt2=(day2.groupMatchType&&day2.groupMatchType[gn2])||'Four-Ball';
         var gi2=Object.keys(day2.assignments||{}).filter(function(k){return day2.assignments[k]===gn2;}).map(function(k){return parseInt(k,10);});
@@ -6520,7 +6599,7 @@ function buildEventResultsSummaryText() {
           dB=eTsp.winner==='B'?ePv:(eTsp.winner==='tie'?ePv/2:0);
         }catch(e){}
       } else if(eFmt==='par3Birdie'){
-        // tiebreaker — no points
+        if(ePv>0){try{var ePb=computeParThreeBirdieResult(d,course,tee);dA=ePb.winner==='A'?ePv:(ePb.winner==='tie'?ePv/2:0);dB=ePb.winner==='B'?ePv:(ePb.winner==='tie'?ePv/2:0);}catch(e){}}
       } else {
         for(var gn=1;gn<=d.numGroups;gn++){
           var mt=(d.groupMatchType&&d.groupMatchType[gn])||'Four-Ball';
@@ -6944,7 +7023,7 @@ function buildEventTablesHtml(games, idxs, sc, ns){
       ];
     } else if (g.type==='Coin Flip Wolf'){
       html += buildCFWFlipRows(g, participantIdxs, sc, ns);
-      html += buildHammerLogRow('Hammers', g, sc, ns);
+      if (g.stakes.hammerOn === 'On') html += buildHammerLogRow('Hammers', g, sc, ns);
       var cfwGhost = g.stakes.ghostPartner === 'On';
       legend = [
         'Flip — pick Heads (H) or Tails (T) for each player each hole. Same flip = partners. A hole only settles once all players have flipped.',
@@ -6952,9 +7031,9 @@ function buildEventTablesHtml(games, idxs, sc, ns){
           ? 'Teams: 2v3 or 1v4. Flat $ per man — no solo multiplier. Solo side holds the hammer first (Wolf side = the solo or smaller-flip team).'
           : 'Teams: 2v2 or 1v3. Flat $ per man — no solo multiplier. Solo side holds the hammer first.',
         cfwGhost ? 'Ghost Partner is ON — a solo player gets a phantom partner who scores net par. The solo uses the better of their own net vs par. Hammering forfeits the ghost that hole.' : 'Ghost Partner is OFF.',
-        'All flip the same → Everyone for Themselves: bet doubles, open hammer (either side), low net wins.',
-        'Hammers — in Wolf side/Opp side label: Wolf side = H team (or solo team); Opp side = T team (or multi team).'
+        'All flip the same → Everyone for Themselves: bet doubles, open hammer (either side), low net wins.'
       ];
+      if (g.stakes.hammerOn === 'On') legend.push('Hammers — in Wolf side/Opp side label: Wolf side = H team (or solo team); Opp side = T team (or multi team).');
     } else if (g.type==='3-Man Wolf'){
       html += buildHammerLogRow('Hammers', g, sc, ns);
       var tmwCryOn = g.stakes.cryBaby !== 'Off';
@@ -9425,13 +9504,16 @@ function buildRyderCupScoreboardHtml(){
       return;
     }
 
-    // ---- Par 3 Birdie Count (tiebreaker) ----
+    // ---- Birdie Count (points or tiebreaker) ----
     if (dayFmt === 'par3Birdie') {
       var p3R = computeParThreeBirdieResult(d, course, tee);
-      matchSummaries.push({ dayLabel:dayLbl, matchType:'Par 3 Birdies', label:'Team Birdie Count (Tiebreaker)',
-        teamAPoints:0, teamBPoints:0, maxPoints:0,
+      var p3A = pv > 0 ? (p3R.winner==='A' ? pv : p3R.winner==='tie' ? pv/2 : 0) : 0;
+      var p3B = pv > 0 ? (p3R.winner==='B' ? pv : p3R.winner==='tie' ? pv/2 : 0) : 0;
+      var p3Label = pv > 0 ? 'Birdie Count ('+pv+' pt'+(pv!==1?'s':'')+')' : 'Birdie Count (Tiebreaker)';
+      matchSummaries.push({ dayLabel:dayLbl, matchType:'Birdies', label:p3Label,
+        teamAPoints:p3A, teamBPoints:p3B, maxPoints:pv,
         complete:d.status==='completed', started:p3R.teamA>0||p3R.teamB>0,
-        thru:0, curUp:0, winnerSide:null,
+        thru:0, curUp:0, winnerSide:pv>0?(p3R.winner==='tie'?null:p3R.winner):null,
         dayFormat:'par3Birdie', teamABirdies:p3R.teamA, teamBBirdies:p3R.teamB, birdiePWinner:p3R.winner });
       return;
     }
@@ -9530,7 +9612,7 @@ function buildRyderCupScoreboardHtml(){
         html += '<div style="font-size:11px;font-weight:700;color:var(--green-dark);text-transform:uppercase;letter-spacing:.5px;padding:6px 0 3px;">'+escapeHtml(m.dayLabel)+'</div>';
       }
       html += '<div class="rc-match-row">';
-      var mtBadge = m.matchType === 'Team Stroke Play' ? 'teamstrokeplay' : m.matchType === 'Par 3 Birdies' ? 'par3birdies' : m.matchType.toLowerCase().replace(/[- ]/g,'');
+      var mtBadge = m.matchType === 'Team Stroke Play' ? 'teamstrokeplay' : m.matchType === 'Birdies' ? 'par3birdies' : m.matchType.toLowerCase().replace(/[- ]/g,'');
       html += '<span class="rc-match-type-badge '+mtBadge+'">'+escapeHtml(m.matchType)+'</span>';
       html += '<span style="font-size:12.5px;flex:1;">'+escapeHtml(m.label)+'</span>';
       var rCls = 'rc-match-result', rTxt;
@@ -9556,7 +9638,7 @@ function buildRyderCupScoreboardHtml(){
         }
       }
       html += '<span class="'+rCls+'">'+escapeHtml(rTxt)+'</span>';
-      if (m.dayFormat === 'par3Birdie') {
+      if (m.dayFormat === 'par3Birdie' && m.maxPoints === 0) {
         html += '<span style="font-size:11.5px;color:var(--muted);white-space:nowrap;margin-left:6px;">'+m.teamABirdies+'🐦–'+m.teamBBirdies+'🐦</span>';
       } else {
         html += '<span style="font-size:11.5px;color:var(--muted);white-space:nowrap;margin-left:6px;">'+m.teamAPoints+'–'+m.teamBPoints+'</span>';
