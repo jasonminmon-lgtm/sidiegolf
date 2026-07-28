@@ -3057,6 +3057,33 @@ function golfApiGetCourse(id){
   return golfApiFetch('/v1/courses/' + encodeURIComponent(id));
 }
 
+// ── Community courses (Firestore) ─────────────────────────────────────────
+// Converts a Firestore community course doc into MOCK_COURSES shape.
+function mapCommunityCourseToLocal(c){
+  var label = c.name + ' — ' + (c.location || 'WI') + ' 📋';
+  var tees = (c.tees || []).map(function(t){
+    return {
+      name: t.name,
+      rating: t.rating || null,
+      slope: t.slope || null,
+      par: t.par,
+      parByHole: t.parByHole || null,
+      strokeIndex: t.strokeIndex || null,
+      yardageByHole: t.yardageByHole || null,
+      yardage: t.yardage || null
+    };
+  });
+  return {
+    name: label,
+    tees: tees,
+    strokeIndex: c.strokeIndex || (tees[0] && tees[0].strokeIndex) || null,
+    holes: c.holes || 18,
+    par: c.par || 72,
+    isCommunity: true
+  };
+}
+// window.queryCommunityCoursesFirestore is set inside the Firebase IIFE below.
+
 // Converts one GolfCourseAPI course object into a MOCK_COURSES-shaped entry.
 // Per-tee holes[] (par + handicap/stroke-index + yardage) come straight from
 // the API, so live courses get REAL per-hole stroke allocation, not the
@@ -3091,7 +3118,7 @@ function mapApiCourseToLocal(apiCourse){
 function courseSearchHtml(ns){
   return '<div id="mcSection-'+ns+'"></div>'+
     '<div class="card">'+
-    '<label class="field-label">Search Real Courses (GolfCourseAPI)</label>'+
+    '<label class="field-label">Search Golf Courses</label>'+
     '<button id="nearMeBtn-'+ns+'" type="button" style="width:100%;padding:9px;margin-bottom:8px;border:1.5px solid var(--green-dark,#1a5c36);border-radius:8px;background:transparent;color:var(--green-dark,#1a5c36);font-size:13px;font-weight:600;cursor:pointer;">&#128205; Near Me — Find Courses at My Location</button>'+
     '<div style="display:flex;gap:8px;">'+
       '<input type="text" id="courseSearchInput-'+ns+'" placeholder="or search by name…">'+
@@ -3126,11 +3153,25 @@ function wireCourseSearch(ns, onPicked){
     if (!q){ setStatus('Type a course or club name first.'); return; }
     resultsEl.innerHTML = '';
     setStatus('Searching…');
-    golfApiSearch(q).then(function(courses){
-      if (!courses.length){ setStatus('No matches found.'); return; }
+    // Run API search and Firestore community search in parallel
+    var apiPromise = golfApiSearch(q).catch(function(){ return []; });
+    var communityPromise = (typeof window.queryCommunityCoursesFirestore === 'function')
+      ? window.queryCommunityCoursesFirestore(q)
+      : Promise.resolve([]);
+    Promise.all([apiPromise, communityPromise]).then(function(results){
+      var apiCourses = results[0];
+      var commCourses = results[1];
+      if (!apiCourses.length && !commCourses.length){ setStatus('No matches found.'); return; }
       setStatus('');
       var html = '';
-      courses.slice(0, 8).forEach(function(c, i){
+      // Community courses appear first (curated, exact data)
+      commCourses.forEach(function(c, i){
+        html += '<div class="option-card" style="margin-bottom:6px;" data-community-pick="'+i+'">'+
+          '<div class="option-text"><div class="opt-name">'+escapeHtml(c.name)+'</div>'+
+          '<div class="opt-desc">'+escapeHtml(c.location || '')+'&nbsp;&nbsp;📋 Community Course</div></div></div>';
+      });
+      // Then API results
+      apiCourses.slice(0, 8).forEach(function(c, i){
         var loc = c.location || {};
         var sub = [loc.city, loc.state].filter(Boolean).join(', ');
         html += '<div class="option-card" style="margin-bottom:6px;" data-search-pick="'+i+'">'+
@@ -3138,9 +3179,21 @@ function wireCourseSearch(ns, onPicked){
           '<div class="opt-desc">'+escapeHtml(c.course_name && c.course_name!==c.club_name ? c.course_name+' — ' : '')+escapeHtml(sub)+'</div></div></div>';
       });
       resultsEl.innerHTML = html;
+      // Wire community picks
+      Array.prototype.forEach.call(resultsEl.querySelectorAll('[data-community-pick]'), function(el){
+        el.addEventListener('click', function(){
+          var picked = commCourses[parseInt(el.getAttribute('data-community-pick'),10)];
+          var local = mapCommunityCourseToLocal(picked);
+          MOCK_COURSES.push(local);
+          setStatus('Added "'+local.name+'".');
+          resultsEl.innerHTML = '';
+          onPicked(MOCK_COURSES.length - 1);
+        });
+      });
+      // Wire API picks
       Array.prototype.forEach.call(resultsEl.querySelectorAll('[data-search-pick]'), function(el){
         el.addEventListener('click', function(){
-          var picked = courses[parseInt(el.getAttribute('data-search-pick'),10)];
+          var picked = apiCourses[parseInt(el.getAttribute('data-search-pick'),10)];
           setStatus('Loading tee data…');
           golfApiGetCourse(picked.id).then(function(full){
             var local = mapApiCourseToLocal(full.course || full);
@@ -3419,7 +3472,10 @@ function teeOptionsHtml(course, selectedTee){
   if (!course) return '<option value="">Select course first</option>';
   var html = '<option value="">Select a tee…</option>';
   course.tees.forEach(function(t){
-    html += '<option value="'+t.name+'"'+(selectedTee===t.name?' selected':'')+'>'+t.name+' (Slope '+t.slope+' / Rating '+t.rating.toFixed(1)+')</option>';
+    var info = t.handicapNote ? t.handicapNote
+             : (t.slope != null && t.rating != null) ? 'Slope '+t.slope+' / Rating '+t.rating.toFixed(1)
+             : 'No USGA rating';
+    html += '<option value="'+t.name+'"'+(selectedTee===t.name?' selected':'')+'>'+t.name+' ('+info+')</option>';
   });
   return html;
 }
@@ -11531,6 +11587,31 @@ fbAuth.onAuthStateChanged(function(user) {
 window.buildScorekeeperPanelHtml = buildScorekeeperPanelHtml;
 window.wireScorekeeperPanel = wireScorekeeperPanel;
 window.renderScorekeeperScorecardView = renderScorekeeperScorecardView;
+
+// ── Community course search (Firestore) ───────────────────────────────────
+// Fetches the public 'courses' collection once, caches in memory,
+// and filters client-side (collection is small — a handful of courses).
+var _commCourseCache = null;
+window.queryCommunityCoursesFirestore = function(query) {
+  var q = (query || '').toLowerCase();
+  var db = window.fbDb;
+  if (!db) { return Promise.resolve([]); }
+  var fetchAll = _commCourseCache
+    ? Promise.resolve(_commCourseCache)
+    : db.collection('courses').get().then(function(snap) {
+        var list = [];
+        snap.forEach(function(doc) { list.push(doc.data()); });
+        _commCourseCache = list;
+        return list;
+      });
+  return fetchAll.then(function(list) {
+    return list.filter(function(c) {
+      return (c.name || '').toLowerCase().indexOf(q) !== -1 ||
+             (c.location || '').toLowerCase().indexOf(q) !== -1 ||
+             (c.resort || '').toLowerCase().indexOf(q) !== -1;
+    });
+  }).catch(function(err) { console.error('Community courses fetch failed:', err); return []; });
+};
 
 })();
 </script>
