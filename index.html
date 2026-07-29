@@ -2409,6 +2409,7 @@
       <button class="ro-share-btn copy" onclick="copyResultsText()">📋 Copy Text</button>
       <button class="ro-share-btn share" id="roShareBtn" onclick="shareResultsText()" style="display:none;">📤 Share</button>
     </div>
+    <button id="roScorecardBtn" class="ro-share-btn share" onclick="shareScorecardAndLedger()" style="width:100%;margin-top:8px;">📊 Scorecard & Ledger</button>
   </div>
 </div>
 
@@ -6787,6 +6788,137 @@ window.shareResultsText = function() {
   var text = window._resultsSummaryText || '';
   if (navigator.share) {
     navigator.share({ text: text }).catch(function(){});
+  }
+};
+
+// ── Scorecard + Ledger share ──────────────────────────────────────────────────
+function buildScorecardShareText() {
+  var course = state.course != null ? MOCK_COURSES[state.course] : null;
+  if (!course && state._courseData) course = state._courseData;
+  var courseName = course ? course.name : 'Golf Round';
+  var dateStr = state.roundDate
+    ? new Date(state.roundDate + 'T12:00:00').toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'})
+    : new Date().toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'});
+  var numHoles = state.numHoles || 18;
+
+  var players = [];
+  for (var i = 0; i < state.players.length; i++) {
+    if (state.players[i] && state.players[i].name && state.players[i].name.trim())
+      players.push({ idx: i, name: state.players[i].name.trim() });
+  }
+
+  // Par by hole — try player tee selections, then any tee with data
+  var parByHole = null, teeName = '';
+  if (course && course.tees) {
+    var tried = {};
+    players.forEach(function(p) {
+      var tn = (state.teeSelections || {})[p.idx] || state.selectedTee || '';
+      if (tn && !tried[tn]) {
+        tried[tn] = true;
+        var t = course.tees.filter(function(t){ return t.name === tn; })[0];
+        if (t && t.parByHole && !parByHole) { parByHole = t.parByHole; teeName = t.name + ' (Par ' + t.par + ')'; }
+      }
+    });
+    if (!parByHole) course.tees.forEach(function(t) {
+      if (t.parByHole && !parByHole) { parByHole = t.parByHole; teeName = t.name + ' (Par ' + t.par + ')'; }
+    });
+  }
+
+  // Collect scores from all groups
+  var pScores = {};
+  players.forEach(function(p) { pScores[p.idx] = {}; });
+  Object.keys(state.scorecards || {}).forEach(function(gn) {
+    var sc = (state.scorecards[gn] || {}).scores || {};
+    Object.keys(sc).forEach(function(idxStr) {
+      var idx = parseInt(idxStr, 10);
+      if (pScores[idx]) Object.keys(sc[idxStr]).forEach(function(h) {
+        pScores[idx][parseInt(h, 10)] = sc[idxStr][h];
+      });
+    });
+  });
+
+  function pad(s, w) { s = String(s == null ? '-' : s); while (s.length < w) s = ' ' + s; return s; }
+  function padR(s, w) { s = String(s); while (s.length < w) s += ' '; return s; }
+
+  var maxNm = 3;
+  players.forEach(function(p) { if (p.name.length > maxNm) maxNm = p.name.length; });
+  maxNm = Math.min(maxNm, 10);
+  var C = 3;
+
+  var lines = ['⛳ ' + courseName + ' — ' + dateStr];
+  if (teeName) lines.push('Tee: ' + teeName);
+  lines.push('');
+
+  function scoreRow(p, from, to) {
+    var row = padR(p ? p.name.substring(0, maxNm) : 'Par', maxNm + 1);
+    var tot = 0, any = false;
+    for (var h = from; h <= to; h++) {
+      var sc = p ? pScores[p.idx][h] : (parByHole ? parByHole[h - 1] : null);
+      if (p && sc != null) { tot += sc; any = true; }
+      if (!p && parByHole) tot += sc;
+      row += pad(sc != null ? sc : '-', C);
+    }
+    return { row: row, tot: (p ? (any ? tot : null) : (parByHole ? tot : null)) };
+  }
+
+  if (numHoles === 18) {
+    // — Front 9 —
+    var hdr1 = padR('', maxNm + 1); for (var h=1;h<=9;h++) hdr1+=pad(h,C); hdr1+=pad('OUT',C+1);
+    lines.push(hdr1);
+    var pr1 = scoreRow(null, 1, 9); lines.push(pr1.row + pad(pr1.tot!=null?pr1.tot:'-', C+1));
+    players.forEach(function(p) { var r=scoreRow(p,1,9); lines.push(r.row+pad(r.tot!=null?r.tot:'-',C+1)); });
+    lines.push('');
+    // — Back 9 —
+    var hdr2 = padR('', maxNm + 1); for (var h=10;h<=18;h++) hdr2+=pad(h,C); hdr2+=pad('IN',C+1)+pad('TOT',C+1);
+    lines.push(hdr2);
+    var pr2 = scoreRow(null,10,18);
+    var parTot = pr1.tot != null && pr2.tot != null ? pr1.tot + pr2.tot : null;
+    lines.push(pr2.row + pad(pr2.tot!=null?pr2.tot:'-',C+1) + pad(parTot!=null?parTot:'-',C+1));
+    players.forEach(function(p) {
+      var r1=scoreRow(p,1,9), r2=scoreRow(p,10,18);
+      var tot = (r1.tot!=null||r2.tot!=null) ? (r1.tot||0)+(r2.tot||0) : null;
+      var diff = parTot!=null && tot!=null ? tot-parTot : null;
+      var ds = diff!=null ? '  '+(diff>0?'+'+diff:diff===0?'E':''+diff) : '';
+      lines.push(r2.row + pad(r2.tot!=null?r2.tot:'-',C+1) + pad(tot!=null?tot:'-',C+1) + ds);
+    });
+  } else {
+    // — 9 holes —
+    var hdr = padR('', maxNm + 1); for (var h=1;h<=9;h++) hdr+=pad(h,C); hdr+=pad('TOT',C+1);
+    lines.push(hdr);
+    var pr = scoreRow(null,1,9); lines.push(pr.row + pad(pr.tot!=null?pr.tot:'-',C+1));
+    players.forEach(function(p) {
+      var r=scoreRow(p,1,9);
+      var diff = pr.tot!=null && r.tot!=null ? r.tot-pr.tot : null;
+      var ds = diff!=null ? '  '+(diff>0?'+'+diff:diff===0?'E':''+diff) : '';
+      lines.push(r.row + pad(r.tot!=null?r.tot:'-',C+1) + ds);
+    });
+  }
+
+  // Payments
+  var handles = state.venmoHandles || {};
+  var txs = []; try { txs = computeSmartPayout(window._sidieLastLedger || {}); } catch(e){}
+  lines.push('');
+  if (txs.length) {
+    lines.push('💸 Payments:');
+    txs.forEach(function(tx) {
+      lines.push('• '+tx.from+' pays '+tx.to+' $'+tx.amount+(handles[tx.to]?' ('+handles[tx.to]+')':''));
+    });
+  } else { lines.push('💸 All square — no money changes hands!'); }
+  lines.push(''); lines.push('sidiegolf.com');
+  return lines.join('\n');
+}
+
+window.shareScorecardAndLedger = function() {
+  var text = buildScorecardShareText();
+  var btn = document.getElementById('roScorecardBtn');
+  function flash() { if (btn) { btn.textContent='✓ Copied!'; setTimeout(function(){ btn.textContent='📊 Scorecard & Ledger'; },2500); } }
+  if (navigator.share) {
+    navigator.share({ title:'SidieGolf Scorecard', text:text }).catch(function(){});
+  } else if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(flash);
+  } else {
+    var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); flash();
   }
 };
 
