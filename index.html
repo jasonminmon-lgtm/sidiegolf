@@ -409,7 +409,15 @@
   .hammer-log-btn{background:none;border:1px solid #ddd;border-radius:4px;padding:1px 5px;font-size:11px;cursor:pointer;min-width:30px;line-height:1.6;color:#555;}
   .hammer-log-btn:hover{background:#f5f5f5;}
   .hammer-log-btn.has-hammers{border-color:#4a90d9;background:#eaf3ff;color:#1a5ca8;font-weight:600;}
-  /* Hammer log bottom sheet */
+  /* Crack log button (Scotch) */
+  .crack-log-btn{background:none;border:1px solid #ddd;border-radius:4px;padding:1px 5px;font-size:11px;cursor:pointer;min-width:30px;line-height:1.6;color:#555;}
+  .crack-log-btn:hover{background:#f5f5f5;}
+  .crack-log-btn.has-cracks{border-color:#e07b39;background:#fff2ea;color:#a04010;font-weight:600;}
+  /* Scotch stake change button */
+  .scotch-stake-btn{background:none;border:1px solid #ddd;border-radius:4px;padding:1px 5px;font-size:11px;cursor:pointer;min-width:30px;line-height:1.6;color:#555;}
+  .scotch-stake-btn:hover{background:#f5f5f5;}
+  .scotch-stake-btn.stake-changed{border-color:#2a9d5c;background:#e8f7ef;color:#1a6e3c;font-weight:600;}
+  /* Crack log / stake change bottom sheet (shares .hl-* structure) */
   .hl-sheet{background:#fff;border-radius:14px 14px 0 0;padding:16px;max-height:80vh;overflow-y:auto;width:100%;max-width:480px;}
   .hl-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
   .hl-title{font-weight:700;font-size:15px;}
@@ -1624,8 +1632,9 @@
   // Payout: each player wins (own_team_pts − opp_team_pts) × $/pt per hole (zero-sum).
   games['Scotch'] = function (game, ctx) {
     var deltas = zero(game.participants);
-    var amount = parseFloat(game.stakes.amount) || 0;
+    var baseAmount = parseFloat(game.stakes.amount) || 0;
     var umbrella = game.stakes.umbrella === 'On';
+    var crackOn = game.stakes.crackOn === 'On';
     var method = game.stakes.teamMethod || 'Fixed Partners';
     var ids = game.participants;
     if (ids.length !== 4) return deltas;
@@ -1658,11 +1667,25 @@
       return [[ids[0], ids[1]], [ids[2], ids[3]]];
     }
 
+    // Track cumulative team money for down-team crack rule
+    var teamRunA = 0, teamRunB = 0;
+
     for (var h = 1; h <= 18; h++) {
       var ev = (game.events && game.events[h]) || {};
       var teams = getTeams(h);
       var tA = teams[0], tB = teams[1];
       var ptsA = 0, ptsB = 0;
+
+      // ── Effective $/pt for this hole ──────────────────────────────────────
+      // Scan holes 1..h for the last scotchStake override; use that amount.
+      var holeAmount = baseAmount;
+      for (var sh = 1; sh <= h; sh++) {
+        var shEv = (game.events && game.events[sh]) || {};
+        if (shEv.scotchStake != null) {
+          var newAmt = parseFloat(shEv.scotchStake);
+          if (newAmt > 0) holeAmount = newAmt;
+        }
+      }
 
       // 1. Low Net (2pts)
       var bestA = null, bestB = null;
@@ -1691,10 +1714,10 @@
         else if (tB.indexOf(proxId) !== -1) ptsB += 1;
       }
 
-      // 4. Net Birdie (1pt) — auto
+      // 4. Gross Birdie (1pt) — auto
       var par = holePar(ctx.course, h);
-      var aBird = tA.some(function (id) { var n = netFor(ctx, id, h); return n != null && n <= par - 1; });
-      var bBird = tB.some(function (id) { var n = netFor(ctx, id, h); return n != null && n <= par - 1; });
+      var aBird = tA.some(function (id) { var g = ctx.scores && ctx.scores[id] ? ctx.scores[id][h] : null; return g != null && g <= par - 1; });
+      var bBird = tB.some(function (id) { var g = ctx.scores && ctx.scores[id] ? ctx.scores[id][h] : null; return g != null && g <= par - 1; });
       if (aBird && bBird) { ptsA += 0.5; ptsB += 0.5; }
       else if (aBird) ptsA += 1;
       else if (bBird) ptsB += 1;
@@ -1705,10 +1728,43 @@
         else if (ptsB === 6) ptsB = 12;
       }
 
-      // Apply: each player wins (own_pts − opp_pts) × amount (zero-sum)
+      // ── Crack / Crack Back ────────────────────────────────────────────────
+      // Only the team that is down $ going into this tee box may crack first.
+      // The other team may crack back. Each accepted crack doubles holeAmount.
+      // Teams must alternate. A decline ends the chain (no forfeit — hole plays on).
+      if (crackOn) {
+        var crackLog = Array.isArray(ev.crackLog) ? ev.crackLog : [];
+        if (crackLog.length) {
+          // Determine down side: whichever team has lost more money so far
+          var downSide = teamRunA < teamRunB ? 'A' : (teamRunB < teamRunA ? 'B' : null);
+          var lastCrackSide = null;
+          var crackChainEnded = false;
+          for (var ci = 0; ci < crackLog.length; ci++) {
+            if (crackChainEnded) break;
+            var ce = crackLog[ci];
+            // First crack must come from the down side (if there is a down side)
+            if (ci === 0 && downSide && ce.side !== downSide) break; // invalid — skip
+            // Must alternate sides
+            if (lastCrackSide && ce.side === lastCrackSide) break;
+            if (ce.accepted) {
+              holeAmount *= 2;
+              lastCrackSide = ce.side;
+            } else {
+              // Decline — chain ends; hole plays at current (pre-decline) amount
+              crackChainEnded = true;
+            }
+          }
+        }
+      }
+
+      // Apply: each player wins (own_pts − opp_pts) × holeAmount (zero-sum)
       var netA = ptsA - ptsB, netB = ptsB - ptsA;
-      tA.forEach(function (id) { deltas[id] = (deltas[id] || 0) + netA * amount; });
-      tB.forEach(function (id) { deltas[id] = (deltas[id] || 0) + netB * amount; });
+      tA.forEach(function (id) { deltas[id] = (deltas[id] || 0) + netA * holeAmount; });
+      tB.forEach(function (id) { deltas[id] = (deltas[id] || 0) + netB * holeAmount; });
+
+      // Accumulate team running totals for down-team detection on next hole
+      teamRunA += netA * holeAmount;
+      teamRunB += netB * holeAmount;
     }
 
     return deltas;
@@ -2840,6 +2896,7 @@
 </div>
 <div id="scoreEntryOverlay" class="score-entry-overlay" style="display:none;"></div>
 <div id="hammerLogOverlay" class="score-entry-overlay" style="display:none;"></div>
+<div id="crackLogOverlay" class="score-entry-overlay" style="display:none;"></div>
 
 <script>
 // ================= STATIC DATA =================
@@ -2972,11 +3029,12 @@ var SIDE_GAME_DEFS = {
     fields:[ {key:'amount', label:'$ Per Segment', type:'number', placeholder:'5'} ]
   },
   'Scotch': {
-    desc:'6-point team game for 4 players (2 per team). Each hole: 2pts Low Net, 2pts Team Low Net Total, 1pt Closest to Pin (tap to award on scorecard), 1pt Net Birdie (auto). Umbrella: one team sweeps all 6 → points double.',
+    desc:'6-point team game for 4 players (2 per team). Each hole: 2pts Low Net, 2pts Team Low Net Total, 1pt Closest to Pin (tap to award on scorecard), 1pt Gross Birdie (auto). Umbrella: one team sweeps all 6 → points double.',
     fields:[
       {key:'amount', label:'$ Per Point', type:'number', placeholder:'2'},
       {key:'teamMethod', label:'Team Method', type:'select', options:["Captain's Draft",'Sixes','High/Low HCP']},
-      {key:'umbrella', label:'Umbrella Rule (sweep all 6 → double)', type:'select', options:['Off','On']}
+      {key:'umbrella', label:'Umbrella Rule (sweep all 6 → double)', type:'select', options:['Off','On']},
+      {key:'crackOn', label:'Crack / Crack Back', type:'select', options:['Off','On']}
     ]
   }
 };
@@ -5973,7 +6031,7 @@ var EVENT_GAME_FIELDS = {
   '3-Man Wolf': ['hammerLog'],
   'Snake': ['snakeBite'],
   'Bingo Bango Bongo': ['firstOnGreen','closestToPin','firstIn'],
-  'Scotch': ['scotchProx']
+  'Scotch': ['scotchProx','crackLog','scotchStake']
 };
 function gameNeedsPerHoleEvents(type){ return !!EVENT_GAME_FIELDS[type]; }
 
@@ -7247,10 +7305,14 @@ function buildEventTablesHtml(games, idxs, sc, ns){
       html += buildSelectRow('First in', g, participantIdxs, sc, ns, 'firstIn', true);
     } else if (g.type==='Scotch'){
       html += buildSelectRow('Prox (closest)', g, participantIdxs, sc, ns, 'scotchProx', true);
+      if (g.stakes.crackOn === 'On') html += buildCrackLogRow(g, sc, ns);
+      html += buildScotchStakeRow(g, sc, ns);
       legend = [
         'Prox — tap the dropdown to award the 1pt closest-to-pin to whichever player stuck it closest.',
         'Low Net and Team Net Total are computed automatically from entered scores. Net Birdie (1pt) is auto-awarded when any team member nets ≤ par−1.'
       ];
+      if (g.stakes.crackOn === 'On') legend.push('Crack — only the team down $ may crack first on each hole. The other team may crack back. Each accepted crack doubles $/pt for that hole.');
+      legend.push('$/pt — tap any cell to change the $/pt rate from that hole forward. The team that is down may raise the stakes at any time.');
     }
     html += '</tbody></table></div>';
     if (legend.length){
@@ -7436,6 +7498,31 @@ function wireEventTablesEvents(games, idxs, sc, ns){
       openHammerLog(hlNs, gid, hole, sc, g);
     });
   });
+
+  // Crack log tap buttons — open per-hole crack/crack-back editor (Scotch)
+  Array.prototype.forEach.call(document.querySelectorAll('[data-crack-log^="'+ns+'|"]'), function(el){
+    el.addEventListener('click', function(){
+      var parts = el.getAttribute('data-crack-log').split('|');
+      var clNs = parts[0], gid = parseInt(parts[1], 10), hole = parseInt(parts[2], 10);
+      var g = null;
+      for (var gi=0; gi<(games||[]).length; gi++){ if (games[gi].id===gid){ g=games[gi]; break; } }
+      if (!g) return;
+      openCrackLog(clNs, gid, hole, sc, g);
+    });
+  });
+
+  // Scotch $/pt stake buttons — open stake change sheet
+  Array.prototype.forEach.call(document.querySelectorAll('[data-scotch-stake^="'+ns+'|"]'), function(el){
+    el.addEventListener('click', function(){
+      var parts = el.getAttribute('data-scotch-stake').split('|');
+      var ssNs = parts[0], gid = parseInt(parts[1], 10), hole = parseInt(parts[2], 10);
+      var curAmt = parseFloat(parts[3]) || 0;
+      var g = null;
+      for (var gi=0; gi<(games||[]).length; gi++){ if (games[gi].id===gid){ g=games[gi]; break; } }
+      if (!g) return;
+      openScotchStakeChange(ssNs, gid, hole, sc, g, curAmt);
+    });
+  });
 }
 
 // Compact read-only hammer log row for the event table.
@@ -7449,6 +7536,38 @@ function buildHammerLogRow(label, g, sc, ns){
       : '—';
     var hasCls = log.length ? ' has-hammers' : '';
     html += '<td><button class="hammer-log-btn'+hasCls+'" data-hammer-log="'+ns+'|'+g.id+'|'+h+'">'+summary+'</button></td>';
+  }
+  html += '</tr>';
+  return html;
+}
+
+// Compact crack log row for Scotch event table.
+function buildCrackLogRow(g, sc, ns){
+  var html = '<tr><td class="sc-rowlabel">Crack</td>';
+  for (var h=1; h<=18; h++){
+    var ev = sc.events[h] || {};
+    var log = Array.isArray(ev.crackLog) ? ev.crackLog : [];
+    var summary = log.length
+      ? log.map(function(e){ return (e.side==='A'?'A':'B')+(e.accepted?'✓':'✗'); }).join(' ')
+      : '—';
+    var hasCls = log.length ? ' has-cracks' : '';
+    html += '<td><button class="crack-log-btn'+hasCls+'" data-crack-log="'+ns+'|'+g.id+'|'+h+'">'+summary+'</button></td>';
+  }
+  html += '</tr>';
+  return html;
+}
+
+// Scotch $/pt stake row — shows effective amount per hole; tap to change from that hole forward.
+function buildScotchStakeRow(g, sc, ns){
+  var baseAmount = parseFloat((g.stakes && g.stakes.amount)) || 0;
+  var html = '<tr><td class="sc-rowlabel">$/pt</td>';
+  var curAmount = baseAmount;
+  for (var h=1; h<=18; h++){
+    var ev = sc.events[h] || {};
+    if (ev.scotchStake != null && parseFloat(ev.scotchStake) > 0) curAmount = parseFloat(ev.scotchStake);
+    var changed = (Math.abs(curAmount - baseAmount) > 0.001);
+    var label = '$' + curAmount;
+    html += '<td><button class="scotch-stake-btn'+(changed?' stake-changed':'')+'" data-scotch-stake="'+ns+'|'+g.id+'|'+h+'|'+curAmount+'">'+label+'</button></td>';
   }
   html += '</tr>';
   return html;
@@ -8773,6 +8892,254 @@ function closeHammerLog(){
   ov.style.display = 'none';
   ov.innerHTML = '';
   state.__hammerLog = null;
+}
+
+// ── Scotch Crack / Crack Back ─────────────────────────────────────────────────
+function openCrackLog(ns, gid, hole, sc, game){
+  // Compute team rosters for this hole (needed for labels in sheet)
+  var ids = game.participants;
+  var method = (game.stakes && game.stakes.teamMethod) || "Captain's Draft";
+  // Simple team label resolution (Sixes handled by hole number)
+  var tA = [], tB = [];
+  if (method === 'Sixes') {
+    var seg = Math.floor((hole - 1) / 6);
+    // Rank ids by player index as proxy (full HCP sort not available here)
+    var ranked = ids.slice();
+    if (seg === 0)      { tA = [ranked[0],ranked[1]]; tB = [ranked[2],ranked[3]]; }
+    else if (seg === 1) { tA = [ranked[0],ranked[2]]; tB = [ranked[1],ranked[3]]; }
+    else                { tA = [ranked[0],ranked[3]]; tB = [ranked[1],ranked[2]]; }
+  } else if (method === 'High/Low HCP') {
+    tA = [ids[0],ids[3]]; tB = [ids[1],ids[2]];
+  } else {
+    // Captain's Draft
+    if (game.teamAssign) {
+      tA = ids.filter(function(id){ return (game.teamAssign[id]||'A')==='A'; });
+      tB = ids.filter(function(id){ return game.teamAssign[id]==='B'; });
+    }
+    if (tA.length !== 2 || tB.length !== 2) { tA = [ids[0],ids[1]]; tB = [ids[2],ids[3]]; }
+  }
+  function name(id){ return state.players[id] ? state.players[id].name : ('P'+(id+1)); }
+  var teamALabel = 'Team A (' + tA.map(name).join(' & ') + ')';
+  var teamBLabel = 'Team B (' + tB.map(name).join(' & ') + ')';
+
+  state.__crackLog = { ns: ns, gid: gid, hole: hole, sc: sc, game: game, teamALabel: teamALabel, teamBLabel: teamBLabel };
+  renderCrackLogSheet();
+  $('crackLogOverlay').style.display = 'flex';
+}
+
+function closeCrackLog(){
+  var ov = $('crackLogOverlay');
+  ov.style.display = 'none';
+  ov.innerHTML = '';
+  state.__crackLog = null;
+}
+
+function updateCrackLogBtn(ns, gid, hole, sc){
+  var btn = document.querySelector('[data-crack-log="'+ns+'|'+gid+'|'+hole+'"]');
+  if (!btn) return;
+  var ev = (sc.events && sc.events[hole]) || {};
+  var log = Array.isArray(ev.crackLog) ? ev.crackLog : [];
+  var summary = log.length
+    ? log.map(function(e){ return (e.side==='A'?'A':'B')+(e.accepted?'✓':'✗'); }).join(' ')
+    : '—';
+  btn.textContent = summary;
+  if (log.length){ btn.classList.add('has-cracks'); } else { btn.classList.remove('has-cracks'); }
+}
+
+function renderCrackLogSheet(){
+  var e = state.__crackLog;
+  if (!e) return;
+  var sc = e.sc;
+  if (!sc.events[e.hole]) sc.events[e.hole] = {};
+  var ev = sc.events[e.hole];
+  var log = Array.isArray(ev.crackLog) ? ev.crackLog : [];
+  var baseAmount = parseFloat((e.game.stakes && e.game.stakes.amount)) || 0;
+
+  // Find effective amount for this hole (last scotchStake change on or before hole)
+  var holeAmount = baseAmount;
+  for (var sh = 1; sh <= e.hole; sh++) {
+    var shEv = (sc.events && sc.events[sh]) || {};
+    if (shEv.scotchStake != null && parseFloat(shEv.scotchStake) > 0) holeAmount = parseFloat(shEv.scotchStake);
+  }
+
+  // Track running amount through crack log
+  var running = holeAmount;
+  var stakeAfter = [];
+  var firstDeclineIdx = -1;
+  for (var si = 0; si < log.length; si++){
+    if (log[si].accepted){
+      running *= 2;
+      stakeAfter.push('→ $' + running + '/pt');
+    } else {
+      stakeAfter.push('→ chain ends at $' + running + '/pt');
+      if (firstDeclineIdx < 0) firstDeclineIdx = si;
+    }
+  }
+
+  var canAdd = firstDeclineIdx < 0;
+  var nextAllowed = null;
+  if (log.length > 0 && canAdd){
+    nextAllowed = log[log.length - 1].side === 'A' ? 'B' : 'A';
+  }
+
+  var warnings = [];
+  for (var vi = 1; vi < log.length; vi++){
+    if (log[vi].side === log[vi-1].side){
+      warnings.push('Entry '+(vi+1)+': same team as entry '+vi+' — teams must alternate.');
+    }
+  }
+  if (firstDeclineIdx >= 0 && firstDeclineIdx < log.length - 1){
+    warnings.push('Entries after a decline are ignored — crack chain ended at entry '+(firstDeclineIdx+1)+'.');
+  }
+
+  var html = '<div class="hl-sheet">';
+  html += '<div class="hl-head"><div class="hl-title">Crack — Hole '+e.hole+'</div>';
+  html += '<button class="btn-link" id="clClose">Close ✕</button></div>';
+  html += '<div class="hl-stake-info">Base: $'+holeAmount+'/pt · Only the team DOWN $ may crack first · Other team may crack back · Decline ends chain</div>';
+  html += '<div style="font-size:11px;color:#888;margin-bottom:10px;">'+e.teamALabel+' vs '+e.teamBLabel+'</div>';
+
+  if (log.length === 0){
+    html += '<div class="hl-empty">No cracks on this hole — tap + Add to log one.</div>';
+  } else {
+    for (var li = 0; li < log.length; li++){
+      var entry = log[li];
+      var isPostDecline = firstDeclineIdx >= 0 && li > firstDeclineIdx;
+      html += '<div class="hl-entry"'+(isPostDecline?' style="opacity:0.45"':'')+'>';
+      html += '<div class="hl-entry-num">'+(li+1)+'.</div>';
+      html += '<select class="hl-side-sel '+(entry.side==='A'?'wolf':'opp')+'" data-cl-side="'+li+'">';
+      html += '<option value="A"'+(entry.side==='A'?' selected':'')+'>Team A</option>';
+      html += '<option value="B"'+(entry.side==='B'?' selected':'')+'>Team B</option>';
+      html += '</select>';
+      html += '<div class="hl-arrow">→</div>';
+      html += '<select class="hl-out-sel '+(entry.accepted?'accepted':'declined')+'" data-cl-outcome="'+li+'">';
+      html += '<option value="accepted"'+(entry.accepted?' selected':'')+'>Crack ✓</option>';
+      html += '<option value="declined"'+(!entry.accepted?' selected':'')+'>Decline ✗</option>';
+      html += '</select>';
+      html += '<div class="hl-running">'+(stakeAfter[li]||'')+'</div>';
+      html += '<button class="hl-remove" data-cl-remove="'+li+'">×</button>';
+      html += '</div>';
+    }
+  }
+
+  if (warnings.length){
+    html += '<div class="hl-warn">⚠ <ul style="padding-left:16px;margin:4px 0;">';
+    warnings.forEach(function(w){ html += '<li>'+escapeHtml(w)+'</li>'; });
+    html += '</ul></div>';
+  }
+  if (!canAdd && log.length > 0){
+    html += '<div class="hl-chain-ended">Crack chain ended — a decline stops the doubling.</div>';
+  }
+  html += '<button class="hl-add-btn" id="clAdd"'+(canAdd?'':' disabled')+'>+ Add crack</button>';
+  html += '</div>';
+
+  var ov = $('crackLogOverlay');
+  ov.innerHTML = html;
+
+  $('clClose').addEventListener('click', closeCrackLog);
+
+  var addBtn = $('clAdd');
+  if (addBtn && canAdd){
+    addBtn.addEventListener('click', function(){
+      if (!ev.crackLog) ev.crackLog = [];
+      var defaultSide = nextAllowed || 'A';
+      ev.crackLog.push({ side: defaultSide, accepted: true });
+      updateCrackLogBtn(e.ns, e.gid, e.hole, sc);
+      renderCrackLogSheet();
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    });
+  }
+
+  Array.prototype.forEach.call(ov.querySelectorAll('[data-cl-side]'), function(sel){
+    sel.addEventListener('change', function(){
+      var idx = parseInt(sel.getAttribute('data-cl-side'), 10);
+      ev.crackLog[idx] = { side: sel.value, accepted: ev.crackLog[idx].accepted };
+      updateCrackLogBtn(e.ns, e.gid, e.hole, sc);
+      renderCrackLogSheet();
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    });
+  });
+
+  Array.prototype.forEach.call(ov.querySelectorAll('[data-cl-outcome]'), function(sel){
+    sel.addEventListener('change', function(){
+      var idx = parseInt(sel.getAttribute('data-cl-outcome'), 10);
+      ev.crackLog[idx] = { side: ev.crackLog[idx].side, accepted: sel.value === 'accepted' };
+      updateCrackLogBtn(e.ns, e.gid, e.hole, sc);
+      renderCrackLogSheet();
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    });
+  });
+
+  Array.prototype.forEach.call(ov.querySelectorAll('[data-cl-remove]'), function(btn){
+    btn.addEventListener('click', function(){
+      var idx = parseInt(btn.getAttribute('data-cl-remove'), 10);
+      ev.crackLog.splice(idx, 1);
+      if (!ev.crackLog.length) delete ev.crackLog;
+      updateCrackLogBtn(e.ns, e.gid, e.hole, sc);
+      renderCrackLogSheet();
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    });
+  });
+}
+
+// ── Scotch $/pt Stake Change ──────────────────────────────────────────────────
+function openScotchStakeChange(ns, gid, hole, sc, game, curAmt){
+  var ov = $('crackLogOverlay'); // reuse the same overlay slot
+  var baseAmount = parseFloat((game.stakes && game.stakes.amount)) || 0;
+
+  var html = '<div class="hl-sheet">';
+  html += '<div class="hl-head"><div class="hl-title">Change $/pt — From Hole '+hole+'</div>';
+  html += '<button class="btn-link" id="ssClose">Close ✕</button></div>';
+  html += '<div class="hl-stake-info">Current: $'+curAmt+'/pt · Base: $'+baseAmount+'/pt · The down team may raise the stakes at any time</div>';
+  html += '<div style="margin:16px 0;">';
+  html += '<label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px;">New $/pt from hole '+hole+' onwards:</label>';
+  html += '<input id="ssAmtInput" type="number" min="0.5" step="0.5" value="'+curAmt+'" style="font-size:18px;padding:8px 12px;border:1px solid #ddd;border-radius:8px;width:100%;box-sizing:border-box;">';
+  html += '</div>';
+  html += '<button id="ssSave" class="btn-primary" style="width:100%;margin-top:4px;">Save</button>';
+  if (sc.events && sc.events[hole] && sc.events[hole].scotchStake != null){
+    html += '<button id="ssClear" class="btn-link" style="width:100%;margin-top:10px;text-align:center;">Clear override (revert to previous)</button>';
+  }
+  html += '</div>';
+
+  ov.innerHTML = html;
+  ov.style.display = 'flex';
+
+  $('ssClose').addEventListener('click', function(){
+    ov.style.display = 'none'; ov.innerHTML = '';
+  });
+
+  $('ssSave').addEventListener('click', function(){
+    var newAmt = parseFloat($('ssAmtInput').value);
+    if (!newAmt || newAmt <= 0) { alert('Enter a valid amount.'); return; }
+    if (!sc.events) sc.events = {};
+    if (!sc.events[hole]) sc.events[hole] = {};
+    sc.events[hole].scotchStake = newAmt;
+    // Refresh stake row buttons
+    var stakeButtons = document.querySelectorAll('[data-scotch-stake^="'+ns+'|'+gid+'|"]');
+    var effectiveAmt = baseAmount;
+    for (var rh = 1; rh <= 18; rh++){
+      var rhEv = (sc.events && sc.events[rh]) || {};
+      if (rhEv.scotchStake != null && parseFloat(rhEv.scotchStake) > 0) effectiveAmt = parseFloat(rhEv.scotchStake);
+      var rhBtn = document.querySelector('[data-scotch-stake="'+ns+'|'+gid+'|'+rh+'|'+effectiveAmt+'"]') ||
+                  Array.prototype.filter.call(stakeButtons, function(b){ return b.getAttribute('data-scotch-stake').startsWith(ns+'|'+gid+'|'+rh+'|'); })[0];
+      if (rhBtn) {
+        rhBtn.textContent = '$'+effectiveAmt;
+        rhBtn.setAttribute('data-scotch-stake', ns+'|'+gid+'|'+rh+'|'+effectiveAmt);
+        if (Math.abs(effectiveAmt - baseAmount) > 0.001){ rhBtn.classList.add('stake-changed'); }
+        else { rhBtn.classList.remove('stake-changed'); }
+      }
+    }
+    ov.style.display = 'none'; ov.innerHTML = '';
+    if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+  });
+
+  var clearBtn = $('ssClear');
+  if (clearBtn){
+    clearBtn.addEventListener('click', function(){
+      if (sc.events && sc.events[hole]) delete sc.events[hole].scotchStake;
+      ov.style.display = 'none'; ov.innerHTML = '';
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    });
+  }
 }
 
 function updateHammerLogBtn(ns, gid, hole, sc){
@@ -10223,6 +10590,8 @@ document.addEventListener('click', function(e){
   if (mcOverlay && e.target === mcOverlay){ closeMyCourses(); return; }
   var hlOverlay = $('hammerLogOverlay');
   if (hlOverlay && e.target === hlOverlay){ closeHammerLog(); return; }
+  var clOverlay = $('crackLogOverlay');
+  if (clOverlay && e.target === clOverlay){ closeCrackLog(); return; }
   var spBtn = e.target.closest && e.target.closest('[data-smart-payout]');
   if (spBtn){
     try { showSmartPayoutModal(JSON.parse(spBtn.getAttribute('data-smart-payout'))); } catch(err){}
