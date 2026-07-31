@@ -7901,6 +7901,11 @@ function buildEngineGame(g){
     }
   }
 
+  // Scotch: pass teamAssign so getTeams() reads user-configured teams (Captain's Draft).
+  if (g.type === 'Scotch' && g.teamAssign) {
+    game.teamAssign = g.teamAssign;
+  }
+
   // Quota: pass the resolved points table so money and display always use the same math.
   if (g.type === 'Quota'){
     game.sfTable = g.stakes.quotaPoints === 'Modified Stableford'
