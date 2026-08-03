@@ -7313,26 +7313,89 @@ function processVoiceResult(transcript){
   openVoiceSheet('confirm', transcript);
 }
 
+// Levenshtein distance for fuzzy name matching
+function voiceLev(a, b){
+  var m=a.length, n=b.length, prev=[], row=[];
+  for(var j=0;j<=n;j++) prev[j]=j;
+  for(var i=1;i<=m;i++){
+    row[0]=i;
+    for(var j2=1;j2<=n;j2++)
+      row[j2]=a[i-1]===b[j2-1]?prev[j2-1]:1+Math.min(prev[j2-1],prev[j2],row[j2-1]);
+    prev=row.slice();
+  }
+  return prev[n];
+}
+
 function parseVoiceScores(transcript, idxs){
   var results = {};
-  // Normalise word-numbers to digits
-  var wordNums = {one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};
-  var lower = transcript.toLowerCase().replace(/\b(got a|had a|scored a|made a|got|had|scored|made|a)\b/g,' ');
-  lower = lower.replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/g, function(m){ return wordNums[m] || m; });
+  // Scored words + homophones the speech recogniser commonly returns for golf scores
+  var scoreWords = {
+    'one':1,'won':1,
+    'two':2,'to':2,'too':2,
+    'three':3,'tree':3,
+    'four':4,'for':4,'fore':4,
+    'five':5,'fife':5,
+    'six':6,
+    'seven':7,
+    'eight':8,'ate':8,
+    'nine':9,'niner':9,
+    'ten':10,'eleven':11,'twelve':12,'thirteen':13,'fourteen':14,'fifteen':15
+  };
+
+  // Tokenise: lowercase, split on whitespace/punctuation
+  var lower = transcript.toLowerCase().replace(/\b(got a|had a|scored a|made a|got|had|scored|made)\b/g,' ');
+  var tokens = lower.split(/[\s,\.;:]+/).filter(Boolean);
 
   idxs.forEach(function(idx){
     var p = state.players[idx];
     if (!p || !p.name.trim()) return;
     var firstName = p.name.trim().split(/\s+/)[0].toLowerCase();
-    var pos = lower.indexOf(firstName);
-    if (pos === -1) return;
-    var after = lower.substring(pos + firstName.length, pos + firstName.length + 30);
-    var m = after.match(/\b(\d+)\b/);
-    if (m){
-      var score = parseInt(m[1], 10);
-      if (score >= 1 && score <= 15) results[idx] = score;
+
+    // Find best-matching token for this name (exact first, then fuzzy)
+    var bestTi = -1, bestDist = 999;
+    for(var ti=0; ti<tokens.length; ti++){
+      var tok = tokens[ti];
+      if(/^\d+$/.test(tok) || scoreWords[tok] != null) continue; // skip number tokens
+      if(tok === firstName){ bestTi = ti; bestDist = 0; break; }
+      var threshold = firstName.length <= 4 ? 1 : 2;
+      var d = voiceLev(tok, firstName);
+      if(d <= threshold && d < bestDist){ bestTi = ti; bestDist = d; }
+    }
+    if(bestTi === -1) return;
+
+    // Look at the next 1–3 tokens for a score value
+    for(var ni=bestTi+1; ni<tokens.length && ni<=bestTi+3; ni++){
+      var nt = tokens[ni];
+      var s = null;
+      if(/^\d+$/.test(nt))           s = parseInt(nt, 10);
+      else if(scoreWords[nt] != null) s = scoreWords[nt];
+      if(s != null && s >= 1 && s <= 15){ results[idx] = s; break; }
+      // Stop if this token looks like another player's name
+      var isOtherName = idxs.some(function(oi){
+        if(oi === idx) return false;
+        var on2 = state.players[oi] && state.players[oi].name.trim().split(/\s+/)[0].toLowerCase();
+        return on2 && (nt === on2 || voiceLev(nt, on2) <= 1);
+      });
+      if(isOtherName) break;
     }
   });
+
+  // Position-based fallback: if remaining unused numbers match remaining players, assign in order
+  var missing = idxs.filter(function(i){ return results[i] == null; });
+  if(missing.length){
+    var usedArr = idxs.map(function(i){ return results[i]; }).filter(function(v){ return v != null; });
+    var allNums = [];
+    tokens.forEach(function(t){
+      var n2 = /^\d+$/.test(t) ? parseInt(t,10) : (scoreWords[t] != null ? scoreWords[t] : null);
+      if(n2 != null && n2 >= 1 && n2 <= 15) allNums.push(n2);
+    });
+    var pool = allNums.slice();
+    usedArr.forEach(function(v){ var p2=pool.indexOf(v); if(p2!==-1) pool.splice(p2,1); });
+    if(pool.length === missing.length){
+      missing.forEach(function(idx2, i){ results[idx2] = pool[i]; });
+    }
+  }
+
   return results;
 }
 
@@ -7363,7 +7426,7 @@ function openVoiceSheet(mode, transcript){
       '<span class="voice-parsed-name">'+escapeHtml(name)+'</span>' +
       (score != null
         ? '<span class="voice-parsed-score">'+score+'</span>'
-        : '<span class="voice-parsed-score missing">not heard</span>') +
+        : '<input type="number" min="1" max="15" class="voice-manual-input" data-idx="'+idx+'" placeholder="?" style="width:52px;font-size:20px;font-weight:700;text-align:center;border:2px solid #c0392b;border-radius:8px;padding:4px 6px;color:#c0392b;background:transparent;">') +
       '</div>';
   });
 
@@ -7371,9 +7434,10 @@ function openVoiceSheet(mode, transcript){
     '<div class="voice-transcript"><small>Heard: </small>"'+escapeHtml(transcript||'')+'"</div>' +
     '<div class="voice-hole-label">Hole '+_voiceHole+'</div>' +
     '<div class="voice-parsed-rows">'+rows+'</div>' +
+    (hasAll ? '' : '<div style="font-size:12px;color:var(--muted);text-align:center;margin-top:4px;">Tap a red box to enter a missing score manually.</div>') +
     '<div class="voice-actions">' +
     '<button class="voice-btn retry" onclick="retryVoice()">🎤 Retry</button>' +
-    '<button class="voice-btn confirm" onclick="confirmVoiceScores()" '+(hasAll?'':'disabled="disabled"')+'>✓ Confirm</button>' +
+    '<button class="voice-btn confirm" onclick="confirmVoiceScores()">✓ Confirm</button>' +
     '</div>';
 }
 
@@ -7401,6 +7465,14 @@ function closeVoiceScore(){
 }
 
 function confirmVoiceScores(){
+  // Collect any scores manually entered in the tap-to-enter inputs
+  var manualInputs = document.querySelectorAll('.voice-manual-input');
+  for(var mi=0; mi<manualInputs.length; mi++){
+    var inp = manualInputs[mi];
+    var midx = parseInt(inp.getAttribute('data-idx'), 10);
+    var mv = parseInt(inp.value, 10);
+    if(!isNaN(midx) && mv >= 1 && mv <= 15) _voiceParsed[midx] = mv;
+  }
   var h = _voiceHole;
   var sc = _voiceSc;
   var ns = _voiceNs;
