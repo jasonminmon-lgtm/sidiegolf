@@ -7279,14 +7279,39 @@ function startVoiceEntry(){
   _voiceRecog.lang = 'en-US';
   _voiceRecog.continuous = false;
   _voiceRecog.interimResults = false;
-  _voiceRecog.maxAlternatives = 1;
+  _voiceRecog.maxAlternatives = 3;
+
+  // Prime the recognizer with player names + score words (Chrome/Safari)
+  try {
+    var GL = window.SpeechGrammarList || window.webkitSpeechGrammarList;
+    if (GL) {
+      var playerNames = _voiceIdxs.map(function(i){
+        return state.players[i] ? state.players[i].name.trim().split(/\s+/)[0].toLowerCase() : '';
+      }).filter(Boolean).join(' | ');
+      var grammar = '#JSGF V1.0; grammar golf; ' +
+        'public <score> = one | two | three | four | five | six | seven | eight | nine | ten | eleven | twelve ; ' +
+        (playerNames ? 'public <name> = ' + playerNames + ' ; ' : '') +
+        'public <entry> = (<name> <score> ,?)+ ;';
+      var gl = new GL();
+      gl.addFromString(grammar, 1);
+      _voiceRecog.grammars = gl;
+    }
+  } catch(e){}
 
   _voiceRecog.onstart = function(){ var f = $('voiceFab'); if (f) f.classList.add('listening'); };
   _voiceRecog.onend   = function(){ var f = $('voiceFab'); if (f) f.classList.remove('listening'); };
 
   _voiceRecog.onresult = function(e){
-    var transcript = e.results[0][0].transcript;
-    processVoiceResult(transcript);
+    // Try all alternatives, pick the one that fills the most player scores
+    var bestTranscript = e.results[0][0].transcript;
+    var bestCount = -1;
+    for(var ai = 0; ai < e.results[0].length; ai++){
+      var t = e.results[0][ai].transcript;
+      var parsed = parseVoiceScores(t, _voiceIdxs);
+      var cnt = _voiceIdxs.filter(function(i){ return parsed[i] != null; }).length;
+      if(cnt > bestCount){ bestCount = cnt; bestTranscript = t; }
+    }
+    processVoiceResult(bestTranscript);
   };
 
   _voiceRecog.onerror = function(e){
@@ -7328,6 +7353,7 @@ function voiceLev(a, b){
 
 function parseVoiceScores(transcript, idxs){
   var results = {};
+
   // Scored words + homophones the speech recogniser commonly returns for golf scores
   var scoreWords = {
     'one':1,'won':1,
@@ -7339,23 +7365,40 @@ function parseVoiceScores(transcript, idxs){
     'seven':7,
     'eight':8,'ate':8,
     'nine':9,'niner':9,
-    'ten':10,'eleven':11,'twelve':12,'thirteen':13,'fourteen':14,'fifteen':15
+    'ten':10,'eleven':11,'twelve':12
   };
 
-  // Tokenise: lowercase, split on whitespace/punctuation
-  var lower = transcript.toLowerCase().replace(/\b(got a|had a|scored a|made a|got|had|scored|made)\b/g,' ');
+  // Strip filler and hole references, then tokenise
+  var lower = transcript.toLowerCase()
+    .replace(/\bhole\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen)\b/g,' ')
+    .replace(/\b(got a|had a|scored a|made a|got|had|scored|made|a|and|the)\b/g,' ');
   var tokens = lower.split(/[\s,\.;:]+/).filter(Boolean);
 
+  // Extract all valid golf score values from the transcript, in order
+  var scoreTokens = [];
+  tokens.forEach(function(t){
+    var n = /^\d+$/.test(t) ? parseInt(t,10) : (scoreWords[t] != null ? scoreWords[t] : null);
+    if(n != null && n >= 1 && n <= 12) scoreTokens.push(n);
+  });
+
+  // PRIMARY: positional assignment — if the number of extracted scores matches the player
+  // count, assign in the order players appear on the scorecard. No name matching needed.
+  if(scoreTokens.length === idxs.length){
+    idxs.forEach(function(idx, i){ results[idx] = scoreTokens[i]; });
+    return results;
+  }
+
+  // SECONDARY: name-based matching with fuzzy lookup (handles partial fills)
   idxs.forEach(function(idx){
     var p = state.players[idx];
     if (!p || !p.name.trim()) return;
     var firstName = p.name.trim().split(/\s+/)[0].toLowerCase();
 
-    // Find best-matching token for this name (exact first, then fuzzy)
+    // Find best-matching name token
     var bestTi = -1, bestDist = 999;
     for(var ti=0; ti<tokens.length; ti++){
       var tok = tokens[ti];
-      if(/^\d+$/.test(tok) || scoreWords[tok] != null) continue; // skip number tokens
+      if(/^\d+$/.test(tok) || scoreWords[tok] != null) continue;
       if(tok === firstName){ bestTi = ti; bestDist = 0; break; }
       var threshold = firstName.length <= 4 ? 1 : 2;
       var d = voiceLev(tok, firstName);
@@ -7363,13 +7406,13 @@ function parseVoiceScores(transcript, idxs){
     }
     if(bestTi === -1) return;
 
-    // Look at the next 1–3 tokens for a score value
+    // Next 1-3 tokens after the name: look for a score value
     for(var ni=bestTi+1; ni<tokens.length && ni<=bestTi+3; ni++){
       var nt = tokens[ni];
       var s = null;
       if(/^\d+$/.test(nt))           s = parseInt(nt, 10);
       else if(scoreWords[nt] != null) s = scoreWords[nt];
-      if(s != null && s >= 1 && s <= 15){ results[idx] = s; break; }
+      if(s != null && s >= 1 && s <= 12){ results[idx] = s; break; }
       // Stop if this token looks like another player's name
       var isOtherName = idxs.some(function(oi){
         if(oi === idx) return false;
@@ -7380,16 +7423,11 @@ function parseVoiceScores(transcript, idxs){
     }
   });
 
-  // Position-based fallback: if remaining unused numbers match remaining players, assign in order
+  // TERTIARY: remaining unmatched numbers → remaining unmatched players (positional)
   var missing = idxs.filter(function(i){ return results[i] == null; });
   if(missing.length){
     var usedArr = idxs.map(function(i){ return results[i]; }).filter(function(v){ return v != null; });
-    var allNums = [];
-    tokens.forEach(function(t){
-      var n2 = /^\d+$/.test(t) ? parseInt(t,10) : (scoreWords[t] != null ? scoreWords[t] : null);
-      if(n2 != null && n2 >= 1 && n2 <= 15) allNums.push(n2);
-    });
-    var pool = allNums.slice();
+    var pool = scoreTokens.slice();
     usedArr.forEach(function(v){ var p2=pool.indexOf(v); if(p2!==-1) pool.splice(p2,1); });
     if(pool.length === missing.length){
       missing.forEach(function(idx2, i){ results[idx2] = pool[i]; });
