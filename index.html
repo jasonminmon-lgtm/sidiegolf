@@ -675,6 +675,26 @@
   .player-tee-row{display:flex;align-items:center;gap:7px;padding:2px 0 9px 38px;}
   .ptr-label{font-size:11px;color:var(--muted);flex-shrink:0;}
   .ptr-sel{font-size:12px;border:1px solid #d0d8d0;border-radius:6px;padding:2px 6px;color:var(--green-dark);background:#fff;cursor:pointer;}
+  /* ── Banker FAB + Overlay ──────────────────────────────────────────────── */
+  .banker-fab{position:fixed;bottom:200px;right:16px;width:50px;height:50px;border-radius:50%;background:var(--green-dark);color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 3px 14px rgba(0,0,0,0.28);z-index:800;display:none;align-items:center;justify-content:center;transition:transform .15s,background .2s;}
+  .banker-fab:active{transform:scale(0.9);}
+  .banker-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3400;display:flex;align-items:flex-end;justify-content:center;}
+  .banker-sheet{width:100%;max-width:480px;background:#fff;border-radius:18px 18px 0 0;padding:18px 18px 32px;box-shadow:0 -4px 24px rgba(0,0,0,.15);}
+  .banker-sheet-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .banker-sheet-title{font-size:16px;font-weight:700;color:var(--ink);}
+  .banker-close-btn{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0;line-height:1;}
+  .banker-section{margin-bottom:14px;}
+  .banker-section-title{font-size:12px;font-weight:700;color:var(--green-dark);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
+  .banker-hole-label{font-size:13px;color:var(--muted);margin-bottom:4px;}
+  .banker-player-btn{display:inline-flex;align-items:center;gap:6px;background:#f0f8ee;border:2px solid transparent;border-radius:10px;padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer;margin:3px;transition:border-color .15s,background .15s;}
+  .banker-player-btn.selected{border-color:var(--green);background:#d8f0da;}
+  .banker-wager-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .banker-wager-label{font-size:13px;color:var(--ink);flex:1;}
+  .banker-wager-input{width:72px;font-size:18px;font-weight:700;text-align:center;border:2px solid #c8d8c8;border-radius:8px;padding:5px 8px;color:var(--ink);}
+  .banker-multi-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+  .banker-multi-btn{flex:1;min-width:55px;padding:8px 4px;border:2px solid #c8d8c8;border-radius:10px;background:#fff;font-size:14px;font-weight:700;cursor:pointer;text-align:center;transition:border-color .15s,background .15s;}
+  .banker-multi-btn.selected{border-color:var(--green);background:#d8f0da;color:var(--green-dark);}
+  .banker-save-btn{width:100%;padding:13px;background:var(--green);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:12px;}
 </style>
 <!-- Firebase compat SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -1790,6 +1810,89 @@
       // Accumulate team running totals for down-team detection on next hole
       teamRunA += netA * holeAmount;
       teamRunB += netB * holeAmount;
+    }
+
+    return deltas;
+  };
+
+  // ──────────────── BANKER ──────────────────────────────────────────────────
+  // 1v1 game: one player (the Banker) plays against ALL other participants on
+  // each hole for a negotiated per-hole wager.
+  //
+  // Rotation: lowest net scorer on each hole banks the NEXT hole.
+  //   Ties: determined by the tieBreaker setup option (Banker Retains is default).
+  //
+  // Pressing / Doubling:
+  //   • Any player may press before a hole → multiplier ×2 (or ×3 on a par 3).
+  //   • Banker may counter-double → multiplier ×2 again.
+  //   bankerMulti event field stores the final combined multiplier for the hole.
+  //
+  // Birdie Bonus (optional): if either player makes a gross birdie the payout
+  //   for that match-up doubles.
+  //
+  // Bogey Rule (optional): if the Banker makes bogey or worse (gross ≥ par+1)
+  //   the Banker automatically loses to ALL players regardless of net score.
+  //
+  // Ties: Push (default) — carry nothing; or Banker Wins (banker collects on tie).
+  //
+  // Per-hole data stored in game.events[h]:
+  //   bankerHole  — player idx (string) of the hole's banker
+  //   bankerWager — agreed wager for the hole (defaults to minBet)
+  //   bankerMulti — combined multiplier: 1 | 2 | 3 | 4 …
+  games['Banker'] = function (game, ctx) {
+    var deltas = zero(game.participants);
+    var ids = game.participants;
+    if (ids.length < 2) return deltas;
+
+    var minBet    = parseFloat(game.stakes.minBet) || 5;
+    var tiesRule  = game.stakes.ties       || 'Push';
+    var bogeyOn   = game.stakes.bogeyRule  === 'On';
+    var birdieOn  = game.stakes.birdieBonus !== 'Off'; // 'On' by default
+
+    for (var h = 1; h <= 18; h++) {
+      var ev = (game.events && game.events[h]) || {};
+      if (ev.bankerHole == null) continue; // banker not set for this hole yet
+
+      var bankerId = String(ev.bankerHole);
+      if (ids.indexOf(bankerId) === -1) continue;
+
+      var wager  = (parseFloat(ev.bankerWager) > 0) ? parseFloat(ev.bankerWager) : minBet;
+      var multi  = (parseInt(ev.bankerMulti,10) > 0) ? parseInt(ev.bankerMulti,10) : 1;
+      var base   = wager * multi;
+
+      var par         = holePar(ctx.course, h);
+      var bankerGross = (ctx.scores && ctx.scores[bankerId]) ? ctx.scores[bankerId][h] : null;
+      var bankerNet   = netFor(ctx, bankerId, h);
+      if (bankerNet === null) continue; // banker not yet scored
+
+      var bankerBogey  = bogeyOn  && bankerGross != null && bankerGross >= par + 1;
+      var bankerBirdie = birdieOn && bankerGross != null && bankerGross <= par - 1;
+
+      ids.forEach(function (oppId) {
+        if (oppId === bankerId) return;
+        var oppGross = (ctx.scores && ctx.scores[oppId]) ? ctx.scores[oppId][h] : null;
+        var oppNet   = netFor(ctx, oppId, h);
+        if (oppNet === null) return; // opponent not yet scored
+
+        var oppBirdie = birdieOn && oppGross != null && oppGross <= par - 1;
+        var hw = base;
+        if (bankerBirdie || oppBirdie) hw *= 2; // birdie bonus
+
+        var diff;
+        if (bankerBogey) {
+          diff = -hw; // banker auto-loses
+        } else if (bankerNet < oppNet) {
+          diff = hw;  // banker wins
+        } else if (oppNet < bankerNet) {
+          diff = -hw; // opponent wins
+        } else {
+          // Tie
+          diff = (tiesRule === 'Banker Wins') ? hw : 0;
+        }
+
+        deltas[bankerId] += diff;
+        deltas[oppId]    -= diff;
+      });
     }
 
     return deltas;
@@ -3081,6 +3184,16 @@ var SIDE_GAME_DEFS = {
       {key:'umbrella', label:'Umbrella Rule (sweep all 6 → double)', type:'select', options:['Off','On']},
       {key:'crackOn', label:'Crack / Crack Back', type:'select', options:['Off','On']}
     ]
+  },
+  'Banker': {
+    desc:'1v1 side game: one player (the Banker) plays against all others each hole for a per-hole wager. The lowest net scorer takes the bank next hole. Players can press (double) before each hole; banker can counter-double.',
+    fields:[
+      {key:'minBet', label:'$ Min Wager / Hole', type:'number', placeholder:'5'},
+      {key:'ties', label:'Ties', type:'select', options:['Push','Banker Wins']},
+      {key:'bogeyRule', label:'Bogey Rule (banker bogey → auto-lose all)', type:'select', options:['Off','On']},
+      {key:'birdieBonus', label:'Birdie Bonus (birdie → 2× payout)', type:'select', options:['On','Off']},
+      {key:'tieBreaker', label:'Rotation Tie-Breaker (who banks next on tied low net)', type:'select', options:['Banker Retains','Longest Putt','First to Hole Out','Closest to Pin (Par 3)','Tee Flip']}
+    ]
   }
 };
 
@@ -3624,6 +3737,8 @@ function goToStep(n){
   if (typeof fbOnStepChange === 'function') fbOnStepChange(n);
   // Voice FAB: only show on scorecard step for single rounds
   if (n !== 6 || isEvent()) hideVoiceFab(); else showVoiceFab();
+  // Banker FAB: only show on scorecard step for single rounds that have a Banker game
+  if (n !== 6 || isEvent() || !hasBankerGame()) hideBankerFab(); else showBankerFab();
 }
 
 function renderStep(n){
@@ -5771,6 +5886,9 @@ function buildGameCardHtml(g, scope){
   if (g.type==='Scotch' && n !== 4 && n > 0){
     html += '<div class="player-count-warn">⚠️ Scotch requires exactly 4 players (2 per team). Currently '+n+'.</div>';
   }
+  if (g.type==='Banker' && n < 2 && n > 0){
+    html += '<div class="player-count-warn">⚠️ Banker requires at least 2 players. Currently '+n+'.</div>';
+  }
   if (g.type==='9 Point' && n !== 3 && n > 0){
     html += '<div class="player-count-warn">⚠️ 9 Point is a threesome — it needs exactly 3 players. Currently '+n+'.</div>';
   }
@@ -6078,7 +6196,8 @@ var EVENT_GAME_FIELDS = {
   '3-Man Wolf': ['hammerLog'],
   'Snake': ['snakeBite'],
   'Bingo Bango Bongo': ['firstOnGreen','closestToPin','firstIn'],
-  'Scotch': ['scotchProx','crackLog','scotchStake']
+  'Scotch': ['scotchProx','crackLog','scotchStake'],
+  'Banker': ['bankerHole','bankerWager','bankerMulti']
 };
 function gameNeedsPerHoleEvents(type){ return !!EVENT_GAME_FIELDS[type]; }
 
@@ -7226,6 +7345,193 @@ function buildScoreGridHtml(idxs, parByHole, sc, ns, strokes, wolfGames, handica
 }
 
 // ============================================================
+// BANKER GAME — FAB + OVERLAY
+// ============================================================
+
+var _bankerGame = null;  // reference to active Banker game object
+var _bankerSc   = null;  // current scorecard reference
+
+function hasBankerGame(){
+  if (isEvent()) return false;
+  var sc = state.scorecard;
+  if (!sc || !sc.games) return false;
+  return sc.games.some(function(g){ return g.type === 'Banker'; });
+}
+
+function showBankerFab(){
+  var fab = document.getElementById('bankerFab');
+  if (fab) fab.style.display = 'flex';
+}
+
+function hideBankerFab(){
+  var fab = document.getElementById('bankerFab');
+  if (fab) fab.style.display = 'none';
+}
+
+// Suggest the next banker based on lowest net on the previous hole
+function bankerSuggestNext(g, ids, h){
+  if (h <= 1) return ids[0] || null;
+  var course = state.course != null ? MOCK_COURSES[state.course] : null;
+  var tee    = course && state.tee ? course.tees.filter(function(t){ return t.name === state.tee; })[0] : null;
+  if (!course || !tee) return ids[0] || null;
+  var sc  = state.scorecard || { scores:{}, events:{} };
+  var ctx = buildCtx(ids, course, tee, sc);
+  var prevBankerId = null;
+  var prevEv = (g.events && g.events[h-1]) || {};
+  if (prevEv.bankerHole != null) prevBankerId = String(prevEv.bankerHole);
+  var lowestNet = null, lowestId = prevBankerId || (ids[0] || null);
+  ids.forEach(function(id){
+    var n = netFor(ctx, id, h-1);
+    if (n !== null && (lowestNet === null || n < lowestNet)){ lowestNet = n; lowestId = id; }
+  });
+  return lowestId;
+}
+
+function openBankerOverlay(){
+  var sc = state.scorecard;
+  if (!sc || !sc.games) return;
+  var bankerGame = null;
+  for (var gi = 0; gi < sc.games.length; gi++){
+    if (sc.games[gi].type === 'Banker'){ bankerGame = sc.games[gi]; break; }
+  }
+  if (!bankerGame) return;
+  _bankerGame = bankerGame;
+  _bankerSc   = sc;
+
+  var ids = bankerGame.participants;
+  var h   = voiceDetectCurrentHole(ids, sc); // reuse the "first incomplete hole" logic
+
+  renderBankerOverlay(h);
+  var el = document.getElementById('bankerOverlay');
+  if (el) el.style.display = 'flex';
+}
+
+function closeBankerOverlay(){
+  var el = document.getElementById('bankerOverlay');
+  if (el) el.style.display = 'none';
+}
+
+function renderBankerOverlay(h){
+  var g  = _bankerGame;
+  var sc = _bankerSc;
+  if (!g || !sc) return;
+
+  var ev     = (g.events && g.events[h]) || {};
+  var minBet = parseFloat(g.stakes.minBet) || 5;
+  var wager  = (parseFloat(ev.bankerWager) > 0) ? parseFloat(ev.bankerWager) : minBet;
+  var multi  = (parseInt(ev.bankerMulti,10) > 0) ? parseInt(ev.bankerMulti,10) : 1;
+
+  var course   = state.course != null ? MOCK_COURSES[state.course] : null;
+  var courseTee = course && state.tee ? course.tees.filter(function(t){ return t.name === state.tee; })[0] : null;
+  var par      = holePar(course, h);
+
+  var ids = g.participants;
+
+  // Determine current banker: use stored value, or suggest next based on prev hole's lowest net
+  var currentBankerId;
+  if (ev.bankerHole != null){
+    currentBankerId = String(ev.bankerHole);
+  } else {
+    currentBankerId = bankerSuggestNext(g, ids, h) || (ids[0] || null);
+  }
+
+  // Multiplier options — par 3 allows ×3 press
+  var multiOptions;
+  if (par === 3){
+    multiOptions = [
+      {val:1, label:'1×'},
+      {val:2, label:'2× Press'},
+      {val:3, label:'3× Par 3 Press'},
+      {val:6, label:'6× (Par 3 + Counter)'}
+    ];
+  } else {
+    multiOptions = [
+      {val:1, label:'1×'},
+      {val:2, label:'2× Press'},
+      {val:4, label:'4× (Press + Counter)'}
+    ];
+  }
+
+  var body = '';
+  body += '<p class="banker-hole-label">Hole ' + h + (par ? ' — Par ' + par : '') + '</p>';
+
+  // Banker selector
+  body += '<div class="banker-section">';
+  body += '<div class="banker-section-title">Who is the Banker?</div>';
+  ids.forEach(function(idx){
+    var p    = state.players[idx];
+    var name = p && p.name ? p.name.trim().split(/\s+/)[0] : ('P' + (parseInt(idx,10)+1));
+    var sel  = (String(idx) === String(currentBankerId)) ? ' selected' : '';
+    body += '<button class="banker-player-btn' + sel + '" onclick="bankerSelectPlayer(this,\'' + idx + '\')">'
+          + escapeHtml(name) + '</button>';
+  });
+  body += '</div>';
+
+  // Wager input
+  body += '<div class="banker-section">';
+  body += '<div class="banker-section-title">Wager</div>';
+  body += '<div class="banker-wager-row">';
+  body += '<span class="banker-wager-label">$ per hole</span>';
+  body += '<input id="bankerWagerInput" type="number" min="1" step="1" class="banker-wager-input" value="' + wager + '">';
+  body += '</div></div>';
+
+  // Press / Double multiplier
+  body += '<div class="banker-section">';
+  body += '<div class="banker-section-title">Press / Double</div>';
+  body += '<div class="banker-multi-row">';
+  multiOptions.forEach(function(opt){
+    var sel = (opt.val === multi) ? ' selected' : '';
+    body += '<button class="banker-multi-btn' + sel + '" data-multi="' + opt.val
+          + '" onclick="bankerSelectMulti(this,' + opt.val + ')">' + escapeHtml(opt.label) + '</button>';
+  });
+  body += '</div></div>';
+
+  body += '<button class="banker-save-btn" onclick="bankerSave(' + h + ')">Save Hole ' + h + '</button>';
+
+  var bodyEl = document.getElementById('bankerSheetBody');
+  if (bodyEl){
+    bodyEl.innerHTML = body;
+    bodyEl.setAttribute('data-cur-banker', currentBankerId != null ? String(currentBankerId) : '');
+  }
+}
+
+function bankerSelectPlayer(btn, idx){
+  document.querySelectorAll('#bankerSheetBody .banker-player-btn').forEach(function(b){ b.classList.remove('selected'); });
+  btn.classList.add('selected');
+  var bodyEl = document.getElementById('bankerSheetBody');
+  if (bodyEl) bodyEl.setAttribute('data-cur-banker', String(idx));
+}
+
+function bankerSelectMulti(btn, val){
+  document.querySelectorAll('#bankerSheetBody .banker-multi-btn').forEach(function(b){ b.classList.remove('selected'); });
+  btn.classList.add('selected');
+}
+
+function bankerSave(h){
+  var g = _bankerGame;
+  if (!g) return;
+  if (!g.events) g.events = {};
+  if (!g.events[h]) g.events[h] = {};
+
+  var bodyEl   = document.getElementById('bankerSheetBody');
+  var bankerId = bodyEl ? bodyEl.getAttribute('data-cur-banker') : '';
+  var wagerEl  = document.getElementById('bankerWagerInput');
+  var wager    = parseFloat(wagerEl && wagerEl.value) || parseFloat(g.stakes.minBet) || 5;
+  var selMulti = document.querySelector('#bankerSheetBody .banker-multi-btn.selected');
+  var multi    = selMulti ? parseInt(selMulti.getAttribute('data-multi'),10) : 1;
+
+  if (bankerId) g.events[h].bankerHole  = bankerId;
+  g.events[h].bankerWager = wager;
+  g.events[h].bankerMulti = multi;
+
+  autoSave();
+  closeBankerOverlay();
+
+  // Refresh the game card table so bankerHole row updates immediately
+  renderScorecard();
+}
+
+// ============================================================
 // VOICE SCORE ENTRY
 // ============================================================
 
@@ -7280,23 +7586,6 @@ function startVoiceEntry(){
   _voiceRecog.continuous = false;
   _voiceRecog.interimResults = false;
   _voiceRecog.maxAlternatives = 3;
-
-  // Prime the recognizer with player names + score words (Chrome/Safari)
-  try {
-    var GL = window.SpeechGrammarList || window.webkitSpeechGrammarList;
-    if (GL) {
-      var playerNames = _voiceIdxs.map(function(i){
-        return state.players[i] ? state.players[i].name.trim().split(/\s+/)[0].toLowerCase() : '';
-      }).filter(Boolean).join(' | ');
-      var grammar = '#JSGF V1.0; grammar golf; ' +
-        'public <score> = one | two | three | four | five | six | seven | eight | nine | ten | eleven | twelve ; ' +
-        (playerNames ? 'public <name> = ' + playerNames + ' ; ' : '') +
-        'public <entry> = (<name> <score> ,?)+ ;';
-      var gl = new GL();
-      gl.addFromString(grammar, 1);
-      _voiceRecog.grammars = gl;
-    }
-  } catch(e){}
 
   _voiceRecog.onstart = function(){ var f = $('voiceFab'); if (f) f.classList.add('listening'); };
   _voiceRecog.onend   = function(){ var f = $('voiceFab'); if (f) f.classList.remove('listening'); };
@@ -7374,21 +7663,14 @@ function parseVoiceScores(transcript, idxs){
     .replace(/\b(got a|had a|scored a|made a|got|had|scored|made|a|and|the)\b/g,' ');
   var tokens = lower.split(/[\s,\.;:]+/).filter(Boolean);
 
-  // Extract all valid golf score values from the transcript, in order
+  // Extract all valid golf score values from the transcript, in order (used for fallback)
   var scoreTokens = [];
   tokens.forEach(function(t){
     var n = /^\d+$/.test(t) ? parseInt(t,10) : (scoreWords[t] != null ? scoreWords[t] : null);
     if(n != null && n >= 1 && n <= 12) scoreTokens.push(n);
   });
 
-  // PRIMARY: positional assignment — if the number of extracted scores matches the player
-  // count, assign in the order players appear on the scorecard. No name matching needed.
-  if(scoreTokens.length === idxs.length){
-    idxs.forEach(function(idx, i){ results[idx] = scoreTokens[i]; });
-    return results;
-  }
-
-  // SECONDARY: name-based matching with fuzzy lookup (handles partial fills)
+  // PRIMARY: name-based matching with fuzzy lookup
   idxs.forEach(function(idx){
     var p = state.players[idx];
     if (!p || !p.name.trim()) return;
@@ -7448,7 +7730,7 @@ function openVoiceSheet(mode, transcript){
       '<div class="voice-status">' +
       '<span class="voice-mic-icon">🎙️</span>' +
       '<div style="font-size:15px;font-weight:600;color:var(--ink);">Listening for Hole ' + _voiceHole + '…</div>' +
-      '<div style="font-size:13px;color:var(--muted);margin-top:6px;">Say player names and scores.<br><em style="opacity:.75;">e.g. "Jason 4, Craig 3, Tony 5, Kevin 6"</em></div>' +
+      '<div style="font-size:13px;color:var(--muted);margin-top:6px;">Say each name then their score.<br><em style="opacity:.75;">e.g. "Jason 4, Craig 3, Tony 5, Kevin 6"</em></div>' +
       '</div>' +
       '<button class="voice-btn retry" style="width:100%;margin-top:12px;" onclick="closeVoiceScore()">Cancel</button>';
     return;
@@ -7679,6 +7961,20 @@ function buildEventTablesHtml(games, idxs, sc, ns){
       ];
       if (g.stakes.crackOn === 'On') legend.push('Crack — only the team down $ may crack first on each hole. The other team may crack back. Each accepted crack doubles $/pt for that hole.');
       legend.push('$/pt — tap any cell to change the $/pt rate from that hole forward. The team that is down may raise the stakes at any time.');
+    } else if (g.type==='Banker'){
+      if (participantIdxs.length < 2){
+        html += '<tr><td colspan="19" style="padding:10px;color:#c0392b;font-size:13px;">Banker requires at least 2 players.</td></tr>';
+      } else {
+        html += buildSelectRow('Banker', g, participantIdxs, sc, ns, 'bankerHole', true);
+        html += buildBankerWagerRow(g, sc, ns);
+      }
+      legend = [
+        'Banker — tap to set who is banking each hole. The 🏦 button on the scorecard auto-suggests the next banker from the lowest net on the previous hole.',
+        'Wager — shows $ × multiplier for each hole. Use the 🏦 button to set wager and press/double before a hole.',
+        'Birdie Bonus: ' + (g.stakes.birdieBonus !== 'Off' ? 'On — a gross birdie by either side doubles the payout for that match-up.' : 'Off.'),
+        'Bogey Rule: ' + (g.stakes.bogeyRule === 'On' ? 'On — banker makes bogey or worse → auto-loses to all players on that hole.' : 'Off.'),
+        'Ties: ' + (g.stakes.ties === 'Banker Wins' ? 'Banker Wins — banker collects on tied net scores.' : 'Push — tied net scores result in no money exchange.')
+      ];
     }
     html += '</tbody></table></div>';
     if (legend.length){
@@ -7934,6 +8230,21 @@ function buildScotchStakeRow(g, sc, ns){
     var changed = (Math.abs(curAmount - baseAmount) > 0.001);
     var label = '$' + curAmount;
     html += '<td><button class="scotch-stake-btn'+(changed?' stake-changed':'')+'" data-scotch-stake="'+ns+'|'+g.id+'|'+h+'|'+curAmount+'">'+label+'</button></td>';
+  }
+  html += '</tr>';
+  return html;
+}
+
+function buildBankerWagerRow(g, sc, ns){
+  var baseAmount = parseFloat((g.stakes && g.stakes.minBet)) || 5;
+  var html = '<tr><td class="sc-rowlabel">Wager</td>';
+  for (var h=1; h<=18; h++){
+    var ev = sc.events[h] || {};
+    var wager = (parseFloat(ev.bankerWager) > 0) ? parseFloat(ev.bankerWager) : baseAmount;
+    var multi  = (parseInt(ev.bankerMulti,10) > 0) ? parseInt(ev.bankerMulti,10) : 1;
+    var changed = (Math.abs(wager - baseAmount) > 0.001 || multi !== 1);
+    var label = '$' + wager + (multi > 1 ? '×' + multi : '');
+    html += '<td><span class="sc-rowlabel'+(changed?' stake-changed':'')+'" style="font-size:10px;white-space:nowrap;">'+escapeHtml(label)+'</span></td>';
   }
   html += '</tr>';
   return html;
@@ -12528,6 +12839,20 @@ if ('serviceWorker' in navigator) {
       <button class="signout-discard" onclick="doSignOut(true)">🗑️ Discard Round &amp; Sign Out</button>
       <button class="signout-cancel" onclick="document.getElementById('signoutOverlay').style.display='none'">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- ── Banker Game FAB ───────────────────────────────────────────────────── -->
+<button id="bankerFab" class="banker-fab" onclick="openBankerOverlay()" title="Set banker for this hole" aria-label="Banker wager entry" style="display:none;">🏦</button>
+
+<!-- Banker Overlay -->
+<div id="bankerOverlay" class="banker-overlay" style="display:none;" onclick="if(event.target===this)closeBankerOverlay();">
+  <div class="banker-sheet">
+    <div class="banker-sheet-header">
+      <span class="banker-sheet-title">🏦 Banker — Hole Setup</span>
+      <button class="banker-close-btn" onclick="closeBankerOverlay()">✕</button>
+    </div>
+    <div id="bankerSheetBody"></div>
   </div>
 </div>
 

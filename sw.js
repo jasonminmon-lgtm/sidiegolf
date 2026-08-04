@@ -1,5 +1,5 @@
 // SidieGolf Service Worker
-const CACHE_NAME = 'sidiegolf-v29';
+const CACHE_NAME = 'sidiegolf-v30';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
