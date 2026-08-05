@@ -11869,6 +11869,16 @@ function fbApplyRemoteState(remote) {
         while (MOCK_COURSES.length <= d.courseIdx) MOCK_COURSES.push(null);
         MOCK_COURSES[d.courseIdx] = d._courseData;
       }
+      // Restore singlesPairings from {a,b} objects back to [a,b] arrays
+      if (d && d.singlesPairings) {
+        var sp2 = {};
+        Object.keys(d.singlesPairings).forEach(function(gn) {
+          sp2[gn] = (d.singlesPairings[gn] || []).map(function(pair) {
+            return Array.isArray(pair) ? pair : [pair.a, pair.b];
+          });
+        });
+        d.singlesPairings = sp2;
+      }
     });
   }
   var keys = Object.keys(remote);
@@ -12290,6 +12300,25 @@ function fbSerializeState() {
     }
   } catch(e) {
     console.warn('fbSerializeState event day _courseData error (state still saved):', e);
+  }
+  // Firestore rejects nested arrays. singlesPairings stores pairs as [a,b] arrays
+  // inside a per-group array — convert to {a,b} objects so Firestore accepts the write.
+  try {
+    if (s.days && Array.isArray(s.days)) {
+      s.days.forEach(function(d) {
+        if (d.singlesPairings) {
+          var sp2 = {};
+          Object.keys(d.singlesPairings).forEach(function(gn) {
+            sp2[gn] = (d.singlesPairings[gn] || []).map(function(pair) {
+              return Array.isArray(pair) ? { a: pair[0], b: pair[1] } : pair;
+            });
+          });
+          d.singlesPairings = sp2;
+        }
+      });
+    }
+  } catch(e) {
+    console.warn('fbSerializeState singlesPairings error (state still saved):', e);
   }
   return s;
 }
