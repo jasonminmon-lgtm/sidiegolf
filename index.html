@@ -5340,7 +5340,7 @@ function addDay(){
   // Event Schedule step doesn't redundantly ask for the course again.
   var _defCourseIdx = state.course != null ? state.course : null;
   var _defTee = state.tee || null;
-  state.days.push({ id: nextDayId++, courseIdx:_defCourseIdx, teeName:_defTee, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{}, groupHcpPct:{}, playerTees:{}, singlesPairings:{}, status:'pending', dayFormat:'match', pointValue:1, birdiesBasis:'Gross' });
+  state.days.push({ id: nextDayId++, courseIdx:_defCourseIdx, teeName:_defTee, numGroups:Math.max(1, Math.ceil(state.players.length/4)), assignments:{}, groupGames:{}, dayGames:[], scorecards:{}, groupMatchType:{}, groupHcpPct:{}, playerTees:{}, singlesPairings:{}, status:'pending', dayFormat:'match', pointValue:1, pointsScope:'perMatch', birdiesBasis:'Gross' });
   if (state.selectedDayForGames==null) state.selectedDayForGames = state.days[0].id;
 }
 if (state.days.length===0) addDay();
@@ -5397,6 +5397,16 @@ function renderEventSchedule(){
         html += '<div class="hcp-pct-row"><input type="range" min="0" max="10" step="1" value="'+_pv+'" data-rc-ptslider="'+d.id+'">';
         html += '<span class="hcp-pct-val" id="pts-val-'+d.id+'">'+_pvLabel+'</span></div>';
         html += '<div class="hcp-pct-label">0 = Tiebreaker (no points). 1–10 = points awarded.</div>';
+        if (_df === 'match') {
+          var _ps = d.pointsScope || 'perMatch';
+          html += '<div style="margin-top:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.3px;margin-bottom:4px;">Points Scope</div>';
+          html += '<div class="rc-match-type-sel">';
+          [['perMatch','Per Match'],['perDay','Per Day']].forEach(function(pair){
+            html += '<button class="rc-mt-btn'+((_ps===pair[0])?' active':'')+'" data-rc-ptscope="'+d.id+'|'+pair[0]+'">'+pair[1]+'</button>';
+          });
+          html += '</div>';
+          html += '<div class="hcp-pct-label">Per match: each group\'s result earns points separately. Per day: team majority wins take the day\'s points.</div></div>';
+        }
         if (_df === 'par3Birdie') {
           var _bb = d.birdiesBasis || 'Gross';
           html += '<div style="margin-top:6px;"><div class="rc-match-type-sel">';
@@ -5595,6 +5605,7 @@ function renderEventSchedule(){
       if (fmt === 'match' && (d.pointValue == null || d.pointValue === 0)) d.pointValue = 1;
       else if (fmt === 'teamStroke' && (d.pointValue == null || d.pointValue === 0)) d.pointValue = 2;
       else if (fmt === 'par3Birdie' && d.pointValue == null) d.pointValue = 0;
+      if (fmt === 'match') { if (!d.pointsScope || d.pointsScope === 'perDay') d.pointsScope = 'perMatch'; }
       renderEventSchedule();
     });
   });
@@ -5608,6 +5619,18 @@ function renderEventSchedule(){
       var dispEl = document.getElementById('pts-val-'+dayId);
       if (dispEl) dispEl.textContent = d.pointValue === 0 ? 'Tiebreaker' : d.pointValue+' pt'+(d.pointValue!==1?'s':'');
       if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    });
+  });
+  // Ryder Cup: points scope toggle (pre-lock)
+  Array.prototype.forEach.call(document.querySelectorAll('[data-rc-ptscope]'), function(el){
+    el.addEventListener('click', function(){
+      var parts = el.getAttribute('data-rc-ptscope').split('|');
+      var dayId = parseInt(parts[0],10), scope = parts[1];
+      var d = state.days.filter(function(x){return x.id===dayId;})[0];
+      if (!d) return;
+      d.pointsScope = scope;
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+      renderEventSchedule();
     });
   });
   // Ryder Cup: birdie basis toggle (pre-lock)
@@ -6397,6 +6420,16 @@ function renderDaySetupContent(dayId) {
     html += '<div class="hcp-pct-row"><input type="range" min="0" max="10" step="1" id="dsePointSlider-'+dayId+'" value="'+_pv+'">';
     html += '<span class="hcp-pct-val" id="dse-pts-val-'+dayId+'">'+_pvLabel2+'</span></div>';
     html += '<div class="hcp-pct-label">0 = Tiebreaker (no points). 1–10 = points awarded.</div>';
+    if (_df === 'match') {
+      var _ps3 = d.pointsScope || 'perMatch';
+      html += '<label class="field-label" style="margin-top:10px;">Points Scope</label>';
+      html += '<div class="rc-match-type-sel">';
+      [['perMatch','Per Match'],['perDay','Per Day']].forEach(function(pair){
+        html += '<button class="rc-mt-btn'+((_ps3===pair[0])?' active':'')+'" onclick="setDsoPtsScope('+dayId+',\''+pair[0]+'\')">'+pair[1]+'</button>';
+      });
+      html += '</div>';
+      html += '<div class="hcp-pct-label">Per match: each group earns points. Per day: team majority wins take the day\'s points.</div>';
+    }
     if (_df === 'par3Birdie') {
       var _bbDse = d.birdiesBasis || 'Gross';
       html += '<label class="field-label" style="margin-top:8px;">Score Basis</label>';
@@ -6562,6 +6595,16 @@ window.setDsoDayFormat = function(dayId, fmt) {
   if (fmt === 'match' && (d.pointValue == null || d.pointValue === 0)) d.pointValue = 1;
   else if (fmt === 'teamStroke' && (d.pointValue == null || d.pointValue === 0)) d.pointValue = 2;
   else if (fmt === 'par3Birdie' && d.pointValue == null) d.pointValue = 0;
+  // Auto-set sensible default points scope
+  if (fmt === 'match') { if (!d.pointsScope || d.pointsScope === 'perDay') d.pointsScope = 'perMatch'; }
+  renderDaySetupContent(dayId);
+};
+
+window.setDsoPtsScope = function(dayId, scope) {
+  var d = state.days.filter(function(x){return x.id===dayId;})[0];
+  if (!d) return;
+  d.pointsScope = scope;
+  if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
   renderDaySetupContent(dayId);
 };
 
@@ -10763,6 +10806,8 @@ function buildRyderCupScoreboardHtml(){
     }
 
     // ---- Match Play (default) ----
+    var _matchPtScope = d.pointsScope || 'perMatch';
+    var _preSummaryLen = matchSummaries.length;
     for (var gn=1; gn<=d.numGroups; gn++){
       var idxs = Object.keys(d.assignments).filter(function(k){return d.assignments[k]===gn;}).map(function(k){return parseInt(k,10);});
       if (!idxs.length) continue;
@@ -10818,6 +10863,26 @@ function buildRyderCupScoreboardHtml(){
           matchSummaries.push({dayLabel:dayLbl,matchType:matchType,label:aLbl2+' v '+bLbl2,
             teamAPoints:0,teamBPoints:0,maxPoints:pv,complete:false,started:false,thru:0,curUp:0,winnerSide:null});
         }
+      }
+    }
+    // perDay: collapse all per-group summaries for this day into one aggregate
+    if (_matchPtScope === 'perDay') {
+      var daySummaries = matchSummaries.splice(_preSummaryLen);
+      if (daySummaries.length > 0) {
+        var dayAW = 0, dayBW = 0;
+        var dayStarted = false, dayComplete = true;
+        daySummaries.forEach(function(r){
+          if (pv > 0) { dayAW += r.teamAPoints / pv; dayBW += r.teamBPoints / pv; }
+          if (r.started) dayStarted = true;
+          if (!r.complete) dayComplete = false;
+        });
+        var dayWinSide = dayAW > dayBW ? 'A' : (dayBW > dayAW ? 'B' : 'tie');
+        var dayAFinal = dayWinSide==='A' ? pv : (dayWinSide==='tie' ? pv/2 : 0);
+        var dayBFinal = dayWinSide==='B' ? pv : (dayWinSide==='tie' ? pv/2 : 0);
+        matchSummaries.push({dayLabel:dayLbl, matchType:'Match Play', label:'Day Result ('+daySummaries.length+' matches)',
+          teamAPoints:dayAFinal, teamBPoints:dayBFinal, maxPoints:pv,
+          complete:dayComplete, started:dayStarted, thru:0, curUp:0,
+          winnerSide:dayWinSide==='tie'?null:dayWinSide});
       }
     }
   });
