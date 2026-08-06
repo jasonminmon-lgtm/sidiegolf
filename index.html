@@ -391,6 +391,11 @@
   .caddie-input-row input:focus{border-color:var(--green-dark,#2d7a3a);}
   .caddie-send{background:var(--green-dark,#2d7a3a);color:#fff;border:none;border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .15s;}
   .caddie-send:disabled{opacity:.4;}
+  .caddie-subtitle{font-size:12px;color:#6b8f71;margin-top:2px;font-weight:400;}
+  .caddie-mic{background:none;border:1.5px solid #ccd8cc;border-radius:50%;width:38px;height:38px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;}
+  .caddie-mic.active{background:#e8f4ea;border-color:var(--green-dark,#2d7a3a);animation:caddieListening 1.2s infinite;}
+  .caddie-mic.hidden{display:none;}
+  @keyframes caddieListening{0%,100%{box-shadow:0 0 0 0 rgba(45,122,58,0.4);}60%{box-shadow:0 0 0 7px rgba(45,122,58,0);}}
   .feedback-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:0 0 40px;max-height:82vh;overflow-y:auto;}
   .feedback-head{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff;z-index:1;}
   .feedback-title{font-size:17px;font-weight:700;color:var(--green-dark);}
@@ -12993,7 +12998,10 @@ if ('serviceWorker' in navigator) {
 <div id="caddieOverlay" class="caddie-overlay" onclick="if(event.target===this)closeCaddie()">
   <div class="caddie-sheet">
     <div class="caddie-header">
-      <span class="caddie-title">🏌️ Caddie</span>
+      <div>
+        <span class="caddie-title">🏌️ Caddie</span>
+        <div class="caddie-subtitle">SidieGolf's AI Game Manager</div>
+      </div>
       <button class="caddie-close" onclick="closeCaddie()">✕</button>
     </div>
     <div id="caddieMessages" class="caddie-messages">
@@ -13002,7 +13010,8 @@ if ('serviceWorker' in navigator) {
       </div>
     </div>
     <div class="caddie-input-row">
-      <input id="caddieInput" type="text" placeholder="Ask Caddie anything…" autocomplete="off" />
+      <input id="caddieInput" type="text" placeholder="Type or tap 🎤 to speak…" autocomplete="off" />
+      <button id="caddieMic" class="caddie-mic hidden" onclick="toggleCaddieMic()" title="Speak to Caddie">🎤</button>
       <button id="caddieSend" class="caddie-send" onclick="sendCaddieMessage()">➤</button>
     </div>
   </div>
@@ -13100,23 +13109,88 @@ var caddieHistory = [];
 function buildCaddieContext() {
   var ctx = {};
   try {
+    ctx.step = state.step;
     if (state.roundType) ctx.roundType = state.roundType;
     if (state.scoringMethod) ctx.scoringMethod = state.scoringMethod;
-    if (state.players && state.players.length) {
-      ctx.players = state.players.map(function(p) { return { name: p.name, hi: p.hi }; });
+    if (state.courseIdx != null && MOCK_COURSES[state.courseIdx]) {
+      var c = MOCK_COURSES[state.courseIdx];
+      ctx.course = { name: c.name, idx: state.courseIdx, tees: (c.tees||[]).map(function(t){return t.name;}) };
     }
-    if (state.teamA) ctx.teamA = state.teamA;
-    if (state.teamB) ctx.teamB = state.teamB;
+    if (state.players && state.players.length) {
+      ctx.players = state.players.map(function(p, i) { return { index: i, name: p.name, hi: p.hi, tee: p.tee }; });
+    }
+    if (state.rcTeamNames) {
+      ctx.teams = { A: state.rcTeamNames.A, B: state.rcTeamNames.B, assignments: state.rcTeamAssign };
+    }
+    if (state.sideGames && state.sideGames.length) {
+      ctx.sideGames = state.sideGames.map(function(g) { return { type: g.type, stakes: g.stakes }; });
+    }
     if (state.days && state.days.length) {
-      ctx.days = state.days.map(function(d) {
-        return { dayFormat: d.dayFormat, pointValue: d.pointValue, status: d.status };
+      ctx.days = state.days.map(function(d, i) {
+        return { index: i, dayFormat: d.dayFormat, status: d.status, pointValue: d.pointValue, numGroups: d.numGroups };
       });
     }
-    // Grab scoreboard text for live score context
-    var sb = document.getElementById('rc-scoreboard') || document.querySelector('.rc-scoreboard');
-    if (sb) ctx.score = sb.textContent.replace(/\s+/g,' ').trim().slice(0, 300);
+    var lb = document.querySelector('.rc-scoreboard') || document.getElementById('leaderboardSection');
+    if (lb) ctx.leaderboard = lb.innerText.replace(/\s+/g,' ').trim().slice(0, 400);
   } catch(e) {}
   return ctx;
+}
+
+// ── Caddie voice input ────────────────────────────────────────────────────────
+var caddieRecognition = null;
+
+function initCaddieVoice() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  caddieRecognition = new SR();
+  caddieRecognition.continuous = false;
+  caddieRecognition.interimResults = false;
+  caddieRecognition.lang = 'en-US';
+  caddieRecognition.onresult = function(e) {
+    var transcript = e.results[0][0].transcript;
+    document.getElementById('caddieInput').value = transcript;
+    setCaddieMicActive(false);
+    sendCaddieMessage();
+  };
+  caddieRecognition.onend = function() { setCaddieMicActive(false); };
+  caddieRecognition.onerror = function(e) {
+    setCaddieMicActive(false);
+    if (e.error !== 'aborted' && e.error !== 'no-speech') {
+      appendCaddieMessage('caddie', "Didn't catch that — try again.");
+    }
+  };
+  // Show mic button now that SR is available
+  var btn = document.getElementById('caddieMic');
+  if (btn) btn.classList.remove('hidden');
+}
+
+function toggleCaddieMic() {
+  if (!caddieRecognition) return;
+  var btn = document.getElementById('caddieMic');
+  if (btn && btn.classList.contains('active')) {
+    caddieRecognition.stop();
+  } else {
+    // Blur input so keyboard never appears
+    document.getElementById('caddieInput').blur();
+    document.getElementById('caddieInput').value = '';
+    setCaddieMicActive(true);
+    try { caddieRecognition.start(); } catch(e) { setCaddieMicActive(false); }
+  }
+}
+
+function setCaddieMicActive(active) {
+  var btn = document.getElementById('caddieMic');
+  var inp = document.getElementById('caddieInput');
+  if (!btn || !inp) return;
+  if (active) {
+    btn.classList.add('active');
+    btn.textContent = '🔴';
+    inp.placeholder = 'Listening…';
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '🎤';
+    inp.placeholder = 'Type or tap 🎤 to speak…';
+  }
 }
 
 function openCaddie() {
@@ -13124,7 +13198,7 @@ function openCaddie() {
   overlay.style.display = 'flex';
   setTimeout(function(){ document.getElementById('caddieInput').focus(); }, 100);
   if (caddieHistory.length === 0) {
-    appendCaddieMessage('caddie', "On the bag and ready to go. What do you need?");
+    appendCaddieMessage('caddie', "On the bag. I handle everything — round setup, side games, scoring, rules. Type or tap 🎤 to speak. What do you need?");
   }
 }
 
@@ -13143,12 +13217,244 @@ function appendCaddieMessage(role, text) {
 }
 
 function setCaddieTyping(show) {
-  var typing = document.getElementById('caddieTyping');
-  typing.style.display = show ? 'flex' : 'none';
+  document.getElementById('caddieTyping').style.display = show ? 'flex' : 'none';
   var msgs = document.getElementById('caddieMessages');
   msgs.scrollTop = msgs.scrollHeight;
 }
 
+// ── Caddie tool executor — called by browser when Claude requests a tool ──────
+async function executeCaddieTool(name, input) {
+  input = input || {};
+  try {
+    switch (name) {
+
+      case 'get_app_state': {
+        var summary = {
+          step: state.step,
+          roundType: state.roundType,
+          scoringMethod: state.scoringMethod,
+          course: state.courseIdx != null && MOCK_COURSES[state.courseIdx] ? MOCK_COURSES[state.courseIdx].name + ' (idx ' + state.courseIdx + ')' : null,
+          tee: state.tee,
+          date: state.date,
+          players: (state.players||[]).map(function(p,i){ return {index:i, name:p.name, hi:p.hi, tee:p.tee}; }),
+          sideGames: (state.sideGames||[]).map(function(g){ return {type:g.type, stakes:g.stakes}; }),
+          teams: state.rcTeamNames ? { A: state.rcTeamNames.A, B: state.rcTeamNames.B, assignments: state.rcTeamAssign } : null,
+          days: state.days ? state.days.map(function(d,i){ return {index:i, status:d.status, dayFormat:d.dayFormat, courseIdx:d.courseIdx, numGroups:d.numGroups, pointValue:d.pointValue, pointsScope:d.pointsScope, assignments:d.assignments, groupMatchType:d.groupMatchType}; }) : null
+        };
+        return JSON.stringify(summary, null, 2);
+      }
+
+      case 'navigate_to_step': {
+        var s = parseInt(input.step, 10);
+        if (s >= 1 && s <= 7) { goToStep(s); return 'Navigated to step ' + s; }
+        return 'Invalid step: ' + input.step;
+      }
+
+      case 'set_round_type': {
+        state.roundType = input.roundType;
+        state.scoringMethod = input.scoringMethod;
+        if (input.scoringMethod === 'Ryder Cup Format') state.multiDay = true;
+        return 'Round type set to ' + input.roundType + ' / ' + input.scoringMethod;
+      }
+
+      case 'search_course': {
+        var q = (input.query || '').toLowerCase();
+        var results = [];
+        Object.keys(MOCK_COURSES).forEach(function(k) {
+          var c = MOCK_COURSES[k];
+          if (c && c.name && c.name.toLowerCase().indexOf(q) >= 0) {
+            results.push({ courseIdx: parseInt(k, 10), name: c.name, tees: (c.tees||[]).map(function(t){return t.name;}) });
+          }
+        });
+        // Also try GHIN API
+        try {
+          var apiResults = await golfApiSearch(input.query);
+          apiResults.slice(0, 5).forEach(function(ac) {
+            var local = mapApiCourseToLocal(ac);
+            var newIdx = Object.keys(MOCK_COURSES).length;
+            MOCK_COURSES[newIdx] = local;
+            results.push({ courseIdx: newIdx, name: local.name, tees: (local.tees||[]).map(function(t){return t.name;}) });
+          });
+        } catch(e) {}
+        if (!results.length) return 'No courses found for "' + input.query + '". Try a different spelling.';
+        return JSON.stringify(results.slice(0, 8));
+      }
+
+      case 'set_course': {
+        var ci = parseInt(input.courseIdx, 10);
+        if (!MOCK_COURSES[ci]) return 'Course idx ' + ci + ' not found. Run search_course first.';
+        state.courseIdx = ci;
+        var course = MOCK_COURSES[ci];
+        var tees = course.tees || [];
+        if (input.tee && tees.find(function(t){ return t.name === input.tee; })) {
+          state.tee = input.tee;
+        } else {
+          state.tee = tees.length ? tees[0].name : null;
+        }
+        return 'Course set: ' + course.name + ' (' + (state.tee || 'no tee') + ')';
+      }
+
+      case 'search_buddies': {
+        var q2 = (input.query || '').toLowerCase();
+        await new Promise(function(resolve) { fbLoadBuddies(function(){ resolve(); }); });
+        var all = _buddiesCache || [];
+        var matches = (q2 === '*' || q2 === '') ? all : all.filter(function(b){ return (b.name||'').toLowerCase().indexOf(q2) >= 0; });
+        if (!matches.length) return 'No buddies found matching "' + input.query + '"';
+        return JSON.stringify(matches.map(function(b){ return {name:b.name, hi:b.hi, ghin:b.ghin}; }));
+      }
+
+      case 'add_player': {
+        if (!state.players) state.players = [];
+        var nm = (input.name||'').trim();
+        var already = state.players.some(function(p){ return p.name === nm; });
+        if (already) return nm + ' is already in the round';
+        state.players.push({ name: nm, hi: String(input.hi||''), ghin: String(input.ghin||''), ghinName: nm, ghinUpdated: '', tee: input.tee || state.tee || '' });
+        if (typeof renderPlayersInto === 'function') renderPlayersInto('content-4');
+        return 'Added ' + nm + ' (HI: ' + (input.hi||'?') + ')';
+      }
+
+      case 'remove_player': {
+        var ri = (state.players||[]).findIndex(function(p){ return p.name.toLowerCase() === (input.name||'').toLowerCase(); });
+        if (ri < 0) return 'Player "' + input.name + '" not found';
+        state.players.splice(ri, 1);
+        if (typeof renderPlayersInto === 'function') renderPlayersInto('content-4');
+        return 'Removed ' + input.name;
+      }
+
+      case 'set_player_tee': {
+        var tp = (state.players||[]).find(function(p){ return p.name.toLowerCase() === (input.name||'').toLowerCase(); });
+        if (!tp) return 'Player "' + input.name + '" not found';
+        tp.tee = input.tee;
+        if (typeof renderPlayersInto === 'function') renderPlayersInto('content-4');
+        return input.name + ' → ' + input.tee + ' tees';
+      }
+
+      case 'add_side_game': {
+        if (!state.sideGames) state.sideGames = [];
+        var gt = input.type;
+        if (!SIDE_GAME_DEFS[gt]) return 'Unknown game: "' + gt + '". Available: ' + Object.keys(SIDE_GAME_DEFS).filter(function(k){return !SIDE_GAME_DEFS[k].legacy;}).join(', ');
+        var stakes = {};
+        if (input.buyIn != null) stakes.buyIn = input.buyIn;
+        if (input.carryTies != null) stakes.carryTies = input.carryTies;
+        if (input.pressAuto != null) stakes.pressAuto = input.pressAuto;
+        if (input.eagleMultiplier != null) stakes.wolfEagle = input.eagleMultiplier;
+        if (input.hammerOn != null) stakes.hammerOn = input.hammerOn;
+        var participants = (state.players||[]).map(function(_,i){return i;});
+        state.sideGames.push({ id: nextSideGameId++, type: gt, participants: participants, stakes: stakes, moneyOverrides: {} });
+        return 'Added ' + gt + (input.buyIn ? ' ($' + input.buyIn + ')' : '');
+      }
+
+      case 'remove_side_game': {
+        if (!state.sideGames) return 'No side games set up';
+        var before = state.sideGames.length;
+        state.sideGames = state.sideGames.filter(function(g){ return g.type !== input.type; });
+        return (before - state.sideGames.length) > 0 ? 'Removed ' + input.type : input.type + ' not found';
+      }
+
+      case 'set_ryder_cup_teams': {
+        if (!state.rcTeamNames) state.rcTeamNames = { A: 'USA', B: 'Europe' };
+        if (!state.rcTeamAssign) state.rcTeamAssign = {};
+        state.rcTeamNames.A = input.teamAName;
+        state.rcTeamNames.B = input.teamBName;
+        (input.teamA || []).forEach(function(nm) {
+          var idx = (state.players||[]).findIndex(function(p){ return p.name.toLowerCase() === nm.toLowerCase(); });
+          if (idx >= 0) state.rcTeamAssign[idx] = 'A';
+        });
+        (input.teamB || []).forEach(function(nm) {
+          var idx = (state.players||[]).findIndex(function(p){ return p.name.toLowerCase() === nm.toLowerCase(); });
+          if (idx >= 0) state.rcTeamAssign[idx] = 'B';
+        });
+        return 'Teams set — ' + input.teamAName + ': ' + (input.teamA||[]).join(', ') + ' | ' + input.teamBName + ': ' + (input.teamB||[]).join(', ');
+      }
+
+      case 'assign_player_to_group': {
+        var di = input.dayIndex != null ? parseInt(input.dayIndex, 10) : 0;
+        var dayObj = state.days && state.days[di];
+        if (!dayObj) return 'Day ' + di + ' not found';
+        if (!dayObj.assignments) dayObj.assignments = {};
+        var pi = (state.players||[]).findIndex(function(p){ return p.name.toLowerCase() === (input.playerName||'').toLowerCase(); });
+        if (pi < 0) return 'Player "' + input.playerName + '" not found';
+        dayObj.assignments[pi] = parseInt(input.groupNum, 10);
+        return input.playerName + ' → group ' + input.groupNum + ' (day ' + (di+1) + ')';
+      }
+
+      case 'set_group_format': {
+        var di2 = input.dayIndex != null ? parseInt(input.dayIndex, 10) : 0;
+        var dayObj2 = state.days && state.days[di2];
+        if (!dayObj2) return 'Day ' + di2 + ' not found';
+        if (!dayObj2.groupMatchType) dayObj2.groupMatchType = {};
+        dayObj2.groupMatchType[parseInt(input.groupNum, 10)] = input.format;
+        return 'Group ' + input.groupNum + ' day ' + (di2+1) + ' → ' + input.format;
+      }
+
+      case 'set_singles_pairing': {
+        var di3 = input.dayIndex != null ? parseInt(input.dayIndex, 10) : 0;
+        var dayObj3 = state.days && state.days[di3];
+        if (!dayObj3) return 'Day ' + di3 + ' not found';
+        if (!dayObj3.singlesPairings) dayObj3.singlesPairings = {};
+        var pairs = (input.pairs || []).map(function(pair) {
+          var aIdx = (state.players||[]).findIndex(function(p){ return p.name.toLowerCase() === (pair.playerA||'').toLowerCase(); });
+          var bIdx = (state.players||[]).findIndex(function(p){ return p.name.toLowerCase() === (pair.playerB||'').toLowerCase(); });
+          return [aIdx, bIdx];
+        }).filter(function(pair){ return pair[0] >= 0 && pair[1] >= 0; });
+        dayObj3.singlesPairings[parseInt(input.groupNum, 10)] = pairs;
+        return 'Singles pairings set for group ' + input.groupNum + ' day ' + (di3+1);
+      }
+
+      case 'configure_event_day': {
+        var di4 = parseInt(input.dayIndex, 10);
+        var dayObj4 = state.days && state.days[di4];
+        if (!dayObj4) return 'Day ' + di4 + ' not found';
+        if (input.courseIdx != null) {
+          dayObj4.courseIdx = parseInt(input.courseIdx, 10);
+          if (MOCK_COURSES[dayObj4.courseIdx]) dayObj4._courseData = JSON.parse(JSON.stringify(MOCK_COURSES[dayObj4.courseIdx]));
+        }
+        if (input.tee) dayObj4.teeName = input.tee;
+        if (input.dayFormat) dayObj4.dayFormat = input.dayFormat;
+        if (input.pointValue != null) dayObj4.pointValue = input.pointValue;
+        if (input.pointsScope) dayObj4.pointsScope = input.pointsScope;
+        if (input.numGroups != null) dayObj4.numGroups = parseInt(input.numGroups, 10);
+        return 'Day ' + (di4+1) + ' configured';
+      }
+
+      case 'lock_and_start': {
+        if (typeof fbLockRound === 'function') { fbLockRound(); return 'Round locked and started!'; }
+        return 'Lock function not available at this step';
+      }
+
+      case 'get_leaderboard': {
+        var lb = document.querySelector('.rc-scoreboard') || document.getElementById('leaderboardSection') || document.getElementById('rcScoreboard');
+        if (lb && lb.innerText.trim()) return lb.innerText.replace(/\s+/g,' ').trim().slice(0, 1500);
+        // Fallback: player names + hole counts
+        var summary = (state.players||[]).map(function(p, i) {
+          var sc = state.scorecard && state.scorecard.scores && state.scorecard.scores[i];
+          return p.name + ': ' + (sc ? Object.keys(sc).length : 0) + ' holes';
+        });
+        return summary.length ? summary.join(', ') : 'No leaderboard data yet';
+      }
+
+      case 'enter_score': {
+        var pi2 = (state.players||[]).findIndex(function(p){ return p.name.toLowerCase() === (input.playerName||'').toLowerCase(); });
+        if (pi2 < 0) return 'Player "' + input.playerName + '" not found';
+        var sc2 = state.scorecard;
+        if (!sc2) return 'No active scorecard';
+        if (!sc2.scores) sc2.scores = {};
+        if (!sc2.scores[pi2]) sc2.scores[pi2] = {};
+        sc2.scores[pi2][parseInt(input.hole, 10)] = parseInt(input.score, 10);
+        if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+        return 'Scored ' + input.score + ' for ' + input.playerName + ' on hole ' + input.hole;
+      }
+
+      default:
+        return 'Unknown tool: ' + name;
+    }
+  } catch(e) {
+    console.error('[Caddie tool error]', name, e);
+    return 'Tool error (' + name + '): ' + e.message;
+  }
+}
+
+// ── Caddie message sending — handles multi-turn tool loop ─────────────────────
 async function sendCaddieMessage() {
   var input = document.getElementById('caddieInput');
   var text = (input.value || '').trim();
@@ -13164,17 +13470,39 @@ async function sendCaddieMessage() {
     var res = await fetch('/api/caddie', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages: caddieHistory.slice(-10),
-        context: buildCaddieContext()
-      })
+      body: JSON.stringify({ messages: caddieHistory.slice(-16), context: buildCaddieContext() })
     });
     var data = await res.json();
-    var reply = data.reply || data.error || 'Sorry, something went wrong.';
+
+    // Tool loop — Claude may chain multiple tool calls
+    var maxRounds = 8;
+    while (data.tool_calls && data.tool_calls.length > 0 && maxRounds-- > 0) {
+      var toolResults = [];
+      for (var i = 0; i < data.tool_calls.length; i++) {
+        var tc = data.tool_calls[i];
+        var result = await executeCaddieTool(tc.name, tc.input || {});
+        toolResults.push({ id: tc.id, result: String(result) });
+      }
+      // Return results to Claude for next step
+      res = await fetch('/api/caddie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: caddieHistory.slice(-16),
+          context: buildCaddieContext(),
+          toolCalls: data.tool_calls,
+          toolResults: toolResults
+        })
+      });
+      data = await res.json();
+    }
+
+    var reply = data.reply || data.error || 'Done.';
     caddieHistory.push({ role: 'assistant', content: reply });
     appendCaddieMessage('caddie', reply);
   } catch(e) {
     appendCaddieMessage('caddie', 'Network error — check your connection and try again.');
+    console.error('[Caddie]', e);
   }
   setCaddieTyping(false);
   document.getElementById('caddieSend').disabled = false;
@@ -13187,6 +13515,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCaddieMessage(); }
     });
   }
+  initCaddieVoice();
 });
 </script>
 </body>
