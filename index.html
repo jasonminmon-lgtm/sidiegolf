@@ -370,7 +370,11 @@
   .feedback-fab{position:fixed;bottom:84px;right:16px;width:50px;height:50px;border-radius:50%;background:var(--green-dark);color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 3px 14px rgba(0,0,0,0.28);z-index:800;display:flex;align-items:center;justify-content:center;transition:transform .15s;}
   .feedback-fab:active{transform:scale(0.9);}
   /* Caddie AI FAB + overlay */
-  .caddie-fab{position:fixed;bottom:145px;right:16px;width:50px;height:50px;border-radius:50%;background:#1a6b2e;color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 3px 14px rgba(0,0,0,0.32);z-index:800;display:flex;align-items:center;justify-content:center;transition:transform .15s;}
+  .caddie-fab-wrapper{position:fixed;bottom:145px;right:16px;display:flex;align-items:center;gap:10px;z-index:800;}
+  .caddie-fab-label{background:rgba(26,107,46,0.93);color:#fff;padding:6px 12px;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,0.28);pointer-events:none;line-height:1.35;text-align:right;}
+  .caddie-fab-label strong{display:block;font-size:13px;font-weight:700;}
+  .caddie-fab-label small{font-size:10px;opacity:0.85;letter-spacing:0.2px;}
+  .caddie-fab{width:50px;height:50px;border-radius:50%;background:#1a6b2e;color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 3px 14px rgba(0,0,0,0.32);display:flex;align-items:center;justify-content:center;transition:transform .15s;flex-shrink:0;}
   .caddie-fab:active{transform:scale(0.9);}
   .caddie-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1100;display:none;align-items:flex-end;justify-content:center;}
   .caddie-sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;display:flex;flex-direction:column;height:72vh;max-height:600px;}
@@ -12992,7 +12996,10 @@ if ('serviceWorker' in navigator) {
 </div>
 
 <!-- ── Caddie AI FAB ─────────────────────────────────────────────────────── -->
-<button class="caddie-fab" onclick="openCaddie()" title="Ask Caddie" aria-label="Ask Caddie">🏌️</button>
+<div class="caddie-fab-wrapper">
+  <div class="caddie-fab-label"><strong>Caddie</strong><small>AI Game Manager</small></div>
+  <button class="caddie-fab" onclick="openCaddie()" title="Ask Caddie" aria-label="Ask Caddie">🏌️</button>
+</div>
 
 <!-- Caddie overlay -->
 <div id="caddieOverlay" class="caddie-overlay" onclick="if(event.target===this)closeCaddie()">
