@@ -13346,9 +13346,11 @@ async function executeCaddieTool(name, input) {
 
       case 'set_round_type': {
         state.roundType = input.roundType;
-        state.scoringMethod = input.scoringMethod;
+        state.scoringMethod = input.scoringMethod || '';
         if (input.scoringMethod === 'Ryder Cup Format') state.multiDay = true;
-        return 'Round type set to ' + input.roundType + ' / ' + input.scoringMethod;
+        // Navigate to step 1 so the round type radio button renders as checked
+        if (typeof goToStep === 'function') goToStep(1);
+        return 'Round type set to ' + input.roundType + (input.scoringMethod ? ' / ' + input.scoringMethod : '') + '. Now navigate to step 2 so the player can confirm or adjust the scoring method.';
       }
 
       case 'search_course': {
@@ -13402,6 +13404,8 @@ async function executeCaddieTool(name, input) {
         } else {
           state.tee = tees.length ? tees[0].name : null;
         }
+        // Re-render step 3 so the course shows as selected in the UI
+        if (state.step === 3 && typeof renderCourseStep === 'function') renderCourseStep();
         return 'Course set: ' + course.name + ' (' + (state.tee || 'no tee') + ')';
       }
 
@@ -13463,6 +13467,11 @@ async function executeCaddieTool(name, input) {
         if (input.cryBabyRaise != null) stakes.cryBabyRaise = input.cryBabyRaise;
         var participants = (state.players||[]).map(function(_,i){return i;});
         state.sideGames.push({ id: nextSideGameId++, type: gt, participants: participants, stakes: stakes, moneyOverrides: {} });
+        // Re-render step 5 so the game card appears in the UI
+        if (state.step === 5) {
+          if (typeof renderSingleSideGames === 'function' && !isEvent()) renderSingleSideGames();
+          else if (typeof renderEventSideGames === 'function' && isEvent()) renderEventSideGames();
+        }
         return 'Added ' + gt + (input.amount ? ' ($' + input.amount + '/man)' : '');
       }
 
