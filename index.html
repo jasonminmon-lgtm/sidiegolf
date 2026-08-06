@@ -2855,10 +2855,15 @@
           <li><strong>Blind Wolf:</strong> Wolf calls it before any tee shots are hit — pays out at <strong>3×</strong> if they win.</li>
           <li>Winners collect <strong>$ Per Man</strong> from every loser individually.</li>
           <li>Set tee order in the Wolf game card — it determines who is Wolf on each hole.</li>
-          <li><strong>Hammer On:</strong> enable the Hammer toggle in the Wolf card to allow anyone to throw a hammer mid-hole and double the current bet. Hammers stack; the opponent can decline (forfeit at the pre-hammer rate).</li>
-          <li><strong>Eagle Multiplier:</strong> optionally set gross eagles to pay out at 3× or 4× instead of the standard rate.</li>
         </ul>
-        <div class="help-tip">💡 Recommend using 80% handicap allowance for Wolf since it's a team game.</div>
+        <strong>Options:</strong>
+        <ul>
+          <li><strong>Hammers:</strong> any player can throw a hammer mid-hole to double the current bet. Hammers stack; declining forfeits at the pre-hammer rate.</li>
+          <li><strong>Birdie / Eagle Bonus:</strong> the winning side earns a multiplier for birdies and eagles — choose <em>Birdie 2× / Eagle 3×</em> or <em>Birdie 2× / Eagle 4×</em>. Set whether it applies to Net or Gross scores.</li>
+          <li><strong>Carry Rule:</strong> tied holes can carry forward — choose from no carry, unlimited, or a max of 1, 2, or 3 carries.</li>
+          <li><strong>Cry Baby:</strong> on the closing holes (16, 17, or 18+), the player most behind has their bet automatically raised as a comeback lever. Set the start hole and raise % (25%–200% of the amount they're down).</li>
+        </ul>
+        <div class="help-tip">💡 Recommend 80% handicap allowance for Wolf since it's a team game.</div>
       </div>
     </div>
 
@@ -2997,6 +3002,55 @@
 
     <div class="help-section">
       <div class="help-sec-head" onclick="toggleHelpSection(this)">
+        <span class="help-sec-icon">🥃</span>
+        <span class="help-sec-label">Scotch</span>
+        <span class="help-sec-arrow">▼</span>
+      </div>
+      <div class="help-body">
+        A <strong>6-point team game for 4 players (2 per team)</strong>. Points are awarded each hole:
+        <ul>
+          <li><strong>2 pts — Low Net:</strong> the player in the group with the lowest net score.</li>
+          <li><strong>2 pts — Team Low Net Total:</strong> the team with the lower combined net score for the hole.</li>
+          <li><strong>1 pt — Closest to Pin:</strong> tap the 📍 button on the scorecard to manually award after each hole.</li>
+          <li><strong>1 pt — Gross Birdie:</strong> automatically awarded to any team that records a gross birdie or better.</li>
+        </ul>
+        <strong>Options:</strong>
+        <ul>
+          <li><strong>Team Method:</strong> Captain's Draft (Wolf-style picking), Sixes (rotate partners every 6 holes), or High/Low HCP (lowest and highest HI are partners).</li>
+          <li><strong>Umbrella Rule:</strong> if one team sweeps all 6 points on a hole, the hole's total doubles to 12 points.</li>
+          <li><strong>Crack / Crack Back:</strong> any player can call a "crack" before a hole to double the point value. The opposing team can crack back (4×), and further cracks stack.</li>
+        </ul>
+        <div class="help-tip">💡 Scotch is great for 4-player groups — the mix of individual and team points keeps everyone engaged on every hole.</div>
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-sec-head" onclick="toggleHelpSection(this)">
+        <span class="help-sec-icon">🏦</span>
+        <span class="help-sec-label">Banker</span>
+        <span class="help-sec-arrow">▼</span>
+      </div>
+      <div class="help-body">
+        A <strong>1-vs-all side game</strong>. One player — the Banker — plays against every other player each hole for a per-hole wager.
+        <ul>
+          <li>After each hole, the player with the <strong>lowest net score becomes the Banker</strong> for the next hole.</li>
+          <li>The Banker wins or pays out to <strong>each opponent individually</strong>.</li>
+          <li><strong>Press / Counter-double:</strong> before the hole, any challenger can press (double the wager). The Banker can counter-double (4×), and cracks can stack further.</li>
+        </ul>
+        <strong>Options:</strong>
+        <ul>
+          <li><strong>Min Wager / Hole:</strong> the base bet before any pressing.</li>
+          <li><strong>Ties:</strong> Push (nobody wins) or Banker Wins.</li>
+          <li><strong>Bogey Rule:</strong> if the Banker makes a bogey or worse, they automatically lose to all opponents regardless of net scores.</li>
+          <li><strong>Birdie Bonus:</strong> a birdie by the winning side pays out at 2×.</li>
+          <li><strong>Rotation Tie-Breaker:</strong> when two players tie for low net, this setting determines who banks next (Banker Retains, Longest Putt, First to Hole Out, Closest to Pin, or Tee Flip).</li>
+        </ul>
+        <div class="help-tip">💡 Banker is best with 3–6 players. The press/counter-double feature makes the closing holes especially exciting.</div>
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-sec-head" onclick="toggleHelpSection(this)">
         <span class="help-sec-icon">♟️</span>
         <span class="help-sec-label">Handicaps &amp; Allowances</span>
         <span class="help-sec-arrow">▼</span>
@@ -3054,7 +3108,7 @@
       </div>
     </div>
 
-    <div class="help-section" style="border-bottom:none;">
+    <div class="help-section">
       <div class="help-sec-head" onclick="toggleHelpSection(this)">
         <span class="help-sec-icon">💵</span>
         <span class="help-sec-label">Settle Up</span>
@@ -3069,6 +3123,39 @@
           <li>Tap <em>Share Ledger</em> to copy or share the full settlement summary.</li>
         </ul>
         <div class="help-tip">💡 Venmo handles are saved so you don't have to re-enter them next round.</div>
+      </div>
+    </div>
+
+    <div class="help-section" style="border-bottom:none;">
+      <div class="help-sec-head" onclick="toggleHelpSection(this)">
+        <span class="help-sec-icon">🏌️</span>
+        <span class="help-sec-label">Caddie — AI Game Manager</span>
+        <span class="help-sec-arrow">▼</span>
+      </div>
+      <div class="help-body">
+        <strong>Caddie</strong> is SidieGolf's built-in AI assistant. Tap the <strong>🏌️ Caddie</strong> button in the bottom-right corner of any screen to open it.
+        <ul>
+          <li><strong>Full round setup by voice or text:</strong> describe what you want and Caddie handles everything — course, players, side games, tee assignments, teams.</li>
+          <li><strong>Course search:</strong> Caddie searches your saved courses and the live course database automatically — just say the name.</li>
+          <li><strong>Players from My Buddies:</strong> Caddie looks up players in your Buddies list, so handicaps and GHIN numbers are always accurate.</li>
+          <li><strong>Side games with full options:</strong> "Add Wolf, $5/man, hammers on, birdie 2x / eagle 3x, cry baby starting hole 16 at 50%." Caddie sets every field.</li>
+          <li><strong>Events &amp; Ryder Cup:</strong> assign players to groups, set day formats, manage teams — all by conversation.</li>
+          <li><strong>Scoring:</strong> "Enter Jason 4, Craig 3, Tim 5 on hole 7." Caddie writes directly to the scorecard.</li>
+          <li><strong>Standings:</strong> ask "Who's winning?" or "What's the current ledger?" at any time.</li>
+        </ul>
+        <strong>Voice input:</strong>
+        <ul>
+          <li>Tap the <strong>🎤 mic button</strong> in the Caddie chat bar to speak — no keyboard pops up.</li>
+          <li>Caddie auto-submits when you stop speaking. Works in Chrome and Safari; allow mic access when prompted.</li>
+        </ul>
+        <strong>Example prompts:</strong>
+        <ul>
+          <li><em>"Set up a networked Wolf round at Barton Creek with Dave, Tim, and Craig. $5/man, hammers on."</em></li>
+          <li><em>"Add a Nassau — $5 front, $5 back, $10 total, auto-press when 2 down."</em></li>
+          <li><em>"Who's on my Buddies list?"</em></li>
+          <li><em>"Lock and start the round."</em></li>
+        </ul>
+        <div class="help-tip">💡 Caddie is powered by Claude AI and chains multiple steps automatically — one request can search a course, add all players, configure games, and navigate to Lock &amp; Start.</div>
       </div>
     </div>
   </div>
@@ -13265,26 +13352,43 @@ async function executeCaddieTool(name, input) {
       }
 
       case 'search_course': {
-        var q = (input.query || '').toLowerCase();
+        var q = (input.query || '').toLowerCase().trim();
         var results = [];
+        var seenNames = {};
+        // Search MOCK_COURSES, scored by match quality
         Object.keys(MOCK_COURSES).forEach(function(k) {
           var c = MOCK_COURSES[k];
-          if (c && c.name && c.name.toLowerCase().indexOf(q) >= 0) {
-            results.push({ courseIdx: parseInt(k, 10), name: c.name, tees: (c.tees||[]).map(function(t){return t.name;}) });
+          if (!c || !c.name) return;
+          var cn = c.name.toLowerCase();
+          var score = 0;
+          if (cn === q) score = 3;
+          else if (cn.indexOf(q) === 0) score = 2;
+          else if (cn.indexOf(q) >= 0) score = 1;
+          if (score > 0) {
+            results.push({ courseIdx: parseInt(k, 10), name: c.name, tees: (c.tees||[]).map(function(t){return t.name;}), _score: score });
+            seenNames[cn] = true;
           }
         });
-        // Also try GHIN API
+        // Also try GHIN API, deduplicating by name
         try {
           var apiResults = await golfApiSearch(input.query);
+          var keys2 = Object.keys(MOCK_COURSES).map(Number);
+          var nextIdx = keys2.length ? Math.max.apply(null, keys2) + 1 : 0;
           apiResults.slice(0, 5).forEach(function(ac) {
             var local = mapApiCourseToLocal(ac);
-            var newIdx = Object.keys(MOCK_COURSES).length;
-            MOCK_COURSES[newIdx] = local;
-            results.push({ courseIdx: newIdx, name: local.name, tees: (local.tees||[]).map(function(t){return t.name;}) });
+            if (!local || !local.name) return;
+            var ln = local.name.toLowerCase();
+            if (seenNames[ln]) return;
+            seenNames[ln] = true;
+            MOCK_COURSES[nextIdx] = local;
+            var score2 = ln === q ? 3 : ln.indexOf(q) === 0 ? 2 : ln.indexOf(q) >= 0 ? 1 : 0;
+            results.push({ courseIdx: nextIdx, name: local.name, tees: (local.tees||[]).map(function(t){return t.name;}), _score: score2 });
+            nextIdx++;
           });
         } catch(e) {}
-        if (!results.length) return 'No courses found for "' + input.query + '". Try a different spelling.';
-        return JSON.stringify(results.slice(0, 8));
+        if (!results.length) return 'No courses found for "' + input.query + '". Try a shorter name or different spelling.';
+        results.sort(function(a, b) { return b._score - a._score; });
+        return JSON.stringify(results.slice(0, 6).map(function(r){ return {courseIdx:r.courseIdx, name:r.name, tees:r.tees}; }));
       }
 
       case 'set_course': {
@@ -13341,14 +13445,25 @@ async function executeCaddieTool(name, input) {
         var gt = input.type;
         if (!SIDE_GAME_DEFS[gt]) return 'Unknown game: "' + gt + '". Available: ' + Object.keys(SIDE_GAME_DEFS).filter(function(k){return !SIDE_GAME_DEFS[k].legacy;}).join(', ');
         var stakes = {};
-        if (input.buyIn != null) stakes.buyIn = input.buyIn;
+        // Amount / per-man / per-hole
+        if (input.amount != null) stakes.amount = input.amount;
+        // Nassau-specific
+        if (input.front != null) stakes.front = input.front;
+        if (input.back != null) stakes.back = input.back;
+        if (input.total != null) stakes.total = input.total;
         if (input.carryTies != null) stakes.carryTies = input.carryTies;
-        if (input.pressAuto != null) stakes.pressAuto = input.pressAuto;
-        if (input.eagleMultiplier != null) stakes.wolfEagle = input.eagleMultiplier;
+        if (input.pressAuto != null) stakes.presses = input.pressAuto;
+        // Wolf-specific
         if (input.hammerOn != null) stakes.hammerOn = input.hammerOn;
+        if (input.birdieEagle != null) stakes.birdieEagle = input.birdieEagle;
+        if (input.birdieEagleBasis != null) stakes.birdieEagleBasis = input.birdieEagleBasis;
+        if (input.carryRule != null) stakes.carryRule = input.carryRule;
+        if (input.cryBaby != null) stakes.cryBaby = input.cryBaby;
+        if (input.cryBabyStartHole != null) stakes.cryBabyStartHole = String(input.cryBabyStartHole);
+        if (input.cryBabyRaise != null) stakes.cryBabyRaise = input.cryBabyRaise;
         var participants = (state.players||[]).map(function(_,i){return i;});
         state.sideGames.push({ id: nextSideGameId++, type: gt, participants: participants, stakes: stakes, moneyOverrides: {} });
-        return 'Added ' + gt + (input.buyIn ? ' ($' + input.buyIn + ')' : '');
+        return 'Added ' + gt + (input.amount ? ' ($' + input.amount + '/man)' : '');
       }
 
       case 'remove_side_game': {

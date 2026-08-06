@@ -103,16 +103,24 @@ const CADDIE_TOOLS = [
   },
   {
     name: 'add_side_game',
-    description: 'Add a side/sidie game to the round. Available games: "Nassau", "Wolf", "Coin Flip Wolf", "3-Man Wolf", "Skins", "Scotch", "Banker", "Stableford", "Modified Stableford". Specify buyIn and any game-specific options.',
+    description: 'Add a side game to the round. Available games: "Wolf", "Coin Flip Wolf", "3-Man Wolf", "Nassau", "Skins", "Scotch", "Banker", "9 Point", "Bingo Bango Bongo", "Snake", "Vegas".\n\nWolf options: amount ($ per man), hammerOn ("Off"/"On"), birdieEagle ("Off"/"Birdie 2x / Eagle 3x"/"Birdie 2x / Eagle 4x"), birdieEagleBasis ("Net"/"Gross"), carryRule ("None"/"Carry (unlimited)"/"Carry (max 1)"/"Carry (max 2)"/"Carry (max 3)"), cryBaby ("Off"/"On"), cryBabyStartHole ("16"/"17"/"18"), cryBabyRaise ("25%"..."200%").\n\nNassau options: front (front 9 $), back (back 9 $), total (total 18 $), carryTies ("Off"/"On"), pressAuto ("Off"/"1 hole"/"2 holes").\n\nSkins: amount ($ per skin). 9 Point: amount ($ per point).',
     input_schema: {
       type: 'object',
       properties: {
-        type: { type: 'string', description: 'Game type name exactly as listed' },
-        buyIn: { type: 'number', description: 'Dollar amount (per side for Nassau, per point/hole for Wolf/Skins, etc.)' },
-        carryTies: { type: 'boolean', description: 'Nassau: whether tied holes carry over to next hole' },
-        pressAuto: { type: 'number', description: 'Nassau: automatically press when this many down (e.g. 2)' },
-        eagleMultiplier: { type: 'number', description: 'Wolf: eagle multiplier, 2, 3, or 4x' },
-        hammerOn: { type: 'boolean', description: 'Wolf: enable hammer doubling feature' }
+        type: { type: 'string', description: 'Game type exactly as listed above' },
+        amount: { type: 'number', description: 'Wolf/Skins/9 Point: $ per man / per skin / per point' },
+        front: { type: 'number', description: 'Nassau: front 9 $ bet' },
+        back: { type: 'number', description: 'Nassau: back 9 $ bet' },
+        total: { type: 'number', description: 'Nassau: total 18 $ bet' },
+        carryTies: { type: 'string', enum: ['Off','On'], description: 'Nassau: carry front 9 tie to back 9' },
+        pressAuto: { type: 'string', enum: ['Off','1 hole','2 holes'], description: 'Nassau: auto-press when down this many holes' },
+        hammerOn: { type: 'string', enum: ['Off','On'], description: 'Wolf: hammers on or off' },
+        birdieEagle: { type: 'string', enum: ['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x'], description: 'Wolf: birdie/eagle bonus for winning side' },
+        birdieEagleBasis: { type: 'string', enum: ['Net','Gross'], description: 'Wolf: net or gross birdie/eagle' },
+        carryRule: { type: 'string', enum: ['None','Carry (unlimited)','Carry (max 1)','Carry (max 2)','Carry (max 3)'], description: 'Wolf: carry rule for tied holes' },
+        cryBaby: { type: 'string', enum: ['Off','On'], description: 'Wolf: cry baby rule on closing holes' },
+        cryBabyStartHole: { type: 'string', enum: ['16','17','18'], description: 'Wolf: hole where cry baby activates' },
+        cryBabyRaise: { type: 'string', enum: ['25%','50%','75%','100%','125%','150%','175%','200%'], description: 'Wolf: cry baby raise as % of $ the trailer is down' }
       },
       required: ['type']
     }
