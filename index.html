@@ -13211,7 +13211,14 @@ function buildCaddieContext() {
       ctx.course = { name: c.name, idx: state.courseIdx, tees: (c.tees||[]).map(function(t){return t.name;}) };
     }
     if (state.players && state.players.length) {
-      ctx.players = state.players.map(function(p, i) { return { index: i, name: p.name, hi: p.hi, tee: p.tee }; });
+      // Report total slots and only real (non-placeholder) players to Caddie
+      ctx.totalSlots = state.players.length;
+      var realPlayers = [];
+      state.players.forEach(function(p, i) {
+        var n = (p.name || '').trim();
+        if (n && !/^player\s*\d+$/i.test(n)) realPlayers.push({ index: i, name: p.name, hi: p.hi, tee: p.tee });
+      });
+      if (realPlayers.length) ctx.players = realPlayers;
     }
     if (state.rcTeamNames) {
       ctx.teams = { A: state.rcTeamNames.A, B: state.rcTeamNames.B, assignments: state.rcTeamAssign };
@@ -13421,10 +13428,23 @@ async function executeCaddieTool(name, input) {
       case 'add_player': {
         if (!state.players) state.players = [];
         var nm = (input.name||'').trim();
-        var already = state.players.some(function(p){ return p.name === nm; });
+        // Only check against real (non-placeholder) names
+        var already = state.players.some(function(p){
+          var pn = (p.name||'').trim();
+          return pn.toLowerCase() === nm.toLowerCase() && !/^player\s*\d+$/i.test(pn);
+        });
         if (already) return nm + ' is already in the round';
-        state.players.push({ name: nm, hi: String(input.hi||''), ghin: String(input.ghin||''), ghinName: nm, ghinUpdated: '', tee: input.tee || state.tee || '' });
+        var playerObj = { name: nm, hi: String(input.hi||''), ghin: String(input.ghin||''), ghinName: nm, ghinUpdated: '', tee: input.tee || state.tee || '' };
+        // Fill first empty/placeholder slot instead of always appending
+        var emptyIdx = -1;
+        for (var _ai = 0; _ai < state.players.length; _ai++) {
+          var _an = (state.players[_ai].name || '').trim();
+          if (!_an || /^player\s*\d+$/i.test(_an)) { emptyIdx = _ai; break; }
+        }
+        if (emptyIdx >= 0) state.players[emptyIdx] = playerObj;
+        else state.players.push(playerObj);
         if (typeof renderPlayersInto === 'function') renderPlayersInto('content-4');
+        else if (typeof renderNetworkedPlayersStep === 'function') renderNetworkedPlayersStep();
         return 'Added ' + nm + ' (HI: ' + (input.hi||'?') + ')';
       }
 
@@ -13433,7 +13453,32 @@ async function executeCaddieTool(name, input) {
         if (ri < 0) return 'Player "' + input.name + '" not found';
         state.players.splice(ri, 1);
         if (typeof renderPlayersInto === 'function') renderPlayersInto('content-4');
+        else if (typeof renderNetworkedPlayersStep === 'function') renderNetworkedPlayersStep();
         return 'Removed ' + input.name;
+      }
+
+      case 'set_player_count': {
+        var spc = parseInt(input.count, 10);
+        if (!spc || spc < 1 || spc > 20) return 'Invalid count: ' + input.count;
+        if (!state.players) state.players = [];
+        if (typeof npsSetPlayerCount === 'function') {
+          npsSetPlayerCount(spc);
+        } else {
+          // Fallback: manual expand / trim placeholder slots
+          while (state.players.length < spc) {
+            state.players.push({ name: 'Player '+(state.players.length+1), hi: '', ghin: '', ghinName: '', ghinUpdated: '', tee: state.tee || '' });
+          }
+          while (state.players.length > spc) {
+            var _spcLast = state.players[state.players.length - 1];
+            var _spcName = (_spcLast.name||'').trim();
+            if (!_spcName || /^player\s*\d+$/i.test(_spcName)) state.players.pop();
+            else break; // never remove a real named player
+          }
+          if (typeof renderPlayersInto === 'function') renderPlayersInto('content-4');
+          else if (typeof renderNetworkedPlayersStep === 'function') renderNetworkedPlayersStep();
+        }
+        var realCount = state.players.filter(function(p){ var n=(p.name||'').trim(); return n && !/^player\s*\d+$/i.test(n); }).length;
+        return 'Player slots set to ' + state.players.length + ' (' + realCount + ' filled, ' + (state.players.length - realCount) + ' empty)';
       }
 
       case 'set_player_tee': {

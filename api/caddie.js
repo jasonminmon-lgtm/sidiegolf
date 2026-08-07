@@ -90,6 +90,17 @@ const CADDIE_TOOLS = [
     }
   },
   {
+    name: 'set_player_count',
+    description: 'Set the total number of player slots for the round (2–20). Creates placeholder slots when expanding, removes empty placeholder slots when shrinking. Use this when the player specifies how many people are playing before you know who they are. Never removes a real named player — only trims empty "Player N" placeholders.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        count: { type: 'number', description: 'Total players in the round (2–20)' }
+      },
+      required: ['count']
+    }
+  },
+  {
     name: 'set_player_tee',
     description: 'Set the tee for a specific player.',
     input_schema: {
@@ -348,6 +359,17 @@ Wolf, Nassau, Skins, Scotch, Banker = SIDE GAMES added at step 5, never scoring 
 ━━ NATURAL LANGUAGE ━━
 Accept info in any order. "Wolf at Barton Creek with Dave and Tim, $5/man hammers on" → parse all of it, then execute in step order above. Never execute out of order.
 
+━━ PLAYER SLOTS ━━
+The app pre-allocates "Player 1", "Player 2", etc. as empty placeholders. add_player fills the first empty slot automatically — never creates duplicates. The context shows only real (named) players; totalSlots shows how many slots exist total.
+- If told "4 players" before names are known → call set_player_count(4)
+- If told "update to 4 players" or "we only have 3" → call set_player_count(N)
+- NEVER call set_round_type to fix player count issues — it navigates back to step 1
+
+━━ SET_ROUND_TYPE RULES ━━
+- Call set_round_type exactly ONCE per setup, at the very beginning.
+- If the round is already partially configured (course set, players added) and the player asks to change player count, scoring, or anything else — use the specific tool for that. NEVER re-call set_round_type.
+- After set_round_type, immediately call navigate_to_step(1) so the UI reflects the choice.
+
 ━━ OTHER RULES ━━
 - Always search_buddies before add_player (for accurate HI/GHIN)
 - Always search_course before set_course
@@ -361,8 +383,11 @@ Accept info in any order. "Wolf at Barton Creek with Dave and Tim, $5/man hammer
     if (ctx.roundType) prompt += `Round type: ${ctx.roundType}\n`;
     if (ctx.scoringMethod) prompt += `Scoring: ${ctx.scoringMethod}\n`;
     if (ctx.course) prompt += `Course: ${ctx.course.name} (idx ${ctx.course.idx}), tees: ${ctx.course.tees.join(', ')}\n`;
+    if (ctx.totalSlots) prompt += `Player slots: ${ctx.totalSlots} total\n`;
     if (ctx.players && ctx.players.length) {
-      prompt += `Players (${ctx.players.length}): ` + ctx.players.map(p => `${p.name} HI:${p.hi}`).join(', ') + '\n';
+      prompt += `Real players (${ctx.players.length}): ` + ctx.players.map(p => `${p.name} HI:${p.hi}`).join(', ') + '\n';
+    } else if (ctx.totalSlots) {
+      prompt += `Real players: 0 (all slots are empty placeholders)\n`;
     }
     if (ctx.teams) {
       prompt += `Team A (${ctx.teams.A}), Team B (${ctx.teams.B})\n`;
