@@ -249,6 +249,28 @@ const CADDIE_TOOLS = [
       },
       required: ['playerName', 'hole', 'score']
     }
+  },
+  {
+    name: 'open_account',
+    description: 'Open the My Account overlay so the player can view or edit their profile, GHIN number, handicap index, change their password, view round history, or access the Season Money Ledger.',
+    input_schema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'open_season_ledger',
+    description: 'Open the Season Money Ledger showing net money won/lost per player across all completed rounds (Standings tab) and a per-round breakdown (By Round tab) with settle tracking.',
+    input_schema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'submit_feedback',
+    description: 'Submit feedback from the player — bug reports, feature requests, UX issues, or general comments. Always confirm the message with the player before submitting.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        category: { type: 'string', enum: ['bug', 'feature', 'ux', 'general'], description: 'bug = Bug Report, feature = Feature Request, ux = User Experience, general = General Feedback' },
+        message: { type: 'string', description: 'The full feedback message text' }
+      },
+      required: ['category', 'message']
+    }
   }
 ];
 
@@ -369,6 +391,15 @@ The app pre-allocates "Player 1", "Player 2", etc. as empty placeholders. add_pl
 - Call set_round_type exactly ONCE per setup, at the very beginning.
 - If the round is already partially configured (course set, players added) and the player asks to change player count, scoring, or anything else — use the specific tool for that. NEVER re-call set_round_type.
 - After set_round_type, immediately call navigate_to_step(1) so the UI reflects the choice.
+
+━━ ACCOUNT & HISTORY ━━
+- open_account → opens My Account (edit name/GHIN/handicap, password reset, history, ledger)
+- open_season_ledger → opens Season Money Ledger (net standings + per-round breakdown)
+
+━━ FEEDBACK ━━
+- submit_feedback → saves feedback to Firestore + sends email notification
+- Always confirm the message text with the player before calling submit_feedback
+- Categories: "bug" (Bug Report), "feature" (Feature Request), "ux" (User Experience), "general" (General Feedback)
 
 ━━ OTHER RULES ━━
 - Always search_buddies before add_player (for accurate HI/GHIN)

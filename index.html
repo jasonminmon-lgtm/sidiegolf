@@ -342,12 +342,20 @@
   .help-body li{margin-bottom:5px;}
   .help-tip{background:var(--green-light);border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12.5px;color:var(--green-dark);font-weight:500;}
   /* Feedback FAB + overlay */
-  .feedback-fab{position:fixed;bottom:84px;right:16px;width:50px;height:50px;border-radius:50%;background:var(--green-dark);color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 3px 14px rgba(0,0,0,0.28);z-index:800;display:flex;align-items:center;justify-content:center;transition:transform .15s;}
-  .feedback-fab:active{transform:scale(0.9);}
-  /* Caddie AI — round-bar button + overlay */
-  .rb-caddie{width:28px;height:28px;border-radius:50%;border:none;background:#152444;cursor:pointer;overflow:hidden;padding:0;flex-shrink:0;transition:transform .15s;}
-  .rb-caddie:active{transform:scale(0.9);}
-  .rb-caddie img{width:100%;height:100%;object-fit:cover;display:block;}
+  /* feedback-fab removed — Caddie handles feedback via submit_feedback tool */
+  /* Caddie AI — dedicated bar below round bar */
+  .caddie-bar{display:none;background:#0e1d36;padding:9px 14px;align-items:center;gap:12px;cursor:pointer;border-bottom:1px solid #1a2e50;transition:background .15s;}
+  .caddie-bar:active{background:#152444;}
+  .caddie-bar-avatar{position:relative;width:44px;height:44px;flex-shrink:0;}
+  .caddie-bar-avatar img{position:relative;z-index:1;width:44px;height:44px;border-radius:50%;object-fit:cover;display:block;border:2px solid #2e5a9a;background:#1a3260;}
+  @keyframes caddie-pulse{0%{transform:scale(1);opacity:.55}70%{transform:scale(1.6);opacity:0}100%{transform:scale(1.6);opacity:0}}
+  .caddie-pulse-ring{position:absolute;inset:0;border-radius:50%;border:2px solid #4db87a;animation:caddie-pulse 2.2s ease-out infinite;}
+  .caddie-pulse-ring2{position:absolute;inset:0;border-radius:50%;border:2px solid #4db87a;animation:caddie-pulse 2.2s ease-out infinite .95s;}
+  .caddie-bar-text{flex:1;min-width:0;}
+  .caddie-bar-title{color:#e8edf5;font-size:13px;font-weight:700;margin-bottom:2px;}
+  .caddie-bar-sub{color:#6a8aaa;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .caddie-bar-badge{background:#1a5c35;border-radius:4px;padding:2px 7px;flex-shrink:0;}
+  .caddie-bar-badge span{color:#4db87a;font-size:10px;font-weight:700;letter-spacing:.5px;}
   .caddie-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1100;display:none;align-items:flex-end;justify-content:center;}
   .caddie-sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;display:flex;flex-direction:column;height:72vh;max-height:600px;}
   .caddie-header{background:#152444;border-radius:20px 20px 0 0;display:flex;flex-direction:column;align-items:center;padding-top:14px;overflow:hidden;}
@@ -2501,10 +2509,21 @@
     <span class="rb-user" id="rb-user-name" onclick="fbShowAccount()" title="My Account"></span>
     <div class="rb-actions">
       <span class="rb-code" id="rb-round-code" onclick="fbCopyCode()" title="Tap to copy code"></span>
-      <button class="rb-hist" onclick="fbShowHistory()" title="Round history">📋</button>
-      <button class="rb-caddie" onclick="openCaddie()" title="Caddie AI"><img src="/caddie-mascot.png" alt="Caddie"></button>
       <button class="rb-out" onclick="fbSignOut()">Sign Out</button>
     </div>
+  </div>
+  <!-- Caddie AI bar — shown whenever the round bar is visible -->
+  <div id="caddie-bar" class="caddie-bar" onclick="openCaddie()">
+    <div class="caddie-bar-avatar">
+      <div class="caddie-pulse-ring"></div>
+      <div class="caddie-pulse-ring2"></div>
+      <img src="/caddie-mascot.png" alt="Caddie">
+    </div>
+    <div class="caddie-bar-text">
+      <div class="caddie-bar-title">Ask Caddie</div>
+      <div class="caddie-bar-sub">Set up a round, enter scores, check standings…</div>
+    </div>
+    <div class="caddie-bar-badge"><span>AI</span></div>
   </div>
   <div id="fb-toast" class="fb-toast"></div>
 
@@ -2832,26 +2851,6 @@
           <li>The leaderboard and money ledger <strong>update in real time</strong> across all connected devices.</li>
           <li>When done, tap <em>Finish &amp; Save Round</em> to record it in history.</li>
         </ul>
-      </div>
-    </div>
-
-    <div class="help-section">
-      <div class="help-sec-head" onclick="toggleHelpSection(this)">
-        <span class="help-sec-icon">🎤</span>
-        <span class="help-sec-label">Voice Score Entry</span>
-        <span class="help-sec-arrow">▼</span>
-      </div>
-      <div class="help-body">
-        Enter scores hands-free straight from the green — no tapping required.
-        <ul>
-          <li>On the scorecard, tap the <strong>🎤 mic button</strong> (bottom-right, above the feedback button).</li>
-          <li>The app listens and shows which hole it's ready for — it auto-detects the <strong>next unscored hole</strong>.</li>
-          <li>Say each player's <strong>first name followed by their score</strong>: <em>"Jason 4, Craig 3, Tony 5, Kevin 6"</em></li>
-          <li>You can also say the hole number to override: <em>"Hole 7, Jason 4, Craig 3, Tony 5, Kevin 6"</em></li>
-          <li>The app shows what it heard and the parsed scores. Tap <strong>✓ Confirm</strong> to save or <strong>🎤 Retry</strong> to re-speak.</li>
-          <li>All four scores are written to the scorecard at once and synced in real time.</li>
-        </ul>
-        <div class="help-tip">💡 Works in Chrome and Safari. The first time you use it, the browser will ask for microphone permission — tap Allow.</div>
       </div>
     </div>
 
@@ -3204,6 +3203,41 @@
       </div>
     </div>
 
+    <div class="help-section">
+      <div class="help-sec-head" onclick="toggleHelpSection(this)">
+        <span class="help-sec-icon">👤</span>
+        <span class="help-sec-label">My Account</span>
+        <span class="help-sec-arrow">▼</span>
+      </div>
+      <div class="help-body">
+        Access your profile any time by tapping your <strong>name in the round bar</strong> at the top, or the <strong>⚙️ button</strong> next to your name on the home screen after login.
+        <ul>
+          <li><strong>Profile:</strong> update your display name, GHIN number, and Handicap Index. Changes save instantly.</li>
+          <li><strong>Security:</strong> tap <em>Send Password Reset Email</em> to change your password via email.</li>
+          <li><strong>History &amp; Money:</strong> jump to your full round history or Season Money Ledger directly from here.</li>
+          <li><strong>This Season:</strong> see your rounds played, total money won/lost, and average score for the season.</li>
+        </ul>
+        <div class="help-tip">💡 Your GHIN number links you automatically as a participant when your group saves a round — even if you joined with a guest code.</div>
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-sec-head" onclick="toggleHelpSection(this)">
+        <span class="help-sec-icon">💳</span>
+        <span class="help-sec-label">Season Money Ledger</span>
+        <span class="help-sec-arrow">▼</span>
+      </div>
+      <div class="help-body">
+        The Season Money Ledger tracks all money won and lost across every completed round you've been part of. Open it from <strong>My Account → Season Money Ledger</strong>, or ask Caddie to open it.
+        <ul>
+          <li><strong>Standings tab:</strong> net money won/lost per player across all rounds this season — see who's up and who owes at a glance.</li>
+          <li><strong>By Round tab:</strong> every completed round listed with the money result for each player.</li>
+          <li><strong>Settle:</strong> tap the settle button on any round to mark it as paid. Settled rounds are excluded from the outstanding balance.</li>
+        </ul>
+        <div class="help-tip">💡 Only players who were part of a round can see it — scores and money stay private to your group.</div>
+      </div>
+    </div>
+
     <div class="help-section" style="border-bottom:none;">
       <div class="help-sec-head" onclick="toggleHelpSection(this)">
         <span class="help-sec-icon">🏌️</span>
@@ -3211,7 +3245,7 @@
         <span class="help-sec-arrow">▼</span>
       </div>
       <div class="help-body">
-        <strong>Caddie</strong> is SidieGolf's built-in AI assistant. Tap the <strong>🏌️ Caddie</strong> button in the bottom-right corner of any screen to open it.
+        <strong>Caddie</strong> is SidieGolf's built-in AI assistant. Tap the <strong>Ask Caddie</strong> bar at the top of any active round screen to open it.
         <ul>
           <li><strong>Full round setup by voice or text:</strong> describe what you want and Caddie handles everything — course, players, side games, tee assignments, teams.</li>
           <li><strong>Course search:</strong> Caddie searches your saved courses and the live course database automatically — just say the name.</li>
@@ -3220,6 +3254,8 @@
           <li><strong>Events &amp; Ryder Cup:</strong> assign players to groups, set day formats, manage teams — all by conversation.</li>
           <li><strong>Scoring:</strong> "Enter Jason 4, Craig 3, Tim 5 on hole 7." Caddie writes directly to the scorecard.</li>
           <li><strong>Standings:</strong> ask "Who's winning?" or "What's the current ledger?" at any time.</li>
+          <li><strong>My Account &amp; Ledger:</strong> "Open my account" or "Show the season ledger" — Caddie navigates there for you.</li>
+          <li><strong>Feedback:</strong> "I found a bug" or "Feature request: …" — Caddie collects it and sends it straight to the team.</li>
         </ul>
         <strong>Voice input:</strong>
         <ul>
@@ -11742,12 +11778,12 @@ function fbActivateRound(code) {
   var codeEl = document.getElementById('rb-round-code');
   var isAnon = fbUser && fbUser.isAnonymous;
   if (barEl)  barEl.style.display  = '';
+  var caddieBarEl = document.getElementById('caddie-bar');
+  if (caddieBarEl) caddieBarEl.style.display = 'flex';
   if (nameEl) nameEl.textContent   = isAnon ? 'Viewer' : (fbUser.displayName || fbUser.email.split('@')[0]);
   if (codeEl) codeEl.textContent   = code;
-  // Hide history + change Sign Out → Exit for anonymous viewers
-  var histBtn = document.querySelector('.rb-hist');
+  // Change Sign Out → Exit for anonymous viewers
   var outBtn  = document.querySelector('.rb-out');
-  if (histBtn) histBtn.style.display = isAnon ? 'none' : '';
   if (outBtn)  outBtn.textContent    = isAnon ? 'Exit' : 'Sign Out';
   // Also hide auth overlay in case watcher arrived via fbWatchRound
   document.getElementById('fb-auth-overlay').style.display = 'none';
@@ -13147,6 +13183,8 @@ fbAuth.onAuthStateChanged(function(user) {
     document.getElementById('fb-round-overlay').style.display = 'none';
     var barEl = document.getElementById('fb-round-bar');
     if (barEl) barEl.style.display = 'none';
+    var caddieBarEl2 = document.getElementById('caddie-bar');
+    if (caddieBarEl2) caddieBarEl2.style.display = 'none';
     // Reset button states in case they were left disabled
     var btn;
     btn = document.getElementById('fb-in-btn'); if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
@@ -13380,9 +13418,7 @@ if ('serviceWorker' in navigator) {
 </div>
 
 <!-- ── Feedback FAB ──────────────────────────────────────────────────────── -->
-<button class="feedback-fab" onclick="openFeedback()" title="Send Feedback" aria-label="Send Feedback">💬</button>
-
-<!-- Feedback overlay -->
+<!-- Feedback overlay (opened by Caddie submit_feedback tool) -->
 <div id="feedbackOverlay" class="smart-payout-overlay" style="display:none;" onclick="if(event.target===this)closeFeedback()">
   <div class="feedback-sheet">
     <div class="feedback-head">
@@ -13887,6 +13923,43 @@ async function executeCaddieTool(name, input) {
         sc2.scores[pi2][parseInt(input.hole, 10)] = parseInt(input.score, 10);
         if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
         return 'Scored ' + input.score + ' for ' + input.playerName + ' on hole ' + input.hole;
+      }
+
+      case 'open_account': {
+        if (typeof fbShowAccount === 'function') { fbShowAccount(); return 'Opened My Account'; }
+        return 'My Account not available';
+      }
+
+      case 'open_season_ledger': {
+        if (typeof fbShowSeasonLedger === 'function') { fbShowSeasonLedger(); return 'Opened Season Money Ledger'; }
+        return 'Season Ledger not available';
+      }
+
+      case 'submit_feedback': {
+        var cat2 = input.category || 'general';
+        var msg2 = (input.message || '').trim();
+        if (!msg2) return 'No feedback message provided';
+        var db2 = window.fbDb;
+        if (!db2) return 'Not connected to Firestore';
+        db2.collection('feedback').add({
+          category:    cat2,
+          message:     msg2,
+          submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          userUid:     (window.fbUser ? window.fbUser.uid : 'anonymous'),
+          userEmail:   (window.fbUser && !window.fbUser.isAnonymous ? window.fbUser.email : ''),
+          roundCode:   (window.fbRoundCode || ''),
+          source:      'caddie'
+        }).then(function() {
+          try {
+            emailjs.send('service_m1kqxhb', 'template_0wha6nu', {
+              category:   cat2,
+              message:    msg2,
+              round_code: (window.fbRoundCode || 'none'),
+              user_email: (window.fbUser && !window.fbUser.isAnonymous ? window.fbUser.email : 'anonymous')
+            }, 'myhgHG7DxOdWMyXLc').catch(function(e){ console.warn('[Caddie feedback email]', e); });
+          } catch(e) { console.warn('[Caddie feedback email]', e); }
+        }).catch(function(e){ console.warn('[Caddie feedback save]', e); });
+        return 'Feedback submitted — thanks!';
       }
 
       default:
