@@ -339,6 +339,31 @@
   .np2-press-flag{font-size:9px;font-weight:700;color:var(--green-dark,#1a5c36);line-height:1.3;text-align:center;}
   .np2-add-press-btn{margin-top:10px;padding:9px 16px;background:transparent;border:1.5px solid var(--green-dark,#1a5c36);color:var(--green-dark,#1a5c36);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;width:100%;text-align:center;display:block;}
   .np2-strokes{font-size:12px;color:var(--green-dark,#1a5c36);font-weight:600;padding:6px 10px;background:#f0f8f0;border-radius:6px;margin-bottom:10px;}
+  /* ── QR Code overlay ─────────────────────────────────────────────────── */
+  .sg-qr-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10400;display:none;align-items:flex-end;justify-content:center;}
+  .sg-qr-overlay.open{display:flex;}
+  .sg-qr-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:380px;padding:28px 24px 48px;box-sizing:border-box;text-align:center;}
+  .sg-qr-title{font-size:18px;font-weight:800;color:var(--green-dark,#1a5c36);margin-bottom:4px;}
+  .sg-qr-sub{font-size:13px;color:var(--muted,#666);margin-bottom:18px;}
+  .sg-qr-canvas{display:flex;justify-content:center;margin-bottom:14px;}
+  .sg-qr-canvas canvas,.sg-qr-canvas img{border-radius:8px;}
+  .sg-qr-code-lbl{font-size:24px;font-weight:800;letter-spacing:6px;color:var(--green-dark,#1a5c36);margin-bottom:6px;}
+  .sg-qr-url-lbl{font-size:11px;color:var(--muted,#aaa);word-break:break-all;margin-bottom:20px;}
+  .sg-qr-close{padding:11px 32px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;}
+  /* ── Join Choice overlay (Watch Live vs Keep Score) ──────────────────── */
+  .sg-jc-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10500;display:none;align-items:flex-end;justify-content:center;}
+  .sg-jc-overlay.open{display:flex;}
+  .sg-jc-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:420px;padding:28px 22px 50px;box-sizing:border-box;}
+  .sg-jc-title{font-size:18px;font-weight:800;color:var(--green-dark,#1a5c36);text-align:center;margin-bottom:4px;}
+  .sg-jc-sub{font-size:13px;color:var(--muted,#666);text-align:center;margin-bottom:24px;}
+  .sg-jc-opt{width:100%;padding:14px 16px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;margin-bottom:10px;box-sizing:border-box;}
+  .sg-jc-watch{background:#f5f5f5;border:2px solid #e0e0e0;color:#333;}
+  .sg-jc-keep{background:var(--green-dark,#1a5c36);border:2px solid transparent;color:#fff;}
+  .sg-jc-icon{font-size:22px;flex-shrink:0;}
+  .sg-jc-label{font-size:15px;font-weight:700;display:block;}
+  .sg-jc-desc{font-size:12px;opacity:.7;font-weight:400;display:block;margin-top:2px;}
+  /* QR trigger button (shown next to round code displays) */
+  .sg-qr-btn{padding:5px 12px;border-radius:6px;border:1.5px solid var(--green-dark,#1a5c36);background:transparent;color:var(--green-dark,#1a5c36);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
   .help-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:0 0 40px;max-height:85vh;overflow-y:auto;}
   .help-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff;z-index:1;}
   .help-sheet-title{font-size:17px;font-weight:700;color:var(--green-dark);}
@@ -4725,8 +4750,11 @@ function renderNetworkedPlayersStep(){
   // Join code — shown early so manager can share while still configuring
   html += '<div style="text-align:center;background:var(--surface,#f5f5f5);border-radius:12px;padding:14px 16px;margin-bottom:18px;">';
   html += '<div style="font-size:10px;font-weight:700;letter-spacing:.6px;color:var(--muted,#666);margin-bottom:5px;">SHARE THIS CODE TO INVITE PLAYERS</div>';
-  html += '<div style="font-size:34px;font-weight:800;letter-spacing:8px;color:var(--green-dark,#1a5c36);margin-bottom:10px;">'+escapeHtml(code)+'</div>';
-  html += '<button onclick="fbCopyCode()" style="padding:6px 16px;border-radius:6px;border:1.5px solid var(--green-dark,#1a5c36);background:transparent;color:var(--green-dark,#1a5c36);font-size:12px;cursor:pointer;font-weight:600;">Copy Code</button>';
+  html += '<div style="font-size:34px;font-weight:800;letter-spacing:8px;color:var(--green-dark,#1a5c36);margin-bottom:10px;cursor:pointer;" onclick="showQrOverlay(\''+escapeHtml(code)+'\')" title="Show QR code">'+escapeHtml(code)+'</div>';
+  html += '<div style="display:flex;gap:8px;justify-content:center;">';
+  html += '<button onclick="fbCopyCode()" style="padding:6px 16px;border-radius:6px;border:1.5px solid var(--green-dark,#1a5c36);background:transparent;color:var(--green-dark,#1a5c36);font-size:12px;cursor:pointer;font-weight:600;" id="fb-copy-code-btn">Copy Code</button>';
+  html += '<button onclick="showQrOverlay(\''+escapeHtml(code)+'\')" class="sg-qr-btn">📱 QR Code</button>';
+  html += '</div>';
   html += '</div>';
   // Player count selector
   html += '<div style="margin-bottom:16px;">';
@@ -5006,6 +5034,14 @@ function buildCompactLobbyHtml(){
   var total = state.players.length || 4;
   var code  = fbRoundCode || '——';
   var html = '<div id="compact-lobby-section" style="margin-top:24px;padding-top:20px;border-top:2px solid var(--border,#eee);">';
+  // Code display with QR button — always shown to host
+  if (fbRoundCode) {
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">';
+    html += '<div style="font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--muted,#666);">JOIN CODE</div>';
+    html += '<div style="font-size:18px;font-weight:800;letter-spacing:4px;color:var(--green-dark,#1a5c36);cursor:pointer;" onclick="showQrOverlay(\''+escapeHtml(fbRoundCode)+'\')" title="Show QR">'+escapeHtml(fbRoundCode)+'</div>';
+    html += '<button onclick="showQrOverlay(\''+escapeHtml(fbRoundCode)+'\')" class="sg-qr-btn" style="margin-left:auto;">📱 QR</button>';
+    html += '</div>';
+  }
   html += '<div style="font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--muted,#666);margin-bottom:10px;">PLAYERS JOINED ('+named.length+' / '+total+')</div>';
   if (named.length === 0) {
     html += '<div style="text-align:center;padding:14px;color:var(--muted,#888);font-size:13px;">Waiting for players to join with code <strong>'+escapeHtml(code)+'</strong>…</div>';
@@ -6532,7 +6568,7 @@ function renderEventHub(){
   html += '<div class="event-hub-title">'+(isRyderCup() ? '🏆 Ryder Cup Event' : '⛳ Golf Event')+'</div>';
   html += '<div class="event-hub-sub">'+state.days.length+'-Day Event  •  '+numPlayers+' Players</div>';
   if (code && isCurrentUserHost()) {
-    html += '<div class="event-hub-code"><span class="event-hub-code-label">Join Code</span><span class="event-hub-code-val">'+escapeHtml(code)+'</span></div>';
+    html += '<div class="event-hub-code" style="cursor:pointer;" onclick="showQrOverlay(\''+escapeHtml(code)+'\')" title="Show QR code"><span class="event-hub-code-label">Join Code</span><span class="event-hub-code-val">'+escapeHtml(code)+'</span><span style="font-size:14px;margin-left:6px;opacity:.8;">📱</span></div>';
   }
   html += '</div>';
 
@@ -13203,6 +13239,98 @@ window.fbShareCode = function() {
   }
 };
 
+// ── QR Code overlay ──────────────────────────────────────────────────────────
+window.showQrOverlay = function(code) {
+  if (!code) return;
+  var overlay = document.getElementById('sgQrOverlay');
+  var canvas  = document.getElementById('sgQrCanvas');
+  var codeLbl = document.getElementById('sgQrCodeLbl');
+  var urlLbl  = document.getElementById('sgQrUrlLbl');
+  if (!overlay) return;
+  var url = 'https://sidiegolf.com/?join=' + code;
+  if (canvas)  canvas.innerHTML = '';
+  if (codeLbl) codeLbl.textContent = code;
+  if (urlLbl)  urlLbl.textContent  = url;
+  if (canvas && typeof QRCode !== 'undefined') {
+    try {
+      new QRCode(canvas, { text: url, width: 190, height: 190,
+        colorDark: '#1a5c36', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    } catch(e) {}
+  }
+  overlay.classList.add('open');
+};
+
+window.closeQrOverlay = function() {
+  var overlay = document.getElementById('sgQrOverlay');
+  if (overlay) overlay.classList.remove('open');
+  var canvas = document.getElementById('sgQrCanvas');
+  if (canvas) canvas.innerHTML = '';
+};
+
+// ── ?join= URL parameter — detect before onAuthStateChanged fires ─────────────
+// Sets window.fbPendingJoinCode which onAuthStateChanged (below) reads.
+window.fbPendingJoinCode = (function() {
+  try {
+    var p = new URLSearchParams(window.location.search);
+    var c = (p.get('join') || '').trim().toUpperCase();
+    return c.length === 6 ? c : null;
+  } catch(e) { return null; }
+})();
+
+// ── Join-choice overlay (Watch Live vs Keep Score) ────────────────────────────
+// Shown when an unauthenticated user arrives via a ?join= deep link.
+window._sgJcCode = null;
+
+window.sgShowJoinChoice = function(code) {
+  window._sgJcCode = code;
+  var overlay = document.getElementById('sgJcOverlay');
+  var lbl     = document.getElementById('sgJcCodeLbl');
+  if (lbl) lbl.textContent = 'Code: ' + code;
+  if (overlay) overlay.classList.add('open');
+};
+
+// Watch Live — sign in anonymously and go straight to leaderboard
+window.sgJoinWatchLive = function() {
+  var code = window._sgJcCode;
+  window._sgJcCode = null;
+  var overlay = document.getElementById('sgJcOverlay');
+  if (overlay) overlay.classList.remove('open');
+  if (!code) return;
+  // Reuse existing fbWatchRound machinery — pre-fill watch input then call it
+  var watchInput = document.getElementById('fb-watch-input');
+  if (watchInput) watchInput.value = code;
+  if (typeof fbWatchRound === 'function') {
+    // fbWatchRound reads from fb-watch-input; pre-fill triggers it
+    fbWatchRound();
+  } else {
+    // Fallback: manual anon sign-in
+    window.fbPendingWatchCode = code;
+    fbAuth.signInAnonymously()
+      .then(function(){ return fbDb.collection('rounds').doc(code).get(); })
+      .then(function(snap) {
+        window.fbPendingWatchCode = null;
+        if (!snap.exists || snap.data().completed) { fbAuth.signOut(); return; }
+        var d = snap.data();
+        window.fbRoundStatus = d.roundStatus || 'active';
+        if (d.state) fbApplyRemoteState(d.state);
+        state.step = 7;
+        fbActivateRound(code);
+        goToStep(7);
+      }).catch(function(){ window.fbPendingWatchCode = null; fbAuth.signOut(); });
+  }
+};
+
+// Keep Score — show sign-in form; fbPendingJoinCode auto-joins after login
+window.sgJoinKeepScore = function() {
+  var code = window._sgJcCode;
+  window._sgJcCode = null;
+  var overlay = document.getElementById('sgJcOverlay');
+  if (overlay) overlay.classList.remove('open');
+  if (!code) return;
+  window.fbPendingJoinCode = code; // onAuthStateChanged will auto-join after login
+  document.getElementById('fb-auth-overlay').style.display = 'flex';
+};
+
 // ── Toast notification ────────────────────────────────────────────────────────
 var fbToastTimer = null;
 function fbShowToast(msg) {
@@ -13288,6 +13416,10 @@ fbAuth.onAuthStateChanged(function(user) {
     var btn;
     btn = document.getElementById('fb-in-btn'); if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
     btn = document.getElementById('fb-up-btn'); if (btn) { btn.disabled = false; btn.textContent = 'Create Account'; }
+    // If the user arrived via a ?join= deep link, show Watch Live / Keep Score choice
+    if (window.fbPendingJoinCode && typeof sgShowJoinChoice === 'function') {
+      setTimeout(function(){ sgShowJoinChoice(window.fbPendingJoinCode); }, 120);
+    }
   } else {
     // Signed in — could be anonymous (viewer) or registered (manager/joiner)
     var isAnon = user.isAnonymous;
@@ -13455,6 +13587,34 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+
+<!-- ── QR Code Overlay ─────────────────────────────────────────────────── -->
+<div id="sgQrOverlay" class="sg-qr-overlay" onclick="if(event.target===this)closeQrOverlay()">
+  <div class="sg-qr-sheet">
+    <div class="sg-qr-title">📱 Scan to Join</div>
+    <div class="sg-qr-sub">Share this QR with your group — scan to join instantly</div>
+    <div class="sg-qr-canvas" id="sgQrCanvas"></div>
+    <div class="sg-qr-code-lbl" id="sgQrCodeLbl"></div>
+    <div class="sg-qr-url-lbl" id="sgQrUrlLbl"></div>
+    <button class="sg-qr-close" onclick="closeQrOverlay()">Done</button>
+  </div>
+</div>
+
+<!-- ── Join Choice Overlay (Watch Live vs Keep Score) ─────────────────── -->
+<div id="sgJcOverlay" class="sg-jc-overlay">
+  <div class="sg-jc-sheet">
+    <div class="sg-jc-title">⛳ Joining this round</div>
+    <div class="sg-jc-sub" id="sgJcCodeLbl">How do you want to join?</div>
+    <button class="sg-jc-opt sg-jc-watch" onclick="sgJoinWatchLive()">
+      <span class="sg-jc-icon">👁</span>
+      <span><span class="sg-jc-label">Watch Live</span><span class="sg-jc-desc">View scores &amp; leaderboard — no sign-in needed</span></span>
+    </button>
+    <button class="sg-jc-opt sg-jc-keep" onclick="sgJoinKeepScore()">
+      <span class="sg-jc-icon">📋</span>
+      <span><span class="sg-jc-label">Keep Score</span><span class="sg-jc-desc">Enter scores for your group — sign in required</span></span>
+    </button>
+  </div>
+</div>
 
 <!-- ── Sign-out modal ────────────────────────────────────────────────────── -->
 <div id="signoutOverlay" class="smart-payout-overlay" style="display:none;" onclick="if(event.target===this)document.getElementById('signoutOverlay').style.display='none'">

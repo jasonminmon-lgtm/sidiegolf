@@ -578,8 +578,9 @@ Wolf/Nassau/Skins/Scotch/Banker = SIDE GAMES added at step 5, never scoring meth
 • Hole won = lower net score; tied holes are halved (½ pt each)
 • CARRY TIES: if Front 9 is tied going to the back, Front bet amount carries to Back (Back bet doubles)
 • AUTO-PRESS: when team is down by configured holes, a new press starts automatically
-• MANUAL PRESS: team calls press on any hole; each press is a separate side match to 18
-• add_nassau_press to record a manual press
+• MANUAL PRESS: team calls press on any hole; each press is a separate side match to 18. Players can tap the per-hole press button on the scorecard OR ask Caddie.
+• add_nassau_press(startHole, stake) — use this to record a manual press when called verbally during play
+• Each press shows up in the scorecard event table as its own row; the net stroke display on the leaderboard reflects active presses
 
 ── SKINS ($X per skin) ──
 • Each hole is a skin. Lowest net (or gross) score wins the skin
@@ -656,6 +657,17 @@ App pre-allocates "Player 1", "Player 2", etc. add_player fills the first empty 
 
 ━━ NATURAL LANGUAGE ━━
 Accept info in any order. "Wolf at Barton Creek with Dave and Tim, $5/man hammers on" → parse all, execute in step order. Never execute out of order.
+
+━━ QR CODE JOIN & SCOREKEEPER ━━
+Networked rounds have a 6-letter Join Code. Tapping the code on step 4 (Who's Playing), step 5 (lobby), or the Event Hub shows a QR overlay encoding https://sidiegolf.com/?join=ROUNDCODE.
+
+When someone scans the QR (or follows a share link):
+• Not signed in → "Watch Live" or "Keep Score" choice overlay appears
+  - Watch Live: anonymous sign-in → leaderboard view only
+  - Keep Score: sign-in modal → after login, automatically joins as scorekeeper
+• Already signed in → auto-joins the round
+
+SCOREKEEPER: a player who claims a tee-time group to enter scores on behalf of that group. They see the same scorecard as the manager for their group. Scorekeepers are assigned per tee-time group — each group can have one active scorekeeper.
 
 ━━ ACCOUNTS & OVERLAYS ━━
 - open_account → My Account (name/GHIN/HI, history)
