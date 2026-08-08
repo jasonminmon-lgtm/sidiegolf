@@ -13919,9 +13919,20 @@ async function executeCaddieTool(name, input) {
         var sc2 = state.scorecard;
         if (!sc2) return 'No active scorecard';
         if (!sc2.scores) sc2.scores = {};
-        if (!sc2.scores[pi2]) sc2.scores[pi2] = {};
-        sc2.scores[pi2][parseInt(input.hole, 10)] = parseInt(input.score, 10);
+        var sIdx2 = String(pi2); // scorecard keys are always strings
+        if (!sc2.scores[sIdx2]) sc2.scores[sIdx2] = {};
+        var holeNum2 = parseInt(input.hole, 10);
+        var scoreVal2 = parseInt(input.score, 10);
+        sc2.scores[sIdx2][holeNum2] = scoreVal2;
+        // Update the visible score cell immediately (ends-with selector avoids ambiguity)
+        var cell2 = document.querySelector('[data-sc-score$="|' + pi2 + '|' + holeNum2 + '"]');
+        if (cell2) {
+          var inner2 = cell2.querySelector('.score-tap-inner');
+          if (inner2) inner2.textContent = scoreVal2;
+        }
         if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+        // For local (non-networked) rounds there's no Firestore listener to re-render — do it now
+        if (!window.fbRoundCode && typeof goToStep === 'function') goToStep(state.step);
         return 'Scored ' + input.score + ' for ' + input.playerName + ' on hole ' + input.hole;
       }
 
