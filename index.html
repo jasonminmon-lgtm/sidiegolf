@@ -516,6 +516,35 @@
   .hl-warn{color:#c87000;font-size:12px;margin-top:10px;padding:8px 12px;background:#fff8e1;border-radius:6px;border:1px solid #f0c040;}
   .hl-warn li{margin-bottom:3px;}
   .hl-chain-ended{font-size:12px;color:#6c757d;margin-top:8px;text-align:center;font-style:italic;}
+  /* ── Hammer Bottom Sheet v2 — large-button UX ── */
+  .hlbs-multiplier{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:10px 14px;background:var(--green,#16284a);border-radius:10px;color:#fff;}
+  .hlbs-mult-col{display:flex;flex-direction:column;}
+  .hlbs-mult-label{font-size:10px;font-weight:700;opacity:0.75;text-transform:uppercase;letter-spacing:0.6px;}
+  .hlbs-mult-value{font-size:22px;font-weight:800;line-height:1.1;}
+  .hlbs-entry{display:flex;align-items:center;gap:8px;padding:10px 12px;margin-bottom:7px;background:#f8f9fa;border-radius:10px;border:1px solid #eaeaea;}
+  .hlbs-entry-num{font-size:12px;color:#aaa;min-width:16px;font-weight:700;}
+  .hlbs-entry-side{padding:4px 10px;border-radius:6px;font-size:13px;font-weight:700;}
+  .hlbs-entry-side.wolf{background:#dde9ff;color:#1a5ca8;}
+  .hlbs-entry-side.opp{background:#f5f0e8;color:#7a5010;}
+  .hlbs-entry-arrow{font-size:12px;color:#bbb;flex-shrink:0;}
+  .hlbs-entry-outcome{padding:4px 10px;border-radius:6px;font-size:13px;font-weight:700;flex-shrink:0;}
+  .hlbs-entry-outcome.accepted{background:#d4f4e0;color:#1a6e3c;}
+  .hlbs-entry-outcome.declined{background:#fde8e8;color:#8b1a1a;}
+  .hlbs-entry-running{font-size:11px;color:#888;margin-left:auto;white-space:nowrap;}
+  .hlbs-entry-del{color:#dc3545;border:none;background:none;cursor:pointer;font-size:22px;line-height:1;padding:0 4px;flex-shrink:0;}
+  .hlbs-throw-btn{width:100%;padding:17px;margin-top:6px;border-radius:12px;border:none;background:var(--green,#16284a);color:#fff;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:0.2px;}
+  .hlbs-chain-banner{padding:14px;background:#fde8e8;border:1.5px solid #f5c6cb;border-radius:10px;margin-top:6px;text-align:center;color:#7b1818;font-size:14px;font-weight:700;}
+  .hlbs-step-label{font-size:15px;font-weight:700;text-align:center;margin:10px 0 14px;color:var(--ink,#1c2522);}
+  .hlbs-two-btn{display:flex;gap:10px;}
+  .hlbs-side-btn{flex:1;padding:22px 8px;border-radius:12px;border:2.5px solid transparent;font-size:15px;font-weight:800;cursor:pointer;text-align:center;line-height:1.4;}
+  .hlbs-side-btn.wolf{background:#dde9ff;border-color:#4a90d9;color:#1a5ca8;}
+  .hlbs-side-btn.opp{background:#f5f0e8;border-color:#b08040;color:#7a5010;}
+  .hlbs-side-btn:disabled{opacity:0.3;cursor:not-allowed;}
+  .hlbs-outcome-btn{flex:1;padding:22px 8px;border-radius:12px;border:2.5px solid transparent;font-size:15px;font-weight:800;cursor:pointer;text-align:center;line-height:1.4;}
+  .hlbs-outcome-btn.accept{background:#d4f4e0;border-color:#28a745;color:#155724;}
+  .hlbs-outcome-btn.decline{background:#fde8e8;border-color:#dc3545;color:#721c24;}
+  .hlbs-cancel-btn{width:100%;margin-top:10px;padding:13px;border-radius:10px;border:1px solid #ddd;background:#f8f9fa;color:#888;font-size:14px;font-weight:600;cursor:pointer;}
+  .hlbs-next-badge{display:block;font-size:10px;font-weight:600;margin-top:3px;opacity:0.75;}
   table.holecard-table tfoot td{border-top:2px solid #e3e7e3;border-bottom:none;padding-top:8px;}
   .note-box{background:#fff7e6;border:1px solid #f0ddb0;border-radius:10px;padding:10px 12px;font-size:12.5px;color:#7a5d12;margin-bottom:14px;}
   .restart-link{display:block;text-align:center;margin-top:18px;color:var(--muted);font-size:13px;}
@@ -9698,7 +9727,7 @@ window.suShareLedger = function() {
 
 // ---- Hammer log bottom sheet ----
 function openHammerLog(ns, gid, hole, sc, game){
-  state.__hammerLog = { ns: ns, gid: gid, hole: hole, sc: sc, game: game };
+  state.__hammerLog = { ns: ns, gid: gid, hole: hole, sc: sc, game: game, step: 'idle', pendingSide: null };
   renderHammerLogSheet();
   $('hammerLogOverlay').style.display = 'flex';
 }
@@ -9979,118 +10008,177 @@ function renderHammerLogSheet(){
   var log = Array.isArray(ev.hammerLog) ? ev.hammerLog : [];
   var baseAmount = parseFloat((e.game.stakes && e.game.stakes.amount)) || 0;
 
+  // Compute running multiplier and stake labels per entry
   var running = baseAmount;
   var stakeAfter = [];
   var firstDeclineIdx = -1;
   for (var si = 0; si < log.length; si++){
     if (log[si].accepted){
-      running *= 2;
-      stakeAfter.push('→ $' + running);
+      var prev = running;
+      running = running * 2;
+      stakeAfter.push('$' + prev + ' → $' + running);
     } else {
-      stakeAfter.push('→ ' + (log[si].side === 'wolf' ? 'Wolf' : 'Opp') + ' wins at $' + running);
+      stakeAfter.push('settled $' + running);
       if (firstDeclineIdx < 0) firstDeclineIdx = si;
     }
   }
-
-  var warnings = [];
-  for (var vi = 1; vi < log.length; vi++){
-    if (log[vi].side === log[vi-1].side){
-      warnings.push('Entry ' + (vi + 1) + ': same side as entry ' + vi + ' — teams must alternate.');
-    }
-  }
-  if (firstDeclineIdx >= 0 && firstDeclineIdx < log.length - 1){
-    warnings.push('Entries after a decline are ignored — hammer chain ended at entry ' + (firstDeclineIdx + 1) + '.');
-  }
-
+  var currentBet = running;
+  var multiplier = (baseAmount > 0 && log.length > 0) ? Math.round(currentBet / baseAmount) : 1;
   var canAdd = firstDeclineIdx < 0;
-  var nextAllowed = null;
-  if (log.length > 0 && canAdd){
-    nextAllowed = log[log.length - 1].side === 'wolf' ? 'opp' : 'wolf';
-  }
+  var nextAllowed = (log.length > 0 && canAdd) ? (log[log.length - 1].side === 'wolf' ? 'opp' : 'wolf') : null;
+  var step = e.step || 'idle';
+  var pendingSide = e.pendingSide || null;
 
   var html = '<div class="hl-sheet">';
-  html += '<div class="hl-head"><div class="hl-title">Hammers — Hole ' + e.hole + '</div>';
+  html += '<div class="hl-head"><div class="hl-title">🔨 Hammers — Hole ' + e.hole + '</div>';
   html += '<button class="btn-link" id="hlClose">Close ✕</button></div>';
-  html += '<div class="hl-stake-info">Base stake: $' + baseAmount + '/man · Each accepted hammer doubles it · Teams must alternate</div>';
+  html += '<div class="hl-stake-info">Base: $' + baseAmount + '/man · Accepted doubles the bet · Teams must alternate · Decline ends the chain</div>';
 
-  if (log.length === 0){
-    html += '<div class="hl-empty">No hammers on this hole — tap + Add to log one.</div>';
+  // Running bet pill (only when hammers logged)
+  if (log.length > 0) {
+    html += '<div class="hlbs-multiplier">';
+    html += '<div class="hlbs-mult-col"><div class="hlbs-mult-label">Current Bet</div><div class="hlbs-mult-value">$' + currentBet + '/man</div></div>';
+    html += '<div class="hlbs-mult-col" style="text-align:right"><div class="hlbs-mult-label">Multiplier</div><div class="hlbs-mult-value">' + multiplier + '×</div></div>';
+    html += '</div>';
+  }
+
+  // Logged entries as chips
+  if (log.length === 0 && step === 'idle') {
+    html += '<div class="hl-empty" style="padding:18px 0 12px;">No hammers on this hole yet.</div>';
   } else {
     for (var li = 0; li < log.length; li++){
       var entry = log[li];
-      var isPostDecline = firstDeclineIdx >= 0 && li > firstDeclineIdx;
-      html += '<div class="hl-entry"' + (isPostDecline ? ' style="opacity:0.45"' : '') + '>';
-      html += '<div class="hl-entry-num">' + (li + 1) + '.</div>';
-      html += '<select class="hl-side-sel ' + (entry.side || 'wolf') + '" data-hl-side="' + li + '">';
-      html += '<option value="wolf"' + (entry.side === 'wolf' ? ' selected' : '') + '>Wolf side</option>';
-      html += '<option value="opp"' + (entry.side === 'opp' ? ' selected' : '') + '>Opp side</option>';
-      html += '</select>';
-      html += '<div class="hl-arrow">→</div>';
-      html += '<select class="hl-out-sel ' + (entry.accepted ? 'accepted' : 'declined') + '" data-hl-outcome="' + li + '">';
-      html += '<option value="accepted"' + (entry.accepted ? ' selected' : '') + '>Accepted ✓</option>';
-      html += '<option value="declined"' + (!entry.accepted ? ' selected' : '') + '>Declined ✗</option>';
-      html += '</select>';
-      html += '<div class="hl-running">' + (stakeAfter[li] || '') + '</div>';
-      html += '<button class="hl-remove" data-hl-remove="' + li + '">×</button>';
+      var isPost = firstDeclineIdx >= 0 && li > firstDeclineIdx;
+      html += '<div class="hlbs-entry"' + (isPost ? ' style="opacity:0.38"' : '') + '>';
+      html += '<span class="hlbs-entry-num">' + (li + 1) + '</span>';
+      html += '<span class="hlbs-entry-side ' + (entry.side === 'wolf' ? 'wolf' : 'opp') + '">' + (entry.side === 'wolf' ? '🏌️ Wolf' : '⛳ Opp') + '</span>';
+      html += '<span class="hlbs-entry-arrow">→</span>';
+      html += '<span class="hlbs-entry-outcome ' + (entry.accepted ? 'accepted' : 'declined') + '">' + (entry.accepted ? '✓ Accepted' : '✗ Declined') + '</span>';
+      html += '<span class="hlbs-entry-running">' + (stakeAfter[li] || '') + '</span>';
+      if (!isPost) html += '<button class="hlbs-entry-del" data-hl-remove="' + li + '">×</button>';
       html += '</div>';
     }
   }
 
-  if (warnings.length){
-    html += '<div class="hl-warn">⚠ <ul class="hl-warn" style="padding-left:16px;margin:4px 0;">';
-    warnings.forEach(function(w){ html += '<li>' + escapeHtml(w) + '</li>'; });
-    html += '</ul></div>';
+  // Stepped input area
+  if (step === 'idle') {
+    if (canAdd) {
+      html += '<button class="hlbs-throw-btn" id="hlThrow">🔨 Throw Hammer</button>';
+    } else {
+      html += '<div class="hlbs-chain-banner">⛔ Chain ended — a decline forfeits the hole at $' + currentBet + '/man</div>';
+    }
+  } else if (step === 'side') {
+    html += '<div class="hlbs-step-label">Who threw the hammer?</div>';
+    html += '<div class="hlbs-two-btn">';
+    var wolfDis = (nextAllowed && nextAllowed !== 'wolf') ? ' disabled' : '';
+    var oppDis  = (nextAllowed && nextAllowed !== 'opp')  ? ' disabled' : '';
+    html += '<button class="hlbs-side-btn wolf" id="hlSideWolf"' + wolfDis + '>🏌️ Wolf<br>Side';
+    if (!wolfDis && nextAllowed === 'wolf') html += '<span class="hlbs-next-badge">← their turn</span>';
+    html += '</button>';
+    html += '<button class="hlbs-side-btn opp" id="hlSideOpp"' + oppDis + '>⛳ Opp<br>Side';
+    if (!oppDis && nextAllowed === 'opp') html += '<span class="hlbs-next-badge">← their turn</span>';
+    html += '</button>';
+    html += '</div>';
+    html += '<button class="hlbs-cancel-btn" id="hlStepCancel">Cancel</button>';
+  } else if (step === 'outcome') {
+    var sideName = pendingSide === 'wolf' ? '🏌️ Wolf Side' : '⛳ Opp Side';
+    html += '<div class="hlbs-step-label">' + sideName + ' threw —<br>Accepted or Declined?</div>';
+    html += '<div class="hlbs-two-btn">';
+    html += '<button class="hlbs-outcome-btn accept" id="hlOutAccept">✓<br><span style="font-size:13px">Accepted</span></button>';
+    html += '<button class="hlbs-outcome-btn decline" id="hlOutDecline">✗<br><span style="font-size:13px">Declined</span></button>';
+    html += '</div>';
+    html += '<button class="hlbs-cancel-btn" id="hlStepCancel">← Back</button>';
   }
-  if (!canAdd && log.length > 0){
-    html += '<div class="hl-chain-ended">Hammer chain ended — a decline forfeits the hole.</div>';
-  }
-  html += '<button class="hl-add-btn" id="hlAdd"' + (canAdd ? '' : ' disabled') + '>+ Add hammer</button>';
+
   html += '</div>';
 
   var ov = $('hammerLogOverlay');
   ov.innerHTML = html;
 
+  // Close
   $('hlClose').addEventListener('click', closeHammerLog);
+  ov.addEventListener('click', function(evt){ if (evt.target === ov) closeHammerLog(); });
 
-  var addBtn = $('hlAdd');
-  if (addBtn && canAdd){
-    addBtn.addEventListener('click', function(){
-      if (!ev.hammerLog) ev.hammerLog = [];
-      var defaultSide = nextAllowed || 'wolf';
-      ev.hammerLog.push({ side: defaultSide, accepted: true });
-      updateHammerLogBtn(e.ns, e.gid, e.hole, sc);
-      renderHammerLogSheet();
-    });
-  }
-
-  Array.prototype.forEach.call(ov.querySelectorAll('[data-hl-side]'), function(sel){
-    sel.addEventListener('change', function(){
-      var idx = parseInt(sel.getAttribute('data-hl-side'), 10);
-      ev.hammerLog[idx] = { side: sel.value, accepted: ev.hammerLog[idx].accepted };
-      updateHammerLogBtn(e.ns, e.gid, e.hole, sc);
-      renderHammerLogSheet();
-    });
-  });
-
-  Array.prototype.forEach.call(ov.querySelectorAll('[data-hl-outcome]'), function(sel){
-    sel.addEventListener('change', function(){
-      var idx = parseInt(sel.getAttribute('data-hl-outcome'), 10);
-      ev.hammerLog[idx] = { side: ev.hammerLog[idx].side, accepted: sel.value === 'accepted' };
-      updateHammerLogBtn(e.ns, e.gid, e.hole, sc);
-      renderHammerLogSheet();
-    });
-  });
-
+  // Delete entry
   Array.prototype.forEach.call(ov.querySelectorAll('[data-hl-remove]'), function(btn){
     btn.addEventListener('click', function(){
       var idx = parseInt(btn.getAttribute('data-hl-remove'), 10);
       ev.hammerLog.splice(idx, 1);
+      e.step = 'idle'; e.pendingSide = null;
       updateHammerLogBtn(e.ns, e.gid, e.hole, sc);
+      autoSave();
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
       renderHammerLogSheet();
     });
   });
 
-  ov.addEventListener('click', function(evt){ if (evt.target === ov) closeHammerLog(); });
+  // Idle: Throw Hammer → go to side step
+  var throwBtn = $('hlThrow');
+  if (throwBtn) {
+    throwBtn.addEventListener('click', function(){
+      e.step = 'side';
+      renderHammerLogSheet();
+    });
+  }
+
+  // Side step: Wolf
+  var wolfBtn = $('hlSideWolf');
+  if (wolfBtn && !wolfBtn.disabled) {
+    wolfBtn.addEventListener('click', function(){
+      e.pendingSide = 'wolf';
+      e.step = 'outcome';
+      renderHammerLogSheet();
+    });
+  }
+
+  // Side step: Opp
+  var oppBtn = $('hlSideOpp');
+  if (oppBtn && !oppBtn.disabled) {
+    oppBtn.addEventListener('click', function(){
+      e.pendingSide = 'opp';
+      e.step = 'outcome';
+      renderHammerLogSheet();
+    });
+  }
+
+  // Outcome step: Accepted
+  var acceptBtn = $('hlOutAccept');
+  if (acceptBtn) {
+    acceptBtn.addEventListener('click', function(){
+      if (!ev.hammerLog) ev.hammerLog = [];
+      ev.hammerLog.push({ side: pendingSide || 'wolf', accepted: true });
+      e.step = 'idle'; e.pendingSide = null;
+      updateHammerLogBtn(e.ns, e.gid, e.hole, sc);
+      autoSave();
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+      renderHammerLogSheet();
+    });
+  }
+
+  // Outcome step: Declined
+  var declineBtn = $('hlOutDecline');
+  if (declineBtn) {
+    declineBtn.addEventListener('click', function(){
+      if (!ev.hammerLog) ev.hammerLog = [];
+      ev.hammerLog.push({ side: pendingSide || 'wolf', accepted: false });
+      e.step = 'idle'; e.pendingSide = null;
+      updateHammerLogBtn(e.ns, e.gid, e.hole, sc);
+      autoSave();
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+      renderHammerLogSheet();
+    });
+  }
+
+  // Cancel / Back
+  var cancelBtn = $('hlStepCancel');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function(){
+      if (step === 'outcome') { e.step = 'side'; }
+      else { e.step = 'idle'; }
+      e.pendingSide = null;
+      renderHammerLogSheet();
+    });
+  }
 }
 
 // ---- Score entry bottom sheet ----
