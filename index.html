@@ -341,41 +341,13 @@
   .help-body ul{margin:6px 0 6px 4px;padding:0 0 0 14px;}
   .help-body li{margin-bottom:5px;}
   .help-tip{background:var(--green-light);border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12.5px;color:var(--green-dark);font-weight:500;}
-  /* Voice Score Entry FAB + overlay */
-  .voice-fab{position:fixed;bottom:142px;right:16px;width:50px;height:50px;border-radius:50%;background:var(--green-dark);color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 3px 14px rgba(0,0,0,0.28);z-index:800;display:none;align-items:center;justify-content:center;transition:transform .15s,background .2s;}
-  .voice-fab:active{transform:scale(0.9);}
-  .voice-fab.listening{background:#c0392b;animation:voice-pulse 1.1s infinite;}
-  @keyframes voice-pulse{0%{box-shadow:0 0 0 0 rgba(192,57,43,.5);}70%{box-shadow:0 0 0 14px rgba(192,57,43,0);}100%{box-shadow:0 0 0 0 rgba(192,57,43,0);}}
-  .voice-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3500;display:flex;align-items:flex-end;justify-content:center;}
-  .voice-sheet{width:100%;max-width:480px;background:#fff;border-radius:18px 18px 0 0;padding:18px 18px 32px;box-shadow:0 -4px 24px rgba(0,0,0,.15);}
-  .voice-sheet-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-  .voice-sheet-title{font-size:16px;font-weight:700;color:var(--ink);}
-  .voice-close-btn{border:none;background:none;font-size:20px;color:var(--muted);cursor:pointer;padding:0 4px;line-height:1;}
-  .voice-status{text-align:center;padding:18px 0 12px;}
-  .voice-mic-icon{font-size:46px;display:block;margin-bottom:8px;}
-  .voice-transcript{background:#f5f7f5;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.5;}
-  .voice-hole-label{font-size:13px;color:var(--muted);margin-bottom:10px;font-weight:600;}
-  .voice-parsed-rows{margin-bottom:16px;border:1px solid #eee;border-radius:10px;overflow:hidden;}
-  .voice-parsed-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #eee;}
-  .voice-parsed-row:last-child{border-bottom:none;}
-  .voice-parsed-name{font-size:15px;font-weight:600;color:var(--ink);}
-  .voice-parsed-score{font-size:22px;font-weight:700;color:var(--green-dark);}
-  .voice-parsed-score.missing{font-size:13px;font-weight:400;color:#c0392b;}
-  .voice-actions{display:flex;gap:10px;}
-  .voice-btn{flex:1;padding:13px;border-radius:10px;border:none;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s;}
-  .voice-btn.retry{background:#f0f0f0;color:var(--ink);}
-  .voice-btn.confirm{background:var(--green-dark);color:#fff;}
-  .voice-btn:disabled{opacity:.4;cursor:default;}
   /* Feedback FAB + overlay */
   .feedback-fab{position:fixed;bottom:84px;right:16px;width:50px;height:50px;border-radius:50%;background:var(--green-dark);color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 3px 14px rgba(0,0,0,0.28);z-index:800;display:flex;align-items:center;justify-content:center;transition:transform .15s;}
   .feedback-fab:active{transform:scale(0.9);}
-  /* Caddie AI FAB + overlay */
-  .caddie-fab-wrapper{position:fixed;bottom:145px;right:16px;display:flex;align-items:center;gap:10px;z-index:800;}
-  .caddie-fab-label{background:rgba(21,36,68,0.93);color:#fff;padding:6px 12px;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,0.28);pointer-events:none;line-height:1.35;text-align:right;}
-  .caddie-fab-label strong{display:block;font-size:13px;font-weight:700;}
-  .caddie-fab-label small{font-size:10px;opacity:0.85;letter-spacing:0.2px;}
-  .caddie-fab{width:50px;height:50px;border-radius:50%;background:#152444;color:#fff;border:none;cursor:pointer;box-shadow:0 3px 14px rgba(0,0,0,0.32);overflow:hidden;display:flex;align-items:center;justify-content:center;transition:transform .15s;flex-shrink:0;}
-  .caddie-fab:active{transform:scale(0.9);}
+  /* Caddie AI — round-bar button + overlay */
+  .rb-caddie{width:28px;height:28px;border-radius:50%;border:none;background:#152444;cursor:pointer;overflow:hidden;padding:0;flex-shrink:0;transition:transform .15s;}
+  .rb-caddie:active{transform:scale(0.9);}
+  .rb-caddie img{width:100%;height:100%;object-fit:cover;display:block;}
   .caddie-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1100;display:none;align-items:flex-end;justify-content:center;}
   .caddie-sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;display:flex;flex-direction:column;height:72vh;max-height:600px;}
   .caddie-header{background:#152444;border-radius:20px 20px 0 0;display:flex;flex-direction:column;align-items:center;padding-top:14px;overflow:hidden;}
@@ -664,7 +636,7 @@
   .fb-code-box .fblabel{font-size:11.5px;color:var(--muted);margin-top:4px;display:block;}
   .fb-join-inp{text-transform:uppercase;letter-spacing:4px;font-size:22px;font-weight:700;text-align:center;}
   .fb-round-bar{background:#f0f8ee;border-bottom:1px solid #cfe0cb;padding:5px 14px;display:flex;align-items:center;justify-content:space-between;font-size:12px;flex-shrink:0;}
-  .fb-round-bar .rb-user{color:var(--text);font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .fb-round-bar .rb-user{color:var(--green-dark);font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;text-decoration:underline;text-decoration-color:rgba(30,100,60,0.35);text-underline-offset:2px;}
   .fb-round-bar .rb-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
   .fb-round-bar .rb-code{color:var(--green-dark);font-weight:800;letter-spacing:1.5px;cursor:pointer;font-size:13px;user-select:none;}
   .fb-round-bar .rb-code::after{content:' ⎘';font-size:11px;opacity:.7;}
@@ -699,6 +671,77 @@
   .fb-detail-info h2{margin:0;font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .fb-detail-info p{margin:0;font-size:11.5px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .fb-detail-body{flex:1;overflow-y:auto;padding:14px;}
+  /* ── Season Money Ledger Overlay ───────────────────────────────────── */
+  .sl-overlay{position:fixed;inset:0;background:#f0f4f0;z-index:10000;display:flex;flex-direction:column;overflow:hidden;}
+  .sl-hdr{background:#152444;color:#fff;padding:14px 18px 0;display:flex;flex-direction:column;flex-shrink:0;}
+  .sl-hdr-row{display:flex;align-items:center;gap:10px;padding-bottom:14px;}
+  .sl-back{border:none;background:none;color:#fff;font-size:26px;cursor:pointer;padding:0;line-height:1;}
+  .sl-title{flex:1;font-size:16px;font-weight:800;}
+  .sl-filter-btn{border:1.5px solid rgba(255,255,255,0.5);background:none;color:#fff;font-size:11px;font-weight:600;border-radius:12px;padding:4px 10px;cursor:pointer;letter-spacing:.2px;}
+  .sl-filter-btn.active{background:rgba(255,255,255,0.2);}
+  .sl-tabs{display:flex;border-top:1px solid rgba(255,255,255,0.15);}
+  .sl-tab{flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:600;color:rgba(255,255,255,0.6);cursor:pointer;border-bottom:3px solid transparent;transition:color .15s,border-color .15s;}
+  .sl-tab.active{color:#fff;border-bottom-color:#4caf50;}
+  .sl-body{flex:1;overflow-y:auto;padding:14px;}
+  .sl-standings-row{display:flex;align-items:center;background:#fff;border:1px solid #e0e8e0;border-radius:10px;padding:11px 14px;margin-bottom:7px;}
+  .sl-rank{font-size:13px;font-weight:700;color:var(--muted);width:22px;flex-shrink:0;}
+  .sl-player-info{flex:1;min-width:0;}
+  .sl-player-name{font-size:14px;font-weight:700;color:var(--green-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sl-player-sub{font-size:10px;color:var(--muted);margin-top:1px;}
+  .sl-net{font-size:16px;font-weight:800;text-align:right;}
+  .sl-net-pos{color:#2e7d32;}
+  .sl-net-neg{color:#c62828;}
+  .sl-net-zero{color:var(--muted);}
+  .sl-rounds-note{font-size:10px;color:var(--muted);text-align:right;margin-top:1px;}
+  .sl-round-card{background:#fff;border:1px solid #e0e8e0;border-radius:12px;margin-bottom:10px;overflow:hidden;}
+  .sl-round-card.settled{opacity:0.6;}
+  .sl-round-hdr{display:flex;align-items:center;padding:11px 14px 9px;gap:10px;}
+  .sl-round-info{flex:1;min-width:0;}
+  .sl-round-date{font-size:10px;color:var(--muted);margin-bottom:2px;letter-spacing:.2px;}
+  .sl-round-course{font-size:14px;font-weight:700;color:var(--green-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sl-settle-btn{border:1.5px solid #ccc;background:#fff;border-radius:8px;font-size:11px;font-weight:600;color:#666;padding:5px 9px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+  .sl-settle-btn.settled{border-color:#2e7d32;color:#2e7d32;background:#f0f9f0;}
+  .sl-round-players{padding:0 14px 12px;border-top:1px solid #f0f0f0;}
+  .sl-player-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f6f6f6;}
+  .sl-player-row:last-child{border-bottom:none;}
+  .sl-pr-name{font-size:12.5px;color:var(--ink);}
+  .sl-pr-amt{font-size:12.5px;font-weight:700;}
+  .sl-no-money{font-size:12px;color:var(--muted);font-style:italic;padding:6px 0;}
+  .fb-hist-ledger-btn{border:none;background:var(--green-dark,#1a5c36);color:#fff;border-radius:10px;font-size:12px;font-weight:700;padding:6px 11px;cursor:pointer;}
+  .sl-empty{text-align:center;color:var(--muted);font-size:14px;padding:48px 0;line-height:1.6;}
+  /* ── My Account Overlay ─────────────────────────────────────────────── */
+  .acct-overlay{position:fixed;inset:0;background:#f4f6f4;z-index:10001;display:flex;flex-direction:column;overflow:hidden;}
+  .acct-hdr{background:#152444;color:#fff;padding:14px 18px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;}
+  .acct-back{border:none;background:none;color:#fff;font-size:26px;cursor:pointer;padding:0;line-height:1;}
+  .acct-hdr-info{flex:1;}
+  .acct-hdr-name{font-size:17px;font-weight:800;line-height:1.15;}
+  .acct-hdr-email{font-size:11px;opacity:0.7;margin-top:2px;}
+  .acct-body{flex:1;overflow-y:auto;padding:16px 14px 32px;}
+  .acct-section{margin-bottom:20px;}
+  .acct-section-label{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;padding-left:2px;}
+  .acct-card{background:#fff;border:1px solid #e0e8e0;border-radius:14px;overflow:hidden;}
+  .acct-field{display:flex;align-items:center;padding:11px 14px;border-bottom:1px solid #f0f0f0;}
+  .acct-field:last-child{border-bottom:none;}
+  .acct-field-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;width:72px;flex-shrink:0;}
+  .acct-field-val{flex:1;font-size:14px;color:var(--ink);font-weight:500;}
+  .acct-input{flex:1;font-size:14px;border:none;outline:none;background:transparent;color:var(--ink);font-weight:500;padding:0;}
+  .acct-input::placeholder{color:#bbb;}
+  .acct-save-btn{width:100%;margin-top:10px;padding:12px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;}
+  .acct-save-btn:disabled{background:#b5c4b5;cursor:not-allowed;}
+  .acct-msg{font-size:12px;text-align:center;margin-top:6px;min-height:16px;}
+  .acct-msg.ok{color:#2e7d32;} .acct-msg.err{color:#c62828;}
+  .acct-action-row{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;}
+  .acct-action-row:last-child{border-bottom:none;}
+  .acct-action-row:active{background:#f8f8f8;}
+  .acct-action-label{font-size:14px;font-weight:600;color:var(--ink);}
+  .acct-action-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+  .acct-action-chev{font-size:18px;color:var(--muted);}
+  .acct-stat-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:1px solid #f0f0f0;}
+  .acct-stat-row:last-child{border-bottom:none;}
+  .acct-stat-label{font-size:13px;color:var(--ink);}
+  .acct-stat-val{font-size:14px;font-weight:800;}
+  .acct-pw-btn{width:100%;padding:12px 14px;background:#fff;border:1.5px solid var(--green-dark,#1a5c36);border-radius:10px;color:var(--green-dark,#1a5c36);font-size:14px;font-weight:700;cursor:pointer;text-align:center;}
+  .acct-pw-note{font-size:11px;color:var(--muted);text-align:center;margin-top:7px;line-height:1.4;}
   /* Join confirmation panel */
   .fjc-back{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0 0 4px;line-height:1;display:block;}
   .fjc-host{font-size:13px;color:var(--muted);text-align:center;margin-bottom:8px;}
@@ -2420,7 +2463,7 @@
 <div id="fb-round-overlay" class="fb-overlay" style="display:none">
   <div class="fb-modal">
     <div class="fb-modal-logo"><img src="logo.png" alt="SidieGolf" style="height:72px;width:auto;display:block;margin:0 auto;"></div>
-    <div class="fb-modal-sub">Welcome, <strong id="fb-welcome-name"></strong></div>
+    <div class="fb-modal-sub" style="display:flex;align-items:center;justify-content:center;gap:6px;">Welcome, <strong id="fb-welcome-name" onclick="fbShowAccount()" title="My Account" style="cursor:pointer;color:var(--green-dark);text-decoration:underline;text-decoration-color:rgba(30,100,60,0.35);text-underline-offset:2px;"></strong><button onclick="fbShowAccount()" title="My Account" style="background:none;border:none;padding:0 0 0 2px;cursor:pointer;font-size:15px;line-height:1;color:var(--green-dark);">⚙️</button></div>
     <div class="fb-tabs">
       <button class="fb-tab active" id="fb-tab-new" onclick="fbRoundTab('new')">New Round</button>
       <button class="fb-tab" id="fb-tab-join" onclick="fbRoundTab('join')">Join Round</button>
@@ -2455,10 +2498,11 @@
   </header>
   <!-- Firebase round info bar -->
   <div id="fb-round-bar" class="fb-round-bar" style="display:none">
-    <span class="rb-user" id="rb-user-name"></span>
+    <span class="rb-user" id="rb-user-name" onclick="fbShowAccount()" title="My Account"></span>
     <div class="rb-actions">
       <span class="rb-code" id="rb-round-code" onclick="fbCopyCode()" title="Tap to copy code"></span>
       <button class="rb-hist" onclick="fbShowHistory()" title="Round history">📋</button>
+      <button class="rb-caddie" onclick="openCaddie()" title="Caddie AI"><img src="/caddie-mascot.png" alt="Caddie"></button>
       <button class="rb-out" onclick="fbSignOut()">Sign Out</button>
     </div>
   </div>
@@ -2469,7 +2513,10 @@
   <div class="fb-hist-panel">
     <div class="fb-hist-hdr">
       <h2>My Rounds</h2>
-      <button class="fb-hist-close" onclick="fbCloseHistory()">×</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="fb-hist-ledger-btn" onclick="fbShowSeasonLedger()">💰 Ledger</button>
+        <button class="fb-hist-close" onclick="fbCloseHistory()">×</button>
+      </div>
     </div>
     <div id="fb-hist-list" class="fb-hist-list">
       <div class="fb-hist-empty">Loading…</div>
@@ -2488,6 +2535,35 @@
   </div>
   <div id="fb-detail-body" class="fb-detail-body"></div>
 </div>
+
+<!-- ===== Season Money Ledger ===== -->
+<div id="sl-overlay" class="sl-overlay" style="display:none">
+  <div class="sl-hdr">
+    <div class="sl-hdr-row">
+      <button class="sl-back" onclick="fbCloseSeasonLedger()">‹</button>
+      <span class="sl-title">💰 Season Money Ledger</span>
+      <button class="sl-filter-btn active" id="sl-filter-btn" onclick="toggleSeasonFilter()">Unsettled</button>
+    </div>
+    <div class="sl-tabs">
+      <div class="sl-tab active" id="sl-tab-standings" onclick="switchSeasonTab('standings')">Standings</div>
+      <div class="sl-tab" id="sl-tab-rounds" onclick="switchSeasonTab('rounds')">By Round</div>
+    </div>
+  </div>
+  <div id="sl-body" class="sl-body"></div>
+</div>
+
+<!-- ===== My Account ===== -->
+<div id="acct-overlay" class="acct-overlay" style="display:none">
+  <div class="acct-hdr">
+    <button class="acct-back" onclick="fbCloseAccount()">‹</button>
+    <div class="acct-hdr-info">
+      <div class="acct-hdr-name" id="acct-hdr-name">My Account</div>
+      <div class="acct-hdr-email" id="acct-hdr-email"></div>
+    </div>
+  </div>
+  <div id="acct-body" class="acct-body"></div>
+</div>
+
   <div class="step-bar">
     <div class="step-row"><span class="step-label" id="stepLabel">Step 1 of 7 — Round Type</span></div>
     <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:16.6%;"></div></div>
@@ -3855,8 +3931,6 @@ function goToStep(n){
   if (n >= 5) autoSave(); // auto-save once games, scorecard, and review are active
   if (n >= 2 && typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
   if (typeof fbOnStepChange === 'function') fbOnStepChange(n);
-  // Voice FAB: only show on scorecard step for single rounds
-  if (n !== 6 || isEvent()) hideVoiceFab(); else showVoiceFab();
   // Banker FAB: only show on scorecard step for single rounds that have a Banker game
   if (n !== 6 || isEvent() || !hasBankerGame()) hideBankerFab(); else showBankerFab();
 }
@@ -7694,300 +7768,8 @@ function bankerSave(h){
   renderScorecard();
 }
 
-// ============================================================
-// VOICE SCORE ENTRY
-// ============================================================
+// Voice score entry removed — Caddie AI handles score assistance
 
-var _voiceRecog = null;
-var _voiceIdxs = [];
-var _voiceNs = 'sc';
-var _voiceSc = null;
-var _voiceParsed = {};
-var _voiceHole = 1;
-
-function voiceSupportCheck(){
-  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-}
-
-function showVoiceFab(){
-  var fab = $('voiceFab');
-  if (fab) { fab.style.display = voiceSupportCheck() ? 'flex' : 'none'; }
-}
-function hideVoiceFab(){
-  var fab = $('voiceFab');
-  if (fab) fab.style.display = 'none';
-}
-
-function voiceDetectCurrentHole(idxs, sc){
-  for (var h = 1; h <= 18; h++){
-    var allHave = idxs.every(function(idx){
-      return sc && sc.scores && sc.scores[String(idx)] && sc.scores[String(idx)][h] != null;
-    });
-    if (!allHave) return h;
-  }
-  return 18;
-}
-
-function startVoiceEntry(){
-  if (!voiceSupportCheck()){
-    alert('Voice recognition is not supported in this browser. Please use Chrome or Safari.');
-    return;
-  }
-  var course = state.course != null ? MOCK_COURSES[state.course] : null;
-  var tee = course && state.tee ? course.tees.filter(function(t){ return t.name === state.tee; })[0] : null;
-  _voiceIdxs = state.players.map(function(_,i){ return i; }).filter(function(i){ return state.players[i] && state.players[i].name.trim(); });
-  _voiceNs = 'sc';
-  _voiceSc = state.scorecard || { scores:{}, events:{} };
-  _voiceHole = voiceDetectCurrentHole(_voiceIdxs, _voiceSc);
-
-  openVoiceSheet('listening');
-
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (_voiceRecog){ try { _voiceRecog.abort(); } catch(e){} }
-  _voiceRecog = new SR();
-  _voiceRecog.lang = 'en-US';
-  _voiceRecog.continuous = false;
-  _voiceRecog.interimResults = false;
-  _voiceRecog.maxAlternatives = 3;
-
-  _voiceRecog.onstart = function(){ var f = $('voiceFab'); if (f) f.classList.add('listening'); };
-  _voiceRecog.onend   = function(){ var f = $('voiceFab'); if (f) f.classList.remove('listening'); };
-
-  _voiceRecog.onresult = function(e){
-    // Try all alternatives, pick the one that fills the most player scores
-    var bestTranscript = e.results[0][0].transcript;
-    var bestCount = -1;
-    for(var ai = 0; ai < e.results[0].length; ai++){
-      var t = e.results[0][ai].transcript;
-      var parsed = parseVoiceScores(t, _voiceIdxs);
-      var cnt = _voiceIdxs.filter(function(i){ return parsed[i] != null; }).length;
-      if(cnt > bestCount){ bestCount = cnt; bestTranscript = t; }
-    }
-    processVoiceResult(bestTranscript);
-  };
-
-  _voiceRecog.onerror = function(e){
-    var f = $('voiceFab'); if (f) f.classList.remove('listening');
-    var msg = e.error === 'no-speech'    ? 'No speech detected — try again.' :
-              e.error === 'not-allowed'  ? 'Microphone access denied. Please allow mic access and try again.' :
-              'Recognition error: ' + e.error;
-    showVoiceError(msg);
-  };
-
-  _voiceRecog.start();
-}
-
-function processVoiceResult(transcript){
-  // Check if a hole number was spoken: "hole 4", "hole four"
-  var holeMatch = transcript.match(/hole\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen)/i);
-  if (holeMatch){
-    var hw = holeMatch[1].toLowerCase();
-    var hWords = {one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18};
-    var hn = parseInt(hw,10) || hWords[hw];
-    if (hn >= 1 && hn <= 18) _voiceHole = hn;
-  }
-  _voiceParsed = parseVoiceScores(transcript, _voiceIdxs);
-  openVoiceSheet('confirm', transcript);
-}
-
-// Levenshtein distance for fuzzy name matching
-function voiceLev(a, b){
-  var m=a.length, n=b.length, prev=[], row=[];
-  for(var j=0;j<=n;j++) prev[j]=j;
-  for(var i=1;i<=m;i++){
-    row[0]=i;
-    for(var j2=1;j2<=n;j2++)
-      row[j2]=a[i-1]===b[j2-1]?prev[j2-1]:1+Math.min(prev[j2-1],prev[j2],row[j2-1]);
-    prev=row.slice();
-  }
-  return prev[n];
-}
-
-function parseVoiceScores(transcript, idxs){
-  var results = {};
-
-  // Scored words + homophones the speech recogniser commonly returns for golf scores
-  var scoreWords = {
-    'one':1,'won':1,
-    'two':2,'to':2,'too':2,
-    'three':3,'tree':3,
-    'four':4,'for':4,'fore':4,
-    'five':5,'fife':5,
-    'six':6,
-    'seven':7,
-    'eight':8,'ate':8,
-    'nine':9,'niner':9,
-    'ten':10,'eleven':11,'twelve':12
-  };
-
-  // Strip filler and hole references, then tokenise
-  var lower = transcript.toLowerCase()
-    .replace(/\bhole\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen)\b/g,' ')
-    .replace(/\b(got a|had a|scored a|made a|got|had|scored|made|a|and|the)\b/g,' ');
-  var tokens = lower.split(/[\s,\.;:]+/).filter(Boolean);
-
-  // Extract all valid golf score values from the transcript, in order (used for fallback)
-  var scoreTokens = [];
-  tokens.forEach(function(t){
-    var n = /^\d+$/.test(t) ? parseInt(t,10) : (scoreWords[t] != null ? scoreWords[t] : null);
-    if(n != null && n >= 1 && n <= 12) scoreTokens.push(n);
-  });
-
-  // PRIMARY: name-based matching with fuzzy lookup
-  idxs.forEach(function(idx){
-    var p = state.players[idx];
-    if (!p || !p.name.trim()) return;
-    var firstName = p.name.trim().split(/\s+/)[0].toLowerCase();
-
-    // Find best-matching name token
-    var bestTi = -1, bestDist = 999;
-    for(var ti=0; ti<tokens.length; ti++){
-      var tok = tokens[ti];
-      if(/^\d+$/.test(tok) || scoreWords[tok] != null) continue;
-      if(tok === firstName){ bestTi = ti; bestDist = 0; break; }
-      var threshold = firstName.length <= 4 ? 1 : 2;
-      var d = voiceLev(tok, firstName);
-      if(d <= threshold && d < bestDist){ bestTi = ti; bestDist = d; }
-    }
-    if(bestTi === -1) return;
-
-    // Next 1-3 tokens after the name: look for a score value
-    for(var ni=bestTi+1; ni<tokens.length && ni<=bestTi+3; ni++){
-      var nt = tokens[ni];
-      var s = null;
-      if(/^\d+$/.test(nt))           s = parseInt(nt, 10);
-      else if(scoreWords[nt] != null) s = scoreWords[nt];
-      if(s != null && s >= 1 && s <= 12){ results[idx] = s; break; }
-      // Stop if this token looks like another player's name
-      var isOtherName = idxs.some(function(oi){
-        if(oi === idx) return false;
-        var on2 = state.players[oi] && state.players[oi].name.trim().split(/\s+/)[0].toLowerCase();
-        return on2 && (nt === on2 || voiceLev(nt, on2) <= 1);
-      });
-      if(isOtherName) break;
-    }
-  });
-
-  // TERTIARY: remaining unmatched numbers → remaining unmatched players (positional)
-  var missing = idxs.filter(function(i){ return results[i] == null; });
-  if(missing.length){
-    var usedArr = idxs.map(function(i){ return results[i]; }).filter(function(v){ return v != null; });
-    var pool = scoreTokens.slice();
-    usedArr.forEach(function(v){ var p2=pool.indexOf(v); if(p2!==-1) pool.splice(p2,1); });
-    if(pool.length === missing.length){
-      missing.forEach(function(idx2, i){ results[idx2] = pool[i]; });
-    }
-  }
-
-  return results;
-}
-
-function openVoiceSheet(mode, transcript){
-  var overlay = $('voiceScoreOverlay');
-  var body = $('voiceSheetBody');
-  if (!overlay || !body) return;
-  overlay.style.display = 'flex';
-
-  if (mode === 'listening'){
-    body.innerHTML =
-      '<div class="voice-status">' +
-      '<span class="voice-mic-icon">🎙️</span>' +
-      '<div style="font-size:15px;font-weight:600;color:var(--ink);">Listening for Hole ' + _voiceHole + '…</div>' +
-      '<div style="font-size:13px;color:var(--muted);margin-top:6px;">Say each name then their score.<br><em style="opacity:.75;">e.g. "Jason 4, Craig 3, Tony 5, Kevin 6"</em></div>' +
-      '</div>' +
-      '<button class="voice-btn retry" style="width:100%;margin-top:12px;" onclick="closeVoiceScore()">Cancel</button>';
-    return;
-  }
-
-  // Confirm mode
-  var hasAll = _voiceIdxs.every(function(idx){ return _voiceParsed[idx] != null; });
-  var rows = '';
-  _voiceIdxs.forEach(function(idx){
-    var name = state.players[idx] ? state.players[idx].name.split(' ')[0] : ('P'+(idx+1));
-    var score = _voiceParsed[idx];
-    rows += '<div class="voice-parsed-row">' +
-      '<span class="voice-parsed-name">'+escapeHtml(name)+'</span>' +
-      (score != null
-        ? '<span class="voice-parsed-score">'+score+'</span>'
-        : '<input type="number" min="1" max="15" class="voice-manual-input" data-idx="'+idx+'" placeholder="?" style="width:52px;font-size:20px;font-weight:700;text-align:center;border:2px solid #c0392b;border-radius:8px;padding:4px 6px;color:#c0392b;background:transparent;">') +
-      '</div>';
-  });
-
-  body.innerHTML =
-    '<div class="voice-transcript"><small>Heard: </small>"'+escapeHtml(transcript||'')+'"</div>' +
-    '<div class="voice-hole-label">Hole '+_voiceHole+'</div>' +
-    '<div class="voice-parsed-rows">'+rows+'</div>' +
-    (hasAll ? '' : '<div style="font-size:12px;color:var(--muted);text-align:center;margin-top:4px;">Tap a red box to enter a missing score manually.</div>') +
-    '<div class="voice-actions">' +
-    '<button class="voice-btn retry" onclick="retryVoice()">🎤 Retry</button>' +
-    '<button class="voice-btn confirm" onclick="confirmVoiceScores()">✓ Confirm</button>' +
-    '</div>';
-}
-
-function showVoiceError(msg){
-  var body = $('voiceSheetBody');
-  if (!body) return;
-  body.innerHTML =
-    '<div class="voice-status">' +
-    '<span class="voice-mic-icon">⚠️</span>' +
-    '<div style="font-size:14px;color:#c0392b;margin-top:4px;">'+escapeHtml(msg)+'</div>' +
-    '</div>' +
-    '<div class="voice-actions" style="margin-top:16px;">' +
-    '<button class="voice-btn retry" onclick="closeVoiceScore()">Cancel</button>' +
-    '<button class="voice-btn confirm" onclick="retryVoice()">Try Again</button>' +
-    '</div>';
-}
-
-function retryVoice(){ startVoiceEntry(); }
-
-function closeVoiceScore(){
-  var overlay = $('voiceScoreOverlay');
-  if (overlay) overlay.style.display = 'none';
-  if (_voiceRecog){ try { _voiceRecog.abort(); } catch(e){} _voiceRecog = null; }
-  var fab = $('voiceFab'); if (fab) fab.classList.remove('listening');
-}
-
-function confirmVoiceScores(){
-  // Collect any scores manually entered in the tap-to-enter inputs
-  var manualInputs = document.querySelectorAll('.voice-manual-input');
-  for(var mi=0; mi<manualInputs.length; mi++){
-    var inp = manualInputs[mi];
-    var midx = parseInt(inp.getAttribute('data-idx'), 10);
-    var mv = parseInt(inp.value, 10);
-    if(!isNaN(midx) && mv >= 1 && mv <= 15) _voiceParsed[midx] = mv;
-  }
-  var h = _voiceHole;
-  var sc = _voiceSc;
-  var ns = _voiceNs;
-
-  // Get par for the hole
-  var course = state.course != null ? MOCK_COURSES[state.course] : null;
-  var tee = course && state.tee ? course.tees.filter(function(t){ return t.name===state.tee; })[0] : null;
-  var parByHole = (tee && tee.parByHole) ? tee.parByHole : PAR72_LAYOUT;
-  var par = parByHole[h-1] || 4;
-
-  _voiceIdxs.forEach(function(idx){
-    if (_voiceParsed[idx] == null) return;
-    var sIdx = String(idx);
-    var score = _voiceParsed[idx];
-    if (!sc.scores[sIdx]) sc.scores[sIdx] = {};
-    sc.scores[sIdx][h] = score;
-    // Update DOM cell immediately
-    var cell = document.querySelector('[data-sc-score="'+ns+'|'+idx+'|'+h+'"]');
-    if (cell){
-      var inner = cell.querySelector('.score-tap-inner');
-      if (inner){
-        inner.textContent = score;
-        inner.className = 'score-tap-inner ' + scoreRelClass(score, par);
-      }
-    }
-  });
-
-  autoSave();
-  if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
-  closeVoiceScore();
-  fbShowToast('Hole ' + h + ' scores saved ✓');
-}
 
 function scoreRelClass(v, par){
   if (v == null) return 'tap-empty';
@@ -12611,19 +12393,73 @@ window.fbFinishRound = function() {
     var players  = (s.players || []).filter(function(p){ return p && p.name && p.name.trim(); });
     var typeLabel = s.roundType === 'event' ? 'Event' : s.roundType === 'match' ? 'Match Play' : 'Stroke Play';
 
-    return fbDb.collection('completedRounds').doc(fbRoundCode).set({
-      code:        fbRoundCode,
-      completedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      completedBy: fbUser.uid,
-      participants: participants,
-      date:        dateStr,
-      roundType:   s.roundType || 'stroke',
-      typeLabel:   typeLabel,
-      courseName:  courseName || 'Unknown Course',
-      teeName:     teeName,
-      playerNames: players.map(function(p){ return p.name; }),
-      fullState:   fbSerializeState()
+    // Build ledger snapshot for cross-round money aggregation
+    var _ledgerSnap = [];
+    try {
+      var _finCrs = s.course != null ? MOCK_COURSES[s.course] : null;
+      var _finTee = _finCrs && s.tee ? _finCrs.tees.filter(function(t){ return t.name === s.tee; })[0] : null;
+      var _finIdxs = players.map(function(_, i){ return i; });
+      if (_finCrs && _finTee && _finIdxs.length) {
+        var _finSc  = s.scorecard || { scores:{}, events:{} };
+        var _finCtx = buildCtx(_finIdxs, _finCrs, _finTee, _finSc);
+        var _finEntries = [];
+        (s.sideGames || []).forEach(function(g) {
+          if (!g.participants || !g.participants.length) return;
+          var _eg  = buildEngineGame(g);
+          attachEvents(_eg, _finSc);
+          var _pct  = parseFloat((g.stakes && g.stakes.handicapPct) || 100) || 100;
+          var _gCtx = (g.participants.length < _finIdxs.length || _pct !== 100)
+            ? buildCtx(g.participants, _finCrs, _finTee, _finSc, _pct) : _finCtx;
+          var _tot  = gameMoneyWithOverrides(_eg, _gCtx, g).total;
+          _finEntries.push({ game: _eg, ctx: _gCtx, deltas: _tot });
+        });
+        var _finLdg = SidieGolfEngine.computeLedger(_finEntries);
+        _ledgerSnap = players.map(function(p, i) {
+          return { name: p.name.trim(), ghin: p.ghin || '', net: _finLdg[String(i)] || 0 };
+        });
+      }
+    } catch(e){}
+
+    // Auto-link registered users by GHIN: for each player with a GHIN#,
+    // query users collection and add their UID to participants if not already present.
+    var _ghinQueries = [];
+    _ledgerSnap.forEach(function(p) {
+      var g = String(p.ghin || '').replace(/\D/g, '');
+      if (g.length >= 5) {
+        _ghinQueries.push(fbDb.collection('users').where('ghin', '==', g).get());
+      }
     });
+
+    var _doSave = function() {
+      return fbDb.collection('completedRounds').doc(fbRoundCode).set({
+        code:           fbRoundCode,
+        completedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+        completedBy:    fbUser.uid,
+        participants:   participants,
+        date:           dateStr,
+        roundType:      s.roundType || 'stroke',
+        typeLabel:      typeLabel,
+        courseName:     courseName || 'Unknown Course',
+        teeName:        teeName,
+        playerNames:    players.map(function(p){ return p.name; }),
+        ledgerSnapshot: _ledgerSnap,
+        settled:        false,
+        fullState:      fbSerializeState()
+      });
+    };
+
+    if (!_ghinQueries.length) return _doSave();
+
+    return Promise.all(_ghinQueries)
+      .then(function(results) {
+        results.forEach(function(snap) {
+          snap.forEach(function(doc) {
+            if (participants.indexOf(doc.id) === -1) participants.push(doc.id);
+          });
+        });
+      })
+      .catch(function() { /* GHIN lookup failed — save with existing participants */ })
+      .then(_doSave);
   }).then(function() {
     return fbDb.collection('rounds').doc(fbRoundCode).update({ completed: true });
   }).then(function() {
@@ -12738,6 +12574,451 @@ window.fbCloseRoundDetail = function() {
   var overlay = document.getElementById('fb-detail-overlay');
   if (overlay) overlay.style.display = 'none';
   fbShowHistory();
+};
+
+// ── Season Money Ledger ───────────────────────────────────────────────────────
+var _slShowUnsettledOnly = true;
+var _slActiveTab = 'standings';
+
+window.fbShowSeasonLedger = function() {
+  var overlay = document.getElementById('sl-overlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  fbCloseHistory();
+  if (!fbHistoryCache.length && fbUser) {
+    var body = document.getElementById('sl-body');
+    if (body) body.innerHTML = '<div class="sl-empty">Loading rounds…</div>';
+    fbDb.collection('completedRounds')
+      .where('participants', 'array-contains', fbUser.uid)
+      .get()
+      .then(function(snap) {
+        fbHistoryCache = [];
+        snap.forEach(function(doc) { fbHistoryCache.push({ id: doc.id, data: doc.data() }); });
+        fbHistoryCache.sort(function(a, b) {
+          var aT = a.data.completedAt ? (a.data.completedAt.seconds || 0) : 0;
+          var bT = b.data.completedAt ? (b.data.completedAt.seconds || 0) : 0;
+          return bT - aT;
+        });
+        fbRenderSeasonLedger();
+      }).catch(function() {
+        var body = document.getElementById('sl-body');
+        if (body) body.innerHTML = '<div class="sl-empty">Could not load rounds.</div>';
+      });
+  } else {
+    fbRenderSeasonLedger();
+  }
+};
+
+window.fbCloseSeasonLedger = function() {
+  var overlay = document.getElementById('sl-overlay');
+  if (overlay) overlay.style.display = 'none';
+  fbShowHistory();
+};
+
+window.switchSeasonTab = function(tab) {
+  _slActiveTab = tab;
+  var ts = document.getElementById('sl-tab-standings');
+  var tr = document.getElementById('sl-tab-rounds');
+  if (ts) ts.className = 'sl-tab' + (tab === 'standings' ? ' active' : '');
+  if (tr) tr.className = 'sl-tab' + (tab === 'rounds'    ? ' active' : '');
+  fbRenderSeasonLedger();
+};
+
+window.toggleSeasonFilter = function() {
+  _slShowUnsettledOnly = !_slShowUnsettledOnly;
+  var btn = document.getElementById('sl-filter-btn');
+  if (btn) {
+    btn.textContent = _slShowUnsettledOnly ? 'Unsettled' : 'All Rounds';
+    btn.className = 'sl-filter-btn' + (_slShowUnsettledOnly ? ' active' : '');
+  }
+  fbRenderSeasonLedger();
+};
+
+// Extract per-player ledger [{name, ghin, net}] from a completed-round doc.
+// Uses saved ledgerSnapshot if present, otherwise reconstructs from fullState.
+function fbExtractRoundLedger(data) {
+  if (data.ledgerSnapshot && data.ledgerSnapshot.length) return data.ledgerSnapshot;
+  if (!data.fullState) return [];
+  var origState = state;
+  var snapshot  = [];
+  try {
+    state = data.fullState;
+    if (state._courseData && state.course != null) {
+      while (MOCK_COURSES.length <= state.course) MOCK_COURSES.push(null);
+      if (!MOCK_COURSES[state.course]) MOCK_COURSES[state.course] = state._courseData;
+    }
+    // buildSingleLeaderboardAndLedgerHtml populates window._sidieLastLedger as a side effect
+    if (typeof buildSingleLeaderboardAndLedgerHtml === 'function') {
+      try { buildSingleLeaderboardAndLedgerHtml(); } catch(e){}
+    }
+    var ledger  = window._sidieLastLedger || {};
+    var players = (state.players || []).filter(function(p){ return p && p.name && p.name.trim(); });
+    snapshot = players.map(function(p, i) {
+      return { name: p.name.trim(), ghin: p.ghin || '', net: ledger[String(i)] || 0 };
+    });
+  } catch(e){}
+  finally { state = origState; }
+  return snapshot;
+}
+
+// Canonical player key: GHIN# (digits only, ≥5) takes precedence over name.
+function fbSeasonPlayerKey(item) {
+  var ghin = String(item.ghin || '').replace(/\D/g, '');
+  if (ghin.length >= 5) return 'ghin:' + ghin;
+  return 'name:' + String(item.name || '').trim().toLowerCase();
+}
+
+function fbRenderSeasonLedger() {
+  var body = document.getElementById('sl-body');
+  if (!body) return;
+  if (!fbHistoryCache.length) {
+    body.innerHTML = '<div class="sl-empty">No completed rounds yet.<br>Finish a round to start tracking money.</div>';
+    return;
+  }
+  var rounds = fbHistoryCache.filter(function(doc) {
+    return !_slShowUnsettledOnly || !doc.data.settled;
+  });
+  if (!rounds.length) {
+    body.innerHTML = '<div class="sl-empty">No unsettled rounds. All debts cleared! 🏆</div>';
+    return;
+  }
+  body.innerHTML = (_slActiveTab === 'standings')
+    ? fbBuildSeasonStandingsHtml(rounds)
+    : fbBuildSeasonByRoundHtml(rounds);
+}
+
+function fbBuildSeasonStandingsHtml(rounds) {
+  var registry = {}; // key → { displayName, ghin, net, roundCount }
+  rounds.forEach(function(doc) {
+    var snap = fbExtractRoundLedger(doc.data);
+    snap.forEach(function(item) {
+      if (!item.name) return;
+      var key = fbSeasonPlayerKey(item);
+      if (!registry[key]) registry[key] = { displayName: item.name, ghin: item.ghin || '', net: 0, roundCount: 0 };
+      if (item.ghin && !registry[key].ghin) registry[key].ghin = item.ghin;
+      registry[key].net += (item.net || 0);
+      if (item.net !== 0) registry[key].roundCount++;
+    });
+  });
+  var players = Object.keys(registry).map(function(k){ return registry[k]; });
+  players.sort(function(a, b){ return b.net - a.net; });
+  if (!players.length) return '<div class="sl-empty">No money games found in these rounds.</div>';
+  var filterNote = _slShowUnsettledOnly ? 'Unsettled rounds only' : 'All rounds';
+  var html = '<div style="font-size:10px;color:var(--muted);text-align:center;margin-bottom:12px;">' +
+    filterNote + ' · ' + rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + '</div>';
+  players.forEach(function(p, i) {
+    var netFmt   = (p.net >= 0 ? '+' : '') + '$' + Math.abs(p.net).toFixed(2);
+    var netClass = p.net > 0.005 ? 'sl-net-pos' : p.net < -0.005 ? 'sl-net-neg' : 'sl-net-zero';
+    html += '<div class="sl-standings-row">' +
+      '<span class="sl-rank">' + (i + 1) + '</span>' +
+      '<div class="sl-player-info">' +
+        '<div class="sl-player-name">' + fbEsc(p.displayName) + '</div>' +
+        (p.ghin ? '<div class="sl-player-sub">GHIN ' + fbEsc(p.ghin) + '</div>' : '') +
+      '</div>' +
+      '<div style="text-align:right">' +
+        '<div class="sl-net ' + netClass + '">' + fbEsc(netFmt) + '</div>' +
+        '<div class="sl-rounds-note">' + p.roundCount + ' round' + (p.roundCount === 1 ? '' : 's') + '</div>' +
+      '</div>' +
+    '</div>';
+  });
+  return html;
+}
+
+function fbBuildSeasonByRoundHtml(rounds) {
+  var html = '';
+  rounds.forEach(function(doc) {
+    var d       = doc.data;
+    var settled = !!d.settled;
+    var snap    = fbExtractRoundLedger(d);
+    var hasAnyMoney = snap.some(function(p){ return Math.abs(p.net || 0) > 0.005; });
+    var roundIdJson = JSON.stringify(doc.id);
+    html += '<div class="sl-round-card' + (settled ? ' settled' : '') + '">' +
+      '<div class="sl-round-hdr">' +
+        '<div class="sl-round-info">' +
+          '<div class="sl-round-date">' + fbEsc(d.date || '') + (d.typeLabel ? ' · ' + fbEsc(d.typeLabel) : '') + '</div>' +
+          '<div class="sl-round-course">' + fbEsc(d.courseName || 'Unknown Course') + (d.teeName ? ' — ' + fbEsc(d.teeName) : '') + '</div>' +
+        '</div>' +
+        '<button class="sl-settle-btn' + (settled ? ' settled' : '') + '" onclick="fbMarkRoundSettled(' + roundIdJson + ',' + (!settled) + ')">' +
+          (settled ? '✓ Settled' : 'Mark Settled') +
+        '</button>' +
+      '</div>';
+    if (!hasAnyMoney) {
+      html += '<div class="sl-round-players"><div class="sl-no-money">No money games this round</div></div>';
+    } else {
+      var sorted = snap.slice().sort(function(a, b){ return b.net - a.net; });
+      html += '<div class="sl-round-players">';
+      sorted.forEach(function(p) {
+        var net  = p.net || 0;
+        var fmt  = (net >= 0 ? '+' : '') + '$' + Math.abs(net).toFixed(2);
+        var col  = net > 0.005 ? '#2e7d32' : net < -0.005 ? '#c62828' : '#888';
+        html += '<div class="sl-player-row">' +
+          '<span class="sl-pr-name">' + fbEsc(p.name) +
+            (p.ghin ? ' <span style="font-size:10px;color:#aaa">(' + fbEsc(p.ghin) + ')</span>' : '') +
+          '</span>' +
+          '<span class="sl-pr-amt" style="color:' + col + '">' + fbEsc(fmt) + '</span>' +
+        '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  return html || '<div class="sl-empty">No rounds to show.</div>';
+}
+
+window.fbMarkRoundSettled = function(roundId, isSettled) {
+  if (!fbUser || !fbDb) return;
+  fbDb.collection('completedRounds').doc(roundId).update({ settled: isSettled })
+    .then(function() {
+      fbHistoryCache.forEach(function(doc) {
+        if (doc.id === roundId) doc.data.settled = isSettled;
+      });
+      fbRenderSeasonLedger();
+      fbShowToast(isSettled ? 'Round marked settled ✓' : 'Round reopened');
+    })
+    .catch(function(err) { fbShowToast('Error: ' + err.message); });
+};
+
+// ── My Account ────────────────────────────────────────────────────────────────
+window.fbShowAccount = function() {
+  if (!fbUser) return;
+  var overlay = document.getElementById('acct-overlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  var nameEl  = document.getElementById('acct-hdr-name');
+  var emailEl = document.getElementById('acct-hdr-email');
+  var prof = {};
+  try { prof = JSON.parse(localStorage.getItem('sg_user_profile') || '{}'); } catch(e){}
+  var displayName = (fbUser.displayName || prof.name || '').trim() || 'My Account';
+  if (nameEl)  nameEl.textContent  = displayName;
+  if (emailEl) emailEl.textContent = fbUser.email || '';
+  fbRenderAccountBody(prof);
+  // Fetch latest profile from Firestore (refreshes ghin/hi)
+  fbDb.collection('users').doc(fbUser.uid).get().then(function(snap) {
+    if (snap.exists) {
+      var d = snap.data();
+      if (d.ghin != null) prof.ghin = d.ghin;
+      if (d.hi   != null) prof.hi   = d.hi;
+      if (d.name != null) prof.name = d.name;
+      try { localStorage.setItem('sg_user_profile', JSON.stringify(prof)); } catch(e){}
+      fbRenderAccountBody(prof);
+    }
+  }).catch(function(){});
+  // Load history for stats if not already cached
+  if (!fbHistoryCache.length) {
+    fbDb.collection('completedRounds')
+      .where('participants', 'array-contains', fbUser.uid)
+      .get()
+      .then(function(snap) {
+        fbHistoryCache = [];
+        snap.forEach(function(doc) { fbHistoryCache.push({ id: doc.id, data: doc.data() }); });
+        fbHistoryCache.sort(function(a, b) {
+          var aT = a.data.completedAt ? (a.data.completedAt.seconds || 0) : 0;
+          var bT = b.data.completedAt ? (b.data.completedAt.seconds || 0) : 0;
+          return bT - aT;
+        });
+        // Re-render with fresh stats (profile may have updated from Firestore fetch above)
+        try { prof = JSON.parse(localStorage.getItem('sg_user_profile') || '{}'); } catch(e){}
+        fbRenderAccountBody(prof);
+      }).catch(function(){});
+  }
+};
+
+window.fbCloseAccount = function() {
+  var overlay = document.getElementById('acct-overlay');
+  if (overlay) overlay.style.display = 'none';
+};
+
+function fbRenderAccountBody(prof) {
+  var body = document.getElementById('acct-body');
+  if (!body) return;
+  var name  = fbEsc(prof.name  || (fbUser && fbUser.displayName) || '');
+  var ghin  = fbEsc(prof.ghin  || '');
+  var hi    = fbEsc(prof.hi    != null ? String(prof.hi) : '');
+  var email = fbEsc((fbUser && fbUser.email) || '');
+
+  var html = '';
+
+  // ── PROFILE ──────────────────────────────────────────────────────────
+  html += '<div class="acct-section">' +
+    '<div class="acct-section-label">Profile</div>' +
+    '<div class="acct-card">' +
+      '<div class="acct-field">' +
+        '<span class="acct-field-label">Name</span>' +
+        '<input class="acct-input" id="acct-name" type="text" value="' + name + '" placeholder="Full name" autocomplete="name">' +
+      '</div>' +
+      '<div class="acct-field">' +
+        '<span class="acct-field-label">GHIN #</span>' +
+        '<input class="acct-input" id="acct-ghin" type="text" inputmode="numeric" value="' + ghin + '" placeholder="optional">' +
+      '</div>' +
+      '<div class="acct-field">' +
+        '<span class="acct-field-label">HI</span>' +
+        '<input class="acct-input" id="acct-hi" type="text" inputmode="decimal" value="' + hi + '" placeholder="Handicap Index">' +
+      '</div>' +
+      '<div class="acct-field">' +
+        '<span class="acct-field-label">Email</span>' +
+        '<span class="acct-field-val" style="font-size:13px;color:var(--muted)">' + email + '</span>' +
+      '</div>' +
+    '</div>' +
+    '<button class="acct-save-btn" id="acct-save-btn" onclick="fbSaveAccountProfile()">Save Changes</button>' +
+    '<div class="acct-msg" id="acct-save-msg"></div>' +
+  '</div>';
+
+  // ── SECURITY ──────────────────────────────────────────────────────────
+  html += '<div class="acct-section">' +
+    '<div class="acct-section-label">Security</div>' +
+    '<div class="acct-card">' +
+      '<div style="padding:14px;">' +
+        '<button class="acct-pw-btn" id="acct-pw-btn" onclick="fbSendPasswordReset()">Send Password Reset Email</button>' +
+        '<div class="acct-pw-note" id="acct-pw-msg">A reset link will be sent to ' + email + '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  // ── HISTORY ───────────────────────────────────────────────────────────
+  html += '<div class="acct-section">' +
+    '<div class="acct-section-label">History &amp; Money</div>' +
+    '<div class="acct-card">' +
+      '<div class="acct-action-row" onclick="fbCloseAccount();fbShowHistory();">' +
+        '<div>' +
+          '<div class="acct-action-label">📋 Round History</div>' +
+          '<div class="acct-action-sub">View all completed rounds</div>' +
+        '</div>' +
+        '<span class="acct-action-chev">›</span>' +
+      '</div>' +
+      '<div class="acct-action-row" onclick="fbCloseAccount();fbShowSeasonLedger();">' +
+        '<div>' +
+          '<div class="acct-action-label">💰 Season Money Ledger</div>' +
+          '<div class="acct-action-sub">Standings &amp; settlement across all rounds</div>' +
+        '</div>' +
+        '<span class="acct-action-chev">›</span>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  // ── SEASON STATS ──────────────────────────────────────────────────────
+  var stats = fbComputeMyStats(prof);
+  var netFmt = (stats.net >= 0 ? '+' : '') + '$' + Math.abs(stats.net).toFixed(2);
+  var netColor = stats.net > 0.005 ? '#2e7d32' : stats.net < -0.005 ? '#c62828' : 'var(--muted)';
+  html += '<div class="acct-section">' +
+    '<div class="acct-section-label">This Season</div>' +
+    '<div class="acct-card">' +
+      '<div class="acct-stat-row">' +
+        '<span class="acct-stat-label">Rounds played</span>' +
+        '<span class="acct-stat-val">' + stats.rounds + '</span>' +
+      '</div>' +
+      '<div class="acct-stat-row">' +
+        '<span class="acct-stat-label">Net money</span>' +
+        '<span class="acct-stat-val" style="color:' + netColor + '">' + fbEsc(netFmt) + '</span>' +
+      '</div>' +
+      (stats.bestRound ? (
+        '<div class="acct-stat-row">' +
+          '<span class="acct-stat-label">Best round</span>' +
+          '<span class="acct-stat-val" style="color:#2e7d32;font-size:12px;">' + fbEsc(stats.bestRound) + '</span>' +
+        '</div>'
+      ) : '') +
+    '</div>' +
+    (stats.rounds === 0 ? '<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px;">Complete rounds to see stats</div>' : '') +
+  '</div>';
+
+  body.innerHTML = html;
+}
+
+// Compute season stats for the current user from fbHistoryCache
+function fbComputeMyStats(prof) {
+  var stats = { rounds: 0, net: 0, bestRound: '' };
+  if (!fbHistoryCache.length) return stats;
+  var myGhin = String(prof.ghin || '').replace(/\D/g,'');
+  var myName = String(prof.name || (fbUser && fbUser.displayName) || '').trim().toLowerCase();
+  var bestNet = -Infinity;
+  fbHistoryCache.forEach(function(doc) {
+    var snap = fbExtractRoundLedger(doc.data);
+    var myEntry = null;
+    // Match by GHIN first, then name
+    if (myGhin.length >= 5) {
+      snap.forEach(function(p) { if (String(p.ghin||'').replace(/\D/g,'') === myGhin) myEntry = p; });
+    }
+    if (!myEntry && myName) {
+      snap.forEach(function(p) { if ((p.name||'').trim().toLowerCase() === myName) myEntry = p; });
+    }
+    if (!myEntry && !snap.length) {
+      // Round has no money data — still count it if I participated
+      stats.rounds++;
+      return;
+    }
+    if (myEntry) {
+      stats.rounds++;
+      stats.net += (myEntry.net || 0);
+      if ((myEntry.net || 0) > bestNet) {
+        bestNet = myEntry.net;
+        stats.bestRound = (doc.data.date ? doc.data.date + ' · ' : '') +
+          (doc.data.courseName || '') + ' (' +
+          (myEntry.net >= 0 ? '+' : '') + '$' + Math.abs(myEntry.net).toFixed(2) + ')';
+      }
+    }
+  });
+  if (bestNet <= 0) stats.bestRound = '';
+  return stats;
+}
+
+window.fbSaveAccountProfile = function() {
+  if (!fbUser) return;
+  var btn    = document.getElementById('acct-save-btn');
+  var msgEl  = document.getElementById('acct-save-msg');
+  var nameEl = document.getElementById('acct-name');
+  var ghinEl = document.getElementById('acct-ghin');
+  var hiEl   = document.getElementById('acct-hi');
+  if (!nameEl) return;
+  var name = (nameEl.value || '').trim();
+  var ghin = (ghinEl ? ghinEl.value : '').replace(/\D/g,'').trim();
+  var hi   = (hiEl ? hiEl.value : '').trim();
+  if (!name) { if(msgEl){msgEl.textContent='Name is required.';msgEl.className='acct-msg err';} return; }
+  if (btn)   { btn.disabled = true; btn.textContent = 'Saving…'; }
+  if (msgEl) { msgEl.textContent = ''; msgEl.className = 'acct-msg'; }
+  // Update Firebase displayName
+  fbUser.updateProfile({ displayName: name })
+    .then(function() {
+      fbUser = fbAuth.currentUser;
+      window.fbUser = fbUser;
+      // Build merged profile object
+      var hiNum = parseFloat(hi);
+      var prof = { name: name, ghin: ghin };
+      if (!isNaN(hiNum)) prof.hi = hiNum;
+      // Update localStorage
+      try { localStorage.setItem('sg_user_profile', JSON.stringify(prof)); } catch(e){}
+      // Update Firestore
+      var fsData = { name: name, ghin: ghin || '' };
+      if (!isNaN(hiNum)) fsData.hi = hiNum;
+      fbDb.collection('users').doc(fbUser.uid).set(fsData, { merge: true }).catch(function(){});
+      // Update nav bar display name
+      var rb = document.getElementById('rb-user-name');
+      if (rb) rb.textContent = name;
+      // Update account header
+      var hdrName = document.getElementById('acct-hdr-name');
+      if (hdrName) hdrName.textContent = name;
+      if (btn)   { btn.disabled = false; btn.textContent = 'Save Changes'; }
+      if (msgEl) { msgEl.textContent = 'Profile saved ✓'; msgEl.className = 'acct-msg ok'; }
+      setTimeout(function(){ if(msgEl) msgEl.textContent = ''; }, 3000);
+    })
+    .catch(function(err) {
+      if (btn)   { btn.disabled = false; btn.textContent = 'Save Changes'; }
+      if (msgEl) { msgEl.textContent = 'Error: ' + err.message; msgEl.className = 'acct-msg err'; }
+    });
+};
+
+window.fbSendPasswordReset = function() {
+  if (!fbUser || !fbUser.email) return;
+  var btn   = document.getElementById('acct-pw-btn');
+  var msgEl = document.getElementById('acct-pw-msg');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  fbAuth.sendPasswordResetEmail(fbUser.email)
+    .then(function() {
+      if (btn)   { btn.disabled = false; btn.textContent = 'Send Password Reset Email'; }
+      if (msgEl) { msgEl.textContent = 'Reset link sent to ' + fbUser.email + ' ✓'; msgEl.style.color = '#2e7d32'; }
+    })
+    .catch(function(err) {
+      if (btn)   { btn.disabled = false; btn.textContent = 'Send Password Reset Email'; }
+      if (msgEl) { msgEl.textContent = 'Error: ' + err.message; msgEl.style.color = '#c62828'; }
+    });
 };
 
 // ── HTML escape helper ────────────────────────────────────────────────────────
@@ -13070,25 +13351,7 @@ if ('serviceWorker' in navigator) {
   </div>
 </div>
 
-<!-- ── Voice Score Entry FAB ─────────────────────────────────────────────── -->
-<button id="voiceFab" class="voice-fab" onclick="startVoiceEntry()" title="Voice score entry" aria-label="Voice score entry">🎤</button>
-
-<!-- Voice Score Entry overlay -->
-<div id="voiceScoreOverlay" class="voice-overlay" style="display:none;" onclick="if(event.target===this)closeVoiceScore();">
-  <div class="voice-sheet">
-    <div class="voice-sheet-header">
-      <span class="voice-sheet-title">🎤 Voice Score Entry</span>
-      <button class="voice-close-btn" onclick="closeVoiceScore()">✕</button>
-    </div>
-    <div id="voiceSheetBody"></div>
-  </div>
-</div>
-
-<!-- ── Caddie AI FAB ─────────────────────────────────────────────────────── -->
-<div class="caddie-fab-wrapper">
-  <div class="caddie-fab-label"><strong>Caddie</strong><small>AI Game Manager</small></div>
-  <button class="caddie-fab" onclick="openCaddie()" title="Ask Caddie" aria-label="Ask Caddie"><img src="/caddie-mascot.png" style="width:100%;height:100%;object-fit:cover;" alt=""></button>
-</div>
+<!-- ── Caddie AI overlay (button is in the round bar) ────────────────────── -->
 
 <!-- Caddie overlay -->
 <div id="caddieOverlay" class="caddie-overlay" onclick="if(event.target===this)closeCaddie()">
