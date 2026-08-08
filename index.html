@@ -1020,34 +1020,11 @@
 
   var games = {};
 
-  // ---------------- CRY BABY (optional house rule shared by Wolf/Hammer Wolf) ----------------
-  // Off by default. When on: starting on game.stakes.cryBabyStartHole (16/17/18)
-  // through 18, whoever is currently most money DOWN in this specific game
-  // becomes the wolf, and the stake for that hole is raised to a chosen % of
-  // how much they're down (instead of the normal per-hole amount).
-  function cryBabySettings(game) {
-    var st = game.stakes || {};
-    if ((st.cryBaby || 'Off') !== 'On') return null;
-    var startHole = parseInt(st.cryBabyStartHole, 10);
-    if (!startHole) startHole = 16;
-    var raisePct = parseFloat(String(st.cryBabyRaise || '25%').replace('%', '')) / 100;
-    if (!raisePct || isNaN(raisePct)) raisePct = 0.25;
-    return { startHole: startHole, raisePct: raisePct };
-  }
-
-  // deltas reflects the running total for THIS game through the previous
-  // hole (deltas is mutated hole-by-hole as the main loop progresses), so
-  // this only ever looks backward — never at the outcome of the current hole.
-  function cryBabyOverride(cb, deltas, participants, hole) {
-    if (!cb || hole < cb.startHole) return null;
-    var worst = null, worstVal = 0;
-    participants.forEach(function (id) {
-      var v = deltas[id] || 0;
-      if (v < worstVal) { worstVal = v; worst = id; }
-    });
-    if (worst == null) return null; // nobody down money yet in this game — rule doesn't engage
-    return { wolfId: worst, hand: Math.round(Math.abs(worstVal) * cb.raisePct) };
-  }
+  // ---------------- CRY BABY / CHASER (per-hole dollar amount) ----------------
+  // Entered hole-by-hole on the scorecard event table as sc.events[hole].cryBabyAmt.
+  // If > 0, that amount replaces the base stake for that hole (no % calculation).
+  // For Wolf: wolf assignment stays manual via the Wolf select row.
+  // For 3-Man Wolf: wolf follows normal 6-hole segment rotation.
 
   // The real "$X per man" Wolf convention: X is what EACH opponent (the
   // non-wolf side) wins or loses, flat — never scaled by the wolf side's own
@@ -1114,7 +1091,6 @@
     if (n < 3) return deltas; // need at least a wolf + 2 others
     var is5Player = (n === 5); // asymmetric 2v3 / 1v4 settlement (settle5PlayerWolfMoney)
     var baseAmount = parseFloat(game.stakes.amount) || 0; // this IS the $ per man — no scaling
-    var cb = cryBabySettings(game);
     var birdieEagleOn = !!(game.stakes.birdieEagle && game.stakes.birdieEagle !== 'Off');
     var eagleMult = game.stakes.birdieEagle === 'Birdie 2x / Eagle 4x' ? 4 : 3;
     // Auto-carry: read the one-time carry rule set at game setup instead of a per-hole flag.
@@ -1130,12 +1106,11 @@
 
     for (var h = 1; h <= 18; h++) {
       var ev = (game.events && game.events[h]) || {};
-      var cbOverride = cryBabyOverride(cb, deltas, game.participants, h);
+      var cryBabyAmt = parseFloat(ev.cryBabyAmt || 0) || 0;
       var wolfDefault = teeOrder ? teeOrder[(h - 1) % teeOrder.length] : game.participants[(h - 1) % n];
       // Coerce to string — teeOrder entries come from g.participants (integers) and ev.wolf/ev.partner
-      // are written by <select> handlers (strings), but older state or Cry Baby overrides may pass
-      // numbers. All participants are strings ("0","1"…), so we must normalise before comparing.
-      var wolfId = String(cbOverride ? cbOverride.wolfId : (ev.wolf != null ? ev.wolf : wolfDefault));
+      // are written by <select> handlers (strings); all participants are strings ("0","1"…), normalise before comparing.
+      var wolfId = String(ev.wolf != null ? ev.wolf : wolfDefault);
       var others = game.participants.filter(function (id) { return id !== wolfId; });
 
       // Blind Wolf: declared before anyone (including the wolf) tees off —
@@ -1152,7 +1127,7 @@
       // Stake for this hole — already elevated by any active carry chain.
       var thisHoleStake = holeBaseStake;
 
-      var X = cbOverride ? cbOverride.hand : thisHoleStake;
+      var X = cryBabyAmt > 0 ? cryBabyAmt : thisHoleStake;
       if (blind) X *= 3;
       else if (alone && !is5Player) X *= 2; // 5-player: ratio handled by settle5PlayerWolfMoney
 
@@ -1436,15 +1411,14 @@
   games['Coin Flip Wolf'] = coinFlipWolfGame;
 
   // ---------------- 3-MAN WOLF ----------------
-  // Always 2-vs-1. Wolf rotates on fixed 5-hole (crybaby) or 6-hole (no crybaby)
-  // segments. Crybaby at 16-18: leader forced solo, trailer sets raise.
+  // Always 2-vs-1. Wolf rotates on fixed 6-hole segments (P1: 1–6, P2: 7–12, P3: 13–18).
+  // Per-hole Cry Baby/Chaser: sc.events[hole].cryBabyAmt > 0 overrides the stake for that hole.
   function threeManWolfGame(game, ctx) {
     var deltas = zero(game.participants);
     var n = game.participants.length;
     if (n !== 3) return deltas;
 
     var baseAmount = parseFloat(game.stakes.amount) || 0;
-    var cryBabyOn = game.stakes.cryBaby !== 'Off';
     var birdieEagleOn = !!(game.stakes.birdieEagle && game.stakes.birdieEagle !== 'Off');
     var eagleMult = game.stakes.birdieEagle === 'Birdie 2x / Eagle 4x' ? 4 : 3;
 
@@ -1453,42 +1427,16 @@
       ? game.stakes.teeOrder.map(String)
       : game.participants.map(String);
 
-    var raisePct = parseFloat(String(game.stakes.cryBabyRaise || '25%').replace('%','')) / 100;
-    if (isNaN(raisePct)) raisePct = 0.25;
-
-    // Crybaby wolf/raise captured once at hole 16
-    var cryBabyWolfId = null;
-    var cryBabyRaiseAmt = 0;
-
     for (var h = 1; h <= 18; h++) {
       var ev = (game.events && game.events[h]) || {};
 
-      // Capture crybaby state at start of hole 16
-      if (h === 16 && cryBabyOn) {
-        var maxD = -Infinity, minD = Infinity;
-        game.participants.forEach(function(id) {
-          var v = deltas[id] || 0;
-          if (v > maxD) { maxD = v; cryBabyWolfId = String(id); }
-          if (v < minD) { minD = v; }
-        });
-        if (!cryBabyWolfId) cryBabyWolfId = teeOrder[0];
-        var amtDown = minD < 0 ? Math.abs(minD) : 0;
-        cryBabyRaiseAmt = Math.round(amtDown * raisePct);
-      }
+      // Determine wolf for this hole — 6-hole segments
+      var segIdx3mw = h <= 6 ? 0 : h <= 12 ? 1 : 2;
+      var wolfId = teeOrder[segIdx3mw];
 
-      // Determine wolf for this hole
-      var wolfId;
-      if (cryBabyOn && h >= 16) {
-        wolfId = cryBabyWolfId;
-      } else {
-        var segIdx3mw = cryBabyOn
-          ? (h <= 5 ? 0 : h <= 10 ? 1 : 2)  // 5-hole segments
-          : (h <= 6 ? 0 : h <= 12 ? 1 : 2); // 6-hole segments
-        wolfId = teeOrder[segIdx3mw];
-      }
-
-      // Base stake + crybaby raise
-      var X = baseAmount + (cryBabyOn && h >= 16 ? cryBabyRaiseAmt : 0);
+      // Base stake — per-hole Cry Baby/Chaser $ overrides if set
+      var cbAmt3mw = parseFloat(ev.cryBabyAmt || 0) || 0;
+      var X = cbAmt3mw > 0 ? cbAmt3mw : baseAmount;
 
       // Hammers
       var hammerLog3mw = Array.isArray(ev.hammerLog) ? ev.hammerLog : [];
@@ -2938,7 +2886,7 @@
           <li><strong>Hammers:</strong> any player can throw a hammer mid-hole to double the current bet. Hammers stack; declining forfeits at the pre-hammer rate.</li>
           <li><strong>Birdie / Eagle Bonus:</strong> the winning side earns a multiplier for birdies and eagles — choose <em>Birdie 2× / Eagle 3×</em> or <em>Birdie 2× / Eagle 4×</em>. Set whether it applies to Net or Gross scores.</li>
           <li><strong>Carry Rule:</strong> tied holes can carry forward — choose from no carry, unlimited, or a max of 1, 2, or 3 carries.</li>
-          <li><strong>Cry Baby:</strong> on the closing holes (16, 17, or 18+), the player most behind has their bet automatically raised as a comeback lever. Set the start hole and raise % (25%–200% of the amount they're down).</li>
+          <li><strong>Cry Baby / Chaser:</strong> enter a dollar amount on any hole in the Wolf per-hole table to override the stake for that hole. The wolf on that hole is set manually via the Wolf row — great for last-3-holes comeback bets.</li>
         </ul>
         <div class="help-tip">💡 Recommend 80% handicap allowance for Wolf since it's a team game.</div>
       </div>
@@ -3250,7 +3198,7 @@
           <li><strong>Full round setup by voice or text:</strong> describe what you want and Caddie handles everything — course, players, side games, tee assignments, teams.</li>
           <li><strong>Course search:</strong> Caddie searches your saved courses and the live course database automatically — just say the name.</li>
           <li><strong>Players from My Buddies:</strong> Caddie looks up players in your Buddies list, so handicaps and GHIN numbers are always accurate.</li>
-          <li><strong>Side games with full options:</strong> "Add Wolf, $5/man, hammers on, birdie 2x / eagle 3x, cry baby starting hole 16 at 50%." Caddie sets every field.</li>
+          <li><strong>Side games with full options:</strong> "Add Wolf, $5/man, hammers on, birdie 2x / eagle 3x." Caddie sets every field. Cry Baby/Chaser amounts are entered hole-by-hole in the per-hole table.</li>
           <li><strong>Events &amp; Ryder Cup:</strong> assign players to groups, set day formats, manage teams — all by conversation.</li>
           <li><strong>Scoring:</strong> "Enter Jason 4, Craig 3, Tim 5 on hole 7." Caddie writes directly to the scorecard.</li>
           <li><strong>Standings:</strong> ask "Who's winning?" or "What's the current ledger?" at any time.</li>
@@ -3311,16 +3259,13 @@ var SCORING_METHODS = {
 
 var SIDE_GAME_DEFS = {
   'Wolf': {
-    desc:'Rotating "Wolf" each hole picks a partner or goes it alone (2x) for greater risk-reward. $ Per Man is paid by every loser to every winner individually (a lone wolf who loses pays the full rate to each opponent). Optional house rules: Hammers, Blind Wolf (3x, called before tee shots), birdie/eagle bonus, auto-carry, and Cry Baby.',
+    desc:'Rotating "Wolf" each hole picks a partner or goes it alone (2x) for greater risk-reward. $ Per Man is paid by every loser to every winner individually (a lone wolf who loses pays the full rate to each opponent). Optional house rules: Hammers, Blind Wolf (3x, called before tee shots), birdie/eagle bonus, auto-carry. Cry Baby/Chaser: enter a $ amount per hole in the scorecard per-hole table.',
     fields:[
       {key:'amount', label:'$ Per Man', type:'number', placeholder:'5'},
       {key:'hammerOn', label:'Hammers', type:'select', options:['Off','On']},
       {key:'carryRule', label:'Carry Rule', type:'select', options:['None','Carry (unlimited)','Carry (max 1)','Carry (max 2)','Carry (max 3)']},
       {key:'birdieEagle', label:'Birdie / Eagle Bonus (winning side only)', type:'select', options:['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x']},
-      {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Net','Gross']},
-      {key:'cryBaby', label:'Cry Baby Rule', type:'select', options:['Off','On']},
-      {key:'cryBabyStartHole', label:'Cry Baby Starts On Hole', type:'select', options:['16','17','18']},
-      {key:'cryBabyRaise', label:'Cry Baby Raise (% of $ down)', type:'select', options:['25%','50%','75%','100%','125%','150%','175%','200%']}
+      {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Net','Gross']}
     ]
   },
   'Coin Flip Wolf': {
@@ -3335,11 +3280,9 @@ var SIDE_GAME_DEFS = {
     ]
   },
   '3-Man Wolf': {
-    desc:'Three-player 2-vs-1 Wolf — always solo vs. two opponents. Each player is designated wolf for a fixed block of holes (5 holes each with Crybaby, 6 holes each without). Set the solo order using the Tee Order section below. Hammers apply. With Crybaby: holes 16–18 force the leader to go solo; the trailer sets the raise.',
+    desc:'Three-player 2-vs-1 Wolf — always solo vs. two opponents. Each player is wolf for 6 holes (P1: 1–6, P2: 7–12, P3: 13–18). Set the solo order using the Tee Order section below. Hammers apply. Cry Baby/Chaser: enter a $ amount per hole in the scorecard per-hole table.',
     fields:[
       {key:'amount', label:'$ Per Man', type:'number', placeholder:'5'},
-      {key:'cryBaby', label:'Crybaby (holes 16–18)', type:'select', options:['On','Off']},
-      {key:'cryBabyRaise', label:'Crybaby Raise (% of $ the trailer is down)', type:'select', options:['25%','50%','75%','100%','125%','150%','175%','200%']},
       {key:'hammerOn', label:'Hammers', type:'select', options:['On','Off']},
       {key:'birdieEagle', label:'Birdie / Eagle Bonus (winning side only)', type:'select', options:['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x']},
       {key:'birdieEagleBasis', label:'Birdie/Eagle Basis', type:'select', options:['Net','Gross']}
@@ -5928,8 +5871,7 @@ function summarizeStakes(g){
     var unit = (g.type==='Wolf' || g.type==='Hammer Wolf' || g.type==='Coin Flip Wolf' || g.type==='3-Man Wolf') ? '/man' : (g.stakes.structure ? ' '+g.stakes.structure : '');
     var eagleLabel = g.stakes.birdieEagle==='Birdie 2x / Eagle 4x' ? 'Eagle 4x' : 'Eagle 3x';
     var be = (g.stakes.birdieEagle && g.stakes.birdieEagle!=='Off') ? ' + Birdie 2x/'+eagleLabel+' ('+(g.stakes.birdieEagleBasis==='Net'?'Net':'Gross')+')' : '';
-    var cb = g.stakes.cryBaby==='On' ? ' + Cry Baby (h'+(g.stakes.cryBabyStartHole||16)+'+)' : '';
-    return '$'+g.stakes.amount+unit+be+cb;
+    return '$'+g.stakes.amount+unit+be;
   }
   return '';
 }
@@ -6241,9 +6183,7 @@ function buildWolfTeeOrderHtml(g){
   var html = '<div class="tee-order-section">';
   html += '<label class="field-label">Tee Order <span style="font-weight:400;font-size:11px;color:var(--muted)">(optional)</span></label>';
   var _tmwNote = g.type === '3-Man Wolf'
-    ? (g.stakes.cryBaby !== 'Off'
-        ? 'Sets solo order: P1 is wolf holes 1–5, P2 holes 6–10, P3 holes 11–15. Crybaby takes over 16–18. Tap ↑/↓ to reorder.'
-        : 'Sets solo order: P1 is wolf holes 1–6, P2 holes 7–12, P3 holes 13–18. Tap ↑/↓ to reorder.')
+    ? 'Sets solo order: P1 is wolf holes 1–6, P2 holes 7–12, P3 holes 13–18. Tap ↑/↓ to reorder.'
     : 'Sets wolf rotation — engine auto-assigns wolf each hole. Tap ↑/↓ to reorder.';
   html += '<div style="font-size:11px;color:var(--muted);margin:2px 0 7px;">'+_tmwNote+'</div>';
   html += '<div class="tee-order-list">';
@@ -6443,10 +6383,10 @@ function wireGameCardEvents(scope){
 // Games whose money math needs per-hole event data beyond gross scores, and
 // the engine field keys each one reads off ctx.events[hole].
 var EVENT_GAME_FIELDS = {
-  'Wolf': ['wolf','partner','alone','blind','hammerLog'],
+  'Wolf': ['wolf','partner','alone','blind','hammerLog','cryBabyAmt'],
   'Hammer Wolf': ['wolf','partner','alone','blind','hammerLog'],
   'Coin Flip Wolf': ['cfwFlips','hammerLog'],
-  '3-Man Wolf': ['hammerLog'],
+  '3-Man Wolf': ['hammerLog','cryBabyAmt'],
   'Snake': ['snakeBite'],
   'Bingo Bango Bongo': ['firstOnGreen','closestToPin','firstIn'],
   'Scotch': ['scotchProx','crackLog','scotchStake'],
@@ -7581,11 +7521,10 @@ function buildScoreGridHtml(idxs, parByHole, sc, ns, strokes, wolfGames, handica
             var cfwF = (wev.cfwFlips || {})[sIdx];
             cellBg = cfwF === 'H' ? '#dde9ff' : (cfwF === 'T' ? '#ffe8cc' : '');
           } else if (wg.type === '3-Man Wolf') {
-            // Color: solo wolf=amber, partners=light green. Crybaby holes (16-18) left uncolored (dynamic wolf).
+            // Color: solo wolf=amber, partners=light green. 6-hole segments.
             var to3mwG = (wg.stakes.teeOrder && wg.stakes.teeOrder.length >= 3) ? wg.stakes.teeOrder.map(String) : wg.participants.map(String);
-            var cb3mwG = wg.stakes.cryBaby === 'On';
-            var seg3mwG = cb3mwG ? (h3 <= 5 ? 0 : h3 <= 10 ? 1 : h3 <= 15 ? 2 : -1) : (h3 <= 6 ? 0 : h3 <= 12 ? 1 : 2);
-            var wolf3mwG = seg3mwG >= 0 ? to3mwG[seg3mwG] : null;
+            var seg3mwG = h3 <= 6 ? 0 : h3 <= 12 ? 1 : 2;
+            var wolf3mwG = to3mwG[seg3mwG];
             if (wolf3mwG !== null && sIdx === wolf3mwG) cellBg = '#fff9e0'; // solo wolf amber
             else if (wolf3mwG !== null) cellBg = '#edf8ed'; // partners light green
           } else {
@@ -7878,12 +7817,14 @@ function buildEventTablesHtml(games, idxs, sc, ns){
       html += buildSelectRow('Partner', g, participantIdxs, sc, ns, 'partner', true);
       html += buildBoolRow('Blind?', g, sc, ns, 'blind');
       if (g.stakes.hammerOn === 'On') html += buildHammerLogRow('Hammers', g, sc, ns);
+      html += buildCryBabyAmtRow('Chaser $', g, sc, ns);
       legend = [
         'Wolf — auto-rotates each hole based on tee order (set above). Leave blank to use auto-rotation; pick a player to manually override for that hole.',
         nPart === 5
           ? 'Partner (5-player) — wolf picks 1 partner → 2-man team vs 3-man team. Bet ratio: 2-man side pays 1.5× per player, 3-man side pays 1×. Alone (no partner) → 1 vs 4: wolf bets 4× per-player, each opponent bets 1×. Base amount = 3-man per-player rate (use even numbers — e.g. $2 → levels 2/3, 4/6, 8/12, 16/24).'
           : 'Partner — leave blank to send the wolf out alone (2× bet).',
-        'Blind? — declared before anyone, including the wolf, tees off. Locks the wolf in alone at 3× the stake.'
+        'Blind? — declared before anyone, including the wolf, tees off. Locks the wolf in alone at 3× the stake.',
+        'Chaser $ — enter any dollar amount to override the stake for that hole (Cry Baby/Chaser). Set the wolf manually on the same hole via the Wolf row above.'
       ];
       if (g.stakes.hammerOn === 'On') legend.push('Hammers — tap a cell to log the hammer sequence for that hole. Each accepted hammer doubles the bet; teams must alternate (wolf → opp → wolf…). A decline forfeits the hole at the current rate to the throwing side.');
     } else if (g.type==='Hammer Wolf'){
@@ -7918,11 +7859,10 @@ function buildEventTablesHtml(games, idxs, sc, ns){
       if (g.stakes.hammerOn === 'On') legend.push('Hammers — in Wolf side/Opp side label: Wolf side = H team (or solo team); Opp side = T team (or multi team).');
     } else if (g.type==='3-Man Wolf'){
       html += buildHammerLogRow('Hammers', g, sc, ns);
-      var tmwCryOn = g.stakes.cryBaby !== 'Off';
+      html += buildCryBabyAmtRow('Chaser $', g, sc, ns);
       legend = [
-        tmwCryOn
-          ? 'Wolf rotation: P1 solo holes 1–5, P2 holes 6–10, P3 holes 11–15. Crybaby at 16–18: leader forced solo, trailer sets raise. Tee order set above.'
-          : 'Wolf rotation: P1 solo holes 1–6, P2 holes 7–12, P3 holes 13–18. Tee order set above.',
+        'Wolf rotation: P1 solo holes 1–6, P2 holes 7–12, P3 holes 13–18. Tee order set above.',
+        'Chaser $ — enter any dollar amount to override the stake for that hole (Cry Baby/Chaser). Wolf follows normal rotation; engine uses the entered amount instead of the base bet.',
         'Hammers — either side can throw. Each accepted hammer doubles the bet; the other side can decline, forfeiting the hole at the current rate to the throwing side.'
       ];
     } else if (g.type==='Snake'){
@@ -8179,6 +8119,19 @@ function buildHammerLogRow(label, g, sc, ns){
       : '—';
     var hasCls = log.length ? ' has-hammers' : '';
     html += '<td><button class="hammer-log-btn'+hasCls+'" data-hammer-log="'+ns+'|'+g.id+'|'+h+'">'+summary+'</button></td>';
+  }
+  html += '</tr>';
+  return html;
+}
+
+// Per-hole Cry Baby/Chaser dollar amount row — tap any cell to override the stake.
+// Stored as sc.events[hole].cryBabyAmt; 0/blank = no override.
+function buildCryBabyAmtRow(label, g, sc, ns){
+  var html = '<tr><td class="sc-rowlabel">'+escapeHtml(label)+'</td>';
+  for (var h=1; h<=18; h++){
+    var ev = sc.events[h] || {};
+    var val = parseFloat(ev.cryBabyAmt || 0) || 0;
+    html += '<td><input type="number" min="0" max="9999" step="1" style="width:46px;text-align:center;font-size:12px;" value="'+(val>0?val:'')+'" placeholder="—" data-sc-eventnum="'+ns+'|'+g.id+'|'+h+'|cryBabyAmt"></td>';
   }
   html += '</tr>';
   return html;
@@ -13535,6 +13488,34 @@ function buildCaddieContext() {
         return { index: i, dayFormat: d.dayFormat, status: d.status, pointValue: d.pointValue, numGroups: d.numGroups };
       });
     }
+    // Scores summary
+    if (state.scorecard && state.scorecard.scores && state.players) {
+      var _cScores = [];
+      state.players.forEach(function(p, i) {
+        var n = (p.name||'').trim();
+        if (!n || /^player\s*\d+$/i.test(n)) return;
+        var sc_ctx = state.scorecard.scores[String(i)] || {};
+        var holes_ctx = Object.keys(sc_ctx).filter(function(h){ return sc_ctx[h] != null; });
+        if (!holes_ctx.length) return;
+        var total_ctx = holes_ctx.reduce(function(s, h){ return s + (sc_ctx[h]||0); }, 0);
+        _cScores.push(n + ': ' + total_ctx + ' thru ' + holes_ctx.length);
+      });
+      if (_cScores.length) ctx.scores = _cScores.join(', ');
+    }
+    // Money standings (from last rendered ledger)
+    if (window._sidieLastLedger && state.players) {
+      var _cMoney = [];
+      Object.keys(window._sidieLastLedger).forEach(function(idx) {
+        var amt = window._sidieLastLedger[idx];
+        if (!amt) return;
+        var p = state.players[parseInt(idx)];
+        if (p && p.name && !/^player\s*\d+$/i.test(p.name)) {
+          _cMoney.push(p.name + ': ' + (amt > 0 ? '+' : '') + '$' + (Math.round(amt*100)/100));
+        }
+      });
+      if (_cMoney.length) ctx.money = _cMoney.join(', ');
+    }
+    if (state.date) ctx.date = state.date;
     var lb = document.querySelector('.rc-scoreboard') || document.getElementById('leaderboardSection');
     if (lb) ctx.leaderboard = lb.innerText.replace(/\s+/g,' ').trim().slice(0, 400);
   } catch(e) {}
@@ -13811,9 +13792,31 @@ async function executeCaddieTool(name, input) {
         if (input.birdieEagle != null) stakes.birdieEagle = input.birdieEagle;
         if (input.birdieEagleBasis != null) stakes.birdieEagleBasis = input.birdieEagleBasis;
         if (input.carryRule != null) stakes.carryRule = input.carryRule;
+        // Wolf tee order (player names → indices)
+        if (input.teeOrder && Array.isArray(input.teeOrder)) {
+          stakes.teeOrder = input.teeOrder.map(function(nm){
+            var i=(state.players||[]).findIndex(function(p){return (p.name||'').toLowerCase()===nm.toLowerCase();});
+            return i>=0?i:nm;
+          });
+        }
+        // Skins-specific
+        if (input.basis != null) stakes.basis = input.basis;
+        if (input.carryover != null) stakes.carryover = input.carryover;
+        // 9 Point-specific
+        if (input.birdiesDouble != null) stakes.birdiesDouble = input.birdiesDouble;
         if (input.cryBaby != null) stakes.cryBaby = input.cryBaby;
         if (input.cryBabyStartHole != null) stakes.cryBabyStartHole = String(input.cryBabyStartHole);
-        if (input.cryBabyRaise != null) stakes.cryBabyRaise = input.cryBabyRaise;
+        if (input.cryBabyPerPoint != null) stakes.cryBabyPerPoint = input.cryBabyPerPoint;
+        // Scotch-specific
+        if (input.teamMethod != null) stakes.teamMethod = input.teamMethod;
+        if (input.umbrella != null) stakes.umbrella = input.umbrella;
+        if (input.crackOn != null) stakes.crackOn = input.crackOn;
+        // Banker-specific
+        if (input.minBet != null) stakes.minBet = input.minBet;
+        if (input.ties != null) stakes.ties = input.ties;
+        if (input.bogeyRule != null) stakes.bogeyRule = input.bogeyRule;
+        if (input.birdieBonus != null) stakes.birdieBonus = input.birdieBonus;
+        // Cry Baby/Chaser for Wolf is now per-hole via sc.events[hole].cryBabyAmt — no setup stakes needed
         var participants = (state.players||[]).map(function(_,i){return i;});
         state.sideGames.push({ id: nextSideGameId++, type: gt, participants: participants, stakes: stakes, moneyOverrides: {} });
         // Re-render step 5 so the game card appears in the UI
@@ -13944,6 +13947,261 @@ async function executeCaddieTool(name, input) {
       case 'open_season_ledger': {
         if (typeof fbShowSeasonLedger === 'function') { fbShowSeasonLedger(); return 'Opened Season Money Ledger'; }
         return 'Season Ledger not available';
+      }
+
+      case 'open_settle_up': {
+        if (typeof window.openSettleUp === 'function') { window.openSettleUp(); return 'Opened Settle Up'; }
+        return 'Settle Up not available — complete the round first';
+      }
+
+      case 'set_date': {
+        var dateStr = (input.date || '').trim();
+        if (!dateStr) return 'No date provided';
+        if (/today/i.test(dateStr)) dateStr = new Date().toISOString().slice(0, 10);
+        state.date = dateStr;
+        if (state.step === 3 && typeof renderCourseStep === 'function') renderCourseStep();
+        if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+        return 'Date set to ' + dateStr;
+      }
+
+      case 'update_player': {
+        var upP = (state.players||[]).find(function(p){ return (p.name||'').toLowerCase() === (input.name||'').toLowerCase(); });
+        if (!upP) return 'Player "' + input.name + '" not found';
+        if (input.newName) upP.name = input.newName;
+        if (input.hi != null) upP.hi = String(input.hi);
+        if (input.tee) upP.tee = input.tee;
+        if (typeof renderPlayersInto === 'function') renderPlayersInto('content-4');
+        else if (typeof renderNetworkedPlayersStep === 'function') renderNetworkedPlayersStep();
+        if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+        return 'Updated ' + (input.newName || input.name);
+      }
+
+      case 'get_scorecard': {
+        var sc_gs = state.scorecard || { scores: {}, events: {} };
+        var course_gs = state.courseIdx != null ? MOCK_COURSES[state.courseIdx] : null;
+        var teeObj_gs = course_gs && state.tee ? (course_gs.tees||[]).filter(function(t){return t.name===state.tee;})[0] : null;
+        if (!course_gs || !teeObj_gs) return 'No active course/tee set — cannot compute scorecard.';
+        var idxs_gs = (state.players||[]).map(function(_,i){return i;}).filter(function(i){
+          var n=((state.players[i]||{}).name||'').trim(); return n && !/^player\s*\d+$/i.test(n);
+        });
+        if (!idxs_gs.length) return 'No players in round.';
+        var ctx_gs = buildCtx(idxs_gs, course_gs, teeObj_gs, sc_gs);
+        var parByHole_gs = teeObj_gs.parByHole || [];
+        // Build hole-by-hole score table
+        var holeData_gs = {};
+        for (var h_gs=1; h_gs<=18; h_gs++) {
+          var holeScores_gs = {}; var hasData_gs = false;
+          idxs_gs.forEach(function(idx_gs) {
+            var gross_gs = sc_gs.scores && sc_gs.scores[String(idx_gs)] ? sc_gs.scores[String(idx_gs)][h_gs] : null;
+            if (gross_gs != null) {
+              hasData_gs = true;
+              var net_gs = null; try { net_gs = SidieGolfEngine.netFor(ctx_gs, String(idx_gs), h_gs); } catch(e2){}
+              var sm_gs = ctx_gs.strokesMap && ctx_gs.strokesMap[String(idx_gs)];
+              var strk_gs = 0;
+              if (sm_gs && sm_gs.strokesReceived && teeObj_gs.strokeIndex) {
+                try { strk_gs = SidieGolfEngine.strokesOnHoleFromTotal(sm_gs.strokesReceived, teeObj_gs.strokeIndex[h_gs-1]); } catch(e3){}
+              }
+              holeScores_gs[(state.players[idx_gs]||{}).name || idx_gs] = { gross: gross_gs, net: net_gs, strokes: strk_gs };
+            }
+          });
+          if (hasData_gs) {
+            var rawEv_gs = sc_gs.events && sc_gs.events[h_gs] ? JSON.parse(JSON.stringify(sc_gs.events[h_gs])) : {};
+            var namedEv_gs = {};
+            var playerIdxFields = ['wolf','partner','bankerHole','scotchProx','snakeBite','firstOnGreen','closestToPin','firstIn'];
+            Object.keys(rawEv_gs).forEach(function(k_gs) {
+              var v_gs = rawEv_gs[k_gs];
+              if (playerIdxFields.indexOf(k_gs) !== -1 && v_gs != null && v_gs !== '') {
+                namedEv_gs[k_gs] = (state.players[parseInt(v_gs)] ? state.players[parseInt(v_gs)].name : v_gs);
+              } else if (k_gs === 'cfwFlips' && v_gs && typeof v_gs === 'object') {
+                var flipsNamed_gs = {};
+                Object.keys(v_gs).forEach(function(pIdx_gs){ flipsNamed_gs[state.players[parseInt(pIdx_gs)] ? state.players[parseInt(pIdx_gs)].name : pIdx_gs] = v_gs[pIdx_gs]; });
+                namedEv_gs[k_gs] = flipsNamed_gs;
+              } else { namedEv_gs[k_gs] = v_gs; }
+            });
+            holeData_gs[h_gs] = { par: parByHole_gs[h_gs-1] || null, scores: holeScores_gs, events: namedEv_gs };
+          }
+        }
+        // Per-game money breakdowns
+        var gameBreakdowns_gs = [];
+        (state.sideGames||[]).forEach(function(g_gs) {
+          try {
+            var engGame_gs = buildEngineGame(g_gs);
+            attachEvents(engGame_gs, sc_gs);
+            var totals_gs = SidieGolfEngine.computeGamePayouts(engGame_gs, ctx_gs);
+            var holeRows_gs = SidieGolfEngine.computeHoleByHoleBreakdown(engGame_gs, ctx_gs);
+            var mappedTotals_gs = {};
+            Object.keys(totals_gs||{}).forEach(function(idx_gs){
+              var nm_gs = state.players[parseInt(idx_gs)] ? state.players[parseInt(idx_gs)].name : idx_gs;
+              mappedTotals_gs[nm_gs] = totals_gs[idx_gs];
+            });
+            var holeBreakdown_gs = (holeRows_gs||[])
+              .filter(function(row_gs){ return Object.keys(row_gs.deltas||{}).some(function(id_gs){return (row_gs.deltas[id_gs]||0)!==0;}); })
+              .map(function(row_gs){
+                var entry_gs = { hole: row_gs.hole };
+                Object.keys(row_gs.deltas||{}).forEach(function(idx_gs){
+                  if ((row_gs.deltas[idx_gs]||0)!==0) {
+                    var nm_gs2 = state.players[parseInt(idx_gs)] ? state.players[parseInt(idx_gs)].name : idx_gs;
+                    entry_gs[nm_gs2] = row_gs.deltas[idx_gs];
+                  }
+                });
+                return entry_gs;
+              });
+            gameBreakdowns_gs.push({ game: g_gs.type, stakes: g_gs.stakes, perHole: holeBreakdown_gs, totals: mappedTotals_gs });
+          } catch(eGame_gs){ gameBreakdowns_gs.push({ game: g_gs.type, error: String(eGame_gs.message||eGame_gs) }); }
+        });
+        var result_gs = {
+          course: course_gs.name, tee: state.tee,
+          players: idxs_gs.map(function(i_gs){ return { name: state.players[i_gs].name, hi: state.players[i_gs].hi }; }),
+          holes: holeData_gs, games: gameBreakdowns_gs
+        };
+        return JSON.stringify(result_gs, null, 2);
+      }
+
+      case 'set_hole_event': {
+        var sc_she = state.scorecard;
+        if (!sc_she) return 'No active scorecard';
+        var h_she = parseInt(input.hole, 10);
+        if (!h_she || h_she < 1 || h_she > 18) return 'Invalid hole: ' + input.hole;
+        if (!sc_she.events) sc_she.events = {};
+        if (!sc_she.events[h_she]) sc_she.events[h_she] = {};
+        var ev_she = sc_she.events[h_she];
+        function nameToIdx(nm) {
+          if (!nm && nm !== 0) return null;
+          var idx = (state.players||[]).findIndex(function(p){ return (p.name||'').toLowerCase() === String(nm).toLowerCase(); });
+          return idx >= 0 ? String(idx) : null;
+        }
+        if (input.wolfPlayer != null)  { var wi = nameToIdx(input.wolfPlayer);  if (wi != null) ev_she.wolf = wi; }
+        if (input.wolfPartner != null) { var pi_she = nameToIdx(input.wolfPartner); ev_she.partner = pi_she; if (!pi_she) delete ev_she.partner; }
+        if (input.wolfAlone != null)   { ev_she.alone = !!input.wolfAlone; }
+        if (input.wolfBlind != null)   { ev_she.blind = !!input.wolfBlind; }
+        if (input.chaserAmt != null)   { ev_she.cryBabyAmt = parseFloat(input.chaserAmt) || 0; }
+        if (input.firstOnGreen != null){ var fi = nameToIdx(input.firstOnGreen); if (fi != null) ev_she.firstOnGreen = fi; }
+        if (input.closestToPin != null){ var ci_she = nameToIdx(input.closestToPin); if (ci_she != null) ev_she.closestToPin = ci_she; }
+        if (input.firstIn != null)     { var ii = nameToIdx(input.firstIn); if (ii != null) ev_she.firstIn = ii; }
+        if (input.snakeBite != null)   { var si_she = nameToIdx(input.snakeBite); if (si_she != null) ev_she.snakeBite = si_she; }
+        if (input.banker != null)      { var bi_she = nameToIdx(input.banker); if (bi_she != null) ev_she.bankerHole = bi_she; }
+        if (input.bankerWager != null) { ev_she.bankerWager = parseFloat(input.bankerWager) || 0; }
+        if (input.bankerMultiplier != null) { ev_she.bankerMulti = parseInt(input.bankerMultiplier, 10) || 1; }
+        if (input.scotchProx != null)  { var spi = nameToIdx(input.scotchProx); if (spi != null) ev_she.scotchProx = spi; }
+        if (input.scotchStakeOverride != null) { ev_she.scotchStake = parseFloat(input.scotchStakeOverride) || 0; }
+        if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+        // Re-render scorecard if visible
+        if (state.step === 6 || state.step === 7) { try { if (typeof renderScorecard==='function') renderScorecard(); else if (typeof goToStep==='function') goToStep(state.step); } catch(e4){} }
+        return 'Hole ' + h_she + ' events updated';
+      }
+
+      case 'log_hammer': {
+        var sc_lh = state.scorecard;
+        if (!sc_lh) return 'No active scorecard';
+        var h_lh = parseInt(input.hole, 10);
+        if (!h_lh || h_lh < 1 || h_lh > 18) return 'Invalid hole: ' + input.hole;
+        if (!sc_lh.events) sc_lh.events = {};
+        if (!sc_lh.events[h_lh]) sc_lh.events[h_lh] = {};
+        var ev_lh = sc_lh.events[h_lh];
+        if (!ev_lh.hammerLog) ev_lh.hammerLog = [];
+        if (input.entries) {
+          ev_lh.hammerLog = input.entries.map(function(e_lh){ return { side: e_lh.side, accepted: !!e_lh.accepted }; });
+        } else if (input.append) {
+          ev_lh.hammerLog.push({ side: input.append.side, accepted: !!input.append.accepted });
+        }
+        if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+        return 'Hammer log updated for hole ' + h_lh + ': ' + ev_lh.hammerLog.length + ' entr' + (ev_lh.hammerLog.length===1?'y':'ies');
+      }
+
+      case 'set_cfw_flip': {
+        var sc_cfw = state.scorecard;
+        if (!sc_cfw) return 'No active scorecard';
+        var h_cfw = parseInt(input.hole, 10);
+        if (!h_cfw || h_cfw < 1 || h_cfw > 18) return 'Invalid hole: ' + input.hole;
+        var pi_cfw = (state.players||[]).findIndex(function(p){ return (p.name||'').toLowerCase() === (input.playerName||'').toLowerCase(); });
+        if (pi_cfw < 0) return 'Player "' + input.playerName + '" not found';
+        if (!sc_cfw.events) sc_cfw.events = {};
+        if (!sc_cfw.events[h_cfw]) sc_cfw.events[h_cfw] = {};
+        if (!sc_cfw.events[h_cfw].cfwFlips) sc_cfw.events[h_cfw].cfwFlips = {};
+        sc_cfw.events[h_cfw].cfwFlips[String(pi_cfw)] = input.flip;
+        if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+        return input.playerName + ' flipped ' + input.flip + ' on hole ' + h_cfw;
+      }
+
+      case 'add_nassau_press': {
+        var nassauGame_anp = (state.sideGames||[]).find(function(g){ return g.type === 'Nassau'; });
+        if (!nassauGame_anp) return 'No Nassau game in this round';
+        if (!nassauGame_anp.manualPresses) nassauGame_anp.manualPresses = [];
+        var pressStake_anp = input.stake;
+        if (!pressStake_anp) pressStake_anp = parseFloat(nassauGame_anp.stakes && nassauGame_anp.stakes.front) || parseFloat(nassauGame_anp.stakes && nassauGame_anp.stakes.amount) || 0;
+        nassauGame_anp.manualPresses.push({ id: Date.now(), segType: 'overall', startHole: parseInt(input.startHole, 10), stake: pressStake_anp, accepted: true });
+        if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+        return 'Nassau press added starting hole ' + input.startHole + ' for $' + pressStake_anp;
+      }
+
+      case 'set_nassau_teams': {
+        var ng_snt = (state.sideGames||[]).find(function(g){ return g.type === (input.gameType || 'Nassau'); });
+        if (!ng_snt) return (input.gameType || 'Nassau') + ' game not found';
+        if (!ng_snt.teamAssign) ng_snt.teamAssign = {};
+        (input.teamA||[]).forEach(function(nm){ var i=(state.players||[]).findIndex(function(p){return p.name.toLowerCase()===nm.toLowerCase();}); if(i>=0) ng_snt.teamAssign[i]='A'; });
+        (input.teamB||[]).forEach(function(nm){ var i=(state.players||[]).findIndex(function(p){return p.name.toLowerCase()===nm.toLowerCase();}); if(i>=0) ng_snt.teamAssign[i]='B'; });
+        if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+        return (input.gameType||'Nassau') + ' teams set — A: ' + (input.teamA||[]).join(', ') + ' | B: ' + (input.teamB||[]).join(', ');
+      }
+
+      case 'set_scotch_teams': {
+        var sg_sst = (state.sideGames||[]).find(function(g){ return g.type === 'Scotch'; });
+        if (!sg_sst) return 'No Scotch game in this round';
+        if (!sg_sst.teamAssign) sg_sst.teamAssign = {};
+        (input.teamA||[]).forEach(function(nm){ var i=(state.players||[]).findIndex(function(p){return p.name.toLowerCase()===nm.toLowerCase();}); if(i>=0) sg_sst.teamAssign[i]='A'; });
+        (input.teamB||[]).forEach(function(nm){ var i=(state.players||[]).findIndex(function(p){return p.name.toLowerCase()===nm.toLowerCase();}); if(i>=0) sg_sst.teamAssign[i]='B'; });
+        if (!sg_sst.stakes) sg_sst.stakes = {};
+        sg_sst.stakes.teamMethod = 'Captain\'s Draft';
+        if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+        return 'Scotch teams set — A: ' + (input.teamA||[]).join(', ') + ' | B: ' + (input.teamB||[]).join(', ');
+      }
+
+      case 'add_buddy': {
+        if (!window.fbDb || !window.fbUser) return 'Must be signed in to manage Golf Buddies';
+        var newBuddy = { name: (input.name||'').trim(), hi: String(input.hi||''), ghin: String(input.ghin||'') };
+        if (!newBuddy.name) return 'Buddy name required';
+        return await new Promise(function(resolve) {
+          fbSaveBuddy(newBuddy, function(doc) {
+            if (doc) {
+              _buddiesCache.push(Object.assign({ id: doc.id }, newBuddy));
+              resolve('Added ' + newBuddy.name + ' to Golf Buddies');
+            } else { resolve('Failed to save buddy — check Firestore connection'); }
+          });
+        });
+      }
+
+      case 'delete_buddy': {
+        if (!window.fbDb || !window.fbUser) return 'Must be signed in to manage Golf Buddies';
+        var delName_db = (input.name||'').toLowerCase();
+        await new Promise(function(resolve){ fbLoadBuddies(function(){ resolve(); }); });
+        var toDelete_db = (_buddiesCache||[]).find(function(b){ return (b.name||'').toLowerCase() === delName_db; });
+        if (!toDelete_db) return 'Buddy "' + input.name + '" not found';
+        return await new Promise(function(resolve) {
+          fbDeleteBuddy(toDelete_db.id, function() {
+            _buddiesCache = (_buddiesCache||[]).filter(function(b){ return b.id !== toDelete_db.id; });
+            resolve('Deleted ' + toDelete_db.name + ' from Golf Buddies');
+          });
+        });
+      }
+
+      case 'mark_day_complete': {
+        var di_mdc = parseInt(input.dayIndex, 10);
+        var day_mdc = state.days && state.days[di_mdc];
+        if (!day_mdc) return 'Day ' + di_mdc + ' not found';
+        day_mdc.status = 'completed';
+        if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+        if (window._showEventHub !== false && typeof renderEventHub === 'function') renderEventHub();
+        return 'Day ' + (di_mdc + 1) + ' marked complete';
+      }
+
+      case 'set_venmo_handle': {
+        if (!state.venmoHandles) state.venmoHandles = {};
+        var vName = (input.playerName||'').trim();
+        var vHandle = (input.handle||'').trim();
+        if (!vName) return 'Player name required';
+        state.venmoHandles[vName] = vHandle;
+        if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+        return 'Venmo handle set for ' + vName + ': ' + vHandle;
       }
 
       case 'submit_feedback': {
