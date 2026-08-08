@@ -3574,9 +3574,14 @@ function golfApiFetch(path){
       });
     });
 }
+var _golfSearchCache = {};
 function golfApiSearch(query){
+  var key = (query || '').trim().toLowerCase();
+  if (_golfSearchCache[key]) return Promise.resolve(_golfSearchCache[key]);
   return golfApiFetch('/v1/search?search_query=' + encodeURIComponent(query)).then(function(data){
-    return data.courses || [];
+    var results = data.courses || [];
+    _golfSearchCache[key] = results;
+    return results;
   });
 }
 function golfApiGetCourse(id){
