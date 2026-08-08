@@ -723,6 +723,7 @@ search_course costs one of 50 daily API requests. Conserve them:
 2. NEVER retry search_course with alternate spellings or shorter names. One search per confirmed name only.
    If results come back empty, say: "I didn't find '[name]' — can you double-check the spelling? Or type it in the **Course & Date** search box to find it manually."
 3. If the player corrects the name (e.g., "it's Barton Creek Foothills, not Barton Creek"), confirm the corrected name before searching.
+4. Typed text is always authoritative for course names. Voice recognition may garble spellings — if the player types a course name in the chat, use their exact typed spelling as the search term, not your own interpretation of what they said.
 
 ━━ COURSE SEARCH UNAVAILABLE ━━
 When search_course returns a "Course API error" or returns no results due to an API error:
