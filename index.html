@@ -13270,8 +13270,10 @@ window.closeQrOverlay = function() {
 };
 
 // ── ?join= URL parameter — detect before onAuthStateChanged fires ─────────────
-// Sets window.fbPendingJoinCode which onAuthStateChanged (below) reads.
-window.fbPendingJoinCode = (function() {
+// NOTE: window.fbPendingJoinCode may already be set by the earlier Firebase IIFE
+// (which also strips the ?join= param from the URL via history.replaceState).
+// Use || so we don't overwrite a value that's already been correctly captured.
+window.fbPendingJoinCode = window.fbPendingJoinCode || (function() {
   try {
     var p = new URLSearchParams(window.location.search);
     var c = (p.get('join') || '').trim().toUpperCase();
