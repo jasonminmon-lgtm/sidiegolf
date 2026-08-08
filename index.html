@@ -3668,14 +3668,18 @@ function wireCourseSearch(ns, onPicked){
     resultsEl.innerHTML = '';
     setStatus('Searching…');
     // Run API search and Firestore community search in parallel
-    var apiPromise = golfApiSearch(q).catch(function(){ return []; });
+    var apiError = null;
+    var apiPromise = golfApiSearch(q).catch(function(err){ apiError = err; return []; });
     var communityPromise = (typeof window.queryCommunityCoursesFirestore === 'function')
       ? window.queryCommunityCoursesFirestore(q)
       : Promise.resolve([]);
     Promise.all([apiPromise, communityPromise]).then(function(results){
       var apiCourses = results[0];
       var commCourses = results[1];
-      if (!apiCourses.length && !commCourses.length){ setStatus('No matches found.'); return; }
+      if (!apiCourses.length && !commCourses.length){
+        setStatus(apiError ? apiError.message : 'No matches found.');
+        return;
+      }
       setStatus('');
       var html = '';
       // Community courses appear first (curated, exact data)
@@ -14393,7 +14397,8 @@ async function executeCaddieTool(name, input) {
             seenNames[cn] = true;
           }
         });
-        // Also try GHIN API, deduplicating by name
+        // Also try Golf API, deduplicating by name
+        var apiSearchErr = null;
         try {
           var apiResults = await golfApiSearch(input.query);
           var keys2 = Object.keys(MOCK_COURSES).map(Number);
@@ -14409,8 +14414,13 @@ async function executeCaddieTool(name, input) {
             results.push({ courseIdx: nextIdx, name: local.name, tees: (local.tees||[]).map(function(t){return t.name;}), _score: score2 });
             nextIdx++;
           });
-        } catch(e) {}
-        if (!results.length) return 'No courses found for "' + input.query + '". Try a shorter name or different spelling.';
+        } catch(e) { apiSearchErr = e.message || 'unknown error'; }
+        if (!results.length) {
+          var noResultMsg = 'No courses found for "' + input.query + '".';
+          if (apiSearchErr) noResultMsg += ' Course API error: ' + apiSearchErr + '. Tell the player the course search is temporarily unavailable and ask them to type the course name in the Course & Date search box manually.';
+          else noResultMsg += ' Try a shorter name or different spelling.';
+          return noResultMsg;
+        }
         results.sort(function(a, b) { return b._score - a._score; });
         return JSON.stringify(results.slice(0, 6).map(function(r){ return {courseIdx:r.courseIdx, name:r.name, tees:r.tees}; }));
       }
