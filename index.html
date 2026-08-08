@@ -324,6 +324,21 @@
   .np-cancel{background:none;border:none;color:#999;font-size:13px;cursor:pointer;padding:4px 8px;}
   .press-btn{margin-left:8px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--green-dark,#1a5c36);border:1.5px solid var(--green-dark,#1a5c36);border-radius:6px;background:transparent;cursor:pointer;vertical-align:middle;white-space:nowrap;}
   .press-result{font-size:12px;color:var(--green-dark,#1a5c36);margin:-2px 0 6px;padding-left:4px;}
+  /* Nassau per-hole press sheet (scorecard) */
+  .np2-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10300;display:none;align-items:flex-end;justify-content:center;}
+  .np2-overlay.open{display:flex;}
+  .np2-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:22px 20px 38px;box-sizing:border-box;}
+  .np2-title{font-size:17px;font-weight:800;color:var(--green-dark,#1a5c36);margin-bottom:16px;}
+  .np2-row{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}
+  .np2-label{font-size:11px;font-weight:700;color:var(--muted,#666);text-transform:uppercase;letter-spacing:.04em;}
+  .np2-input,.np2-select{padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;width:100%;box-sizing:border-box;background:#fff;}
+  .np2-input:focus,.np2-select:focus{border-color:var(--green,#2e7d32);outline:none;}
+  .np2-btns{display:flex;gap:10px;margin-top:6px;}
+  .np2-add{flex:1;padding:13px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;}
+  .np2-cancel-btn{padding:13px 18px;background:none;border:1.5px solid #ddd;border-radius:8px;font-size:15px;color:var(--muted,#666);cursor:pointer;}
+  .np2-press-flag{font-size:9px;font-weight:700;color:var(--green-dark,#1a5c36);line-height:1.3;text-align:center;}
+  .np2-add-press-btn{margin-top:10px;padding:9px 16px;background:transparent;border:1.5px solid var(--green-dark,#1a5c36);color:var(--green-dark,#1a5c36);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;width:100%;text-align:center;display:block;}
+  .np2-strokes{font-size:12px;color:var(--green-dark,#1a5c36);font-weight:600;padding:6px 10px;background:#f0f8f0;border-radius:6px;margin-bottom:10px;}
   .help-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:0 0 40px;max-height:85vh;overflow-y:auto;}
   .help-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff;z-index:1;}
   .help-sheet-title{font-size:17px;font-weight:700;color:var(--green-dark);}
@@ -2625,6 +2640,33 @@
     <div class="mc-body" id="myCoursesBody"></div>
     <div class="mc-add-bar">
       <button id="mcAddBtn" onclick="showMcCourseForm(null)" style="width:100%;padding:10px;background:var(--green-dark,#1a5c36);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">+ Add Course Manually</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Nassau Per-Hole Press Sheet (scorecard) ===== -->
+<div id="np2Overlay" class="np2-overlay" onclick="if(event.target===this)np2Close()">
+  <div class="np2-sheet">
+    <div class="np2-title">🔒 Add Press</div>
+    <div class="np2-row">
+      <div class="np2-label">Starting Hole</div>
+      <input id="np2Hole" class="np2-input" type="number" min="1" max="18" placeholder="1–18">
+    </div>
+    <div class="np2-row">
+      <div class="np2-label">Segment</div>
+      <select id="np2Seg" class="np2-select">
+        <option value="front9">Front 9</option>
+        <option value="back9">Back 9</option>
+        <option value="overall">Total (18)</option>
+      </select>
+    </div>
+    <div class="np2-row">
+      <div class="np2-label">Press Amount ($)</div>
+      <input id="np2Amt" class="np2-input" type="number" min="0" step="1" placeholder="e.g. 10">
+    </div>
+    <div class="np2-btns">
+      <button class="np2-cancel-btn" onclick="np2Close()">Cancel</button>
+      <button class="np2-add" onclick="np2Confirm()">Add Press</button>
     </div>
   </div>
 </div>
@@ -7798,6 +7840,11 @@ function wireScoreGridEvents(idxs, sc, ns){
 function buildEventTablesHtml(games, idxs, sc, ns){
   var html = '';
   (games||[]).forEach(function(g){
+    // Nassau gets its own press card in the scorecard
+    if (g.type === 'Nassau') {
+      html += buildNassauPressCardHtml(g, idxs, sc);
+      return;
+    }
     if (!gameNeedsPerHoleEvents(g.type)) return;
     var participantIdxs = g.participants.filter(function(p){ return idxs.indexOf(p)!==-1; });
     if (participantIdxs.length < 2) return;
@@ -7903,6 +7950,58 @@ function buildEventTablesHtml(games, idxs, sc, ns){
     }
     html += '</div>';
   });
+  return html;
+}
+
+function buildNassauPressCardHtml(g, idxs, sc) {
+  var participantIdxs = g.participants.filter(function(p){ return idxs.indexOf(p) !== -1; });
+  if (participantIdxs.length < 2) return '';
+  var html = '<div class="card"><div class="sc-game-title">Nassau — Presses</div>';
+  // Stroke differential
+  try {
+    var course_np = state.course != null ? MOCK_COURSES[state.course] : null;
+    var tee_np = course_np && state.tee ? course_np.tees.filter(function(t){ return t.name === state.tee; })[0] : null;
+    if (course_np && tee_np) {
+      var npPct = parseFloat(g.stakes.handicapPct) || 100;
+      var npCtx = buildCtx(participantIdxs, course_np, tee_np, sc, npPct);
+      var sm_np = npCtx.strokesMap || {};
+      var strokeLines_np = [];
+      participantIdxs.forEach(function(idx) {
+        var sr = sm_np[String(idx)] && sm_np[String(idx)].strokesReceived;
+        if (sr > 0) {
+          var pname = (state.players[parseInt(idx)] || {}).name || ('Player ' + (parseInt(idx) + 1));
+          strokeLines_np.push('<strong>' + escapeHtml(pname) + '</strong> +' + sr + ' stroke' + (sr === 1 ? '' : 's'));
+        }
+      });
+      html += '<div class="np2-strokes">⛳ ' + (strokeLines_np.length ? strokeLines_np.join(' &middot; ') + ' in this match' : 'Even — no handicap strokes in this match') + '</div>';
+    }
+  } catch(e) {}
+  // Press flag row
+  html += '<div class="sc-scroll"><table class="sc-table"><thead><tr><th class="sc-rowlabel">Hole</th>';
+  for (var h = 1; h <= 18; h++) html += '<th>' + h + '</th>';
+  html += '</tr></thead><tbody><tr><td class="sc-rowlabel">Presses</td>';
+  for (var h2 = 1; h2 <= 18; h2++) {
+    var pressesHere = (g.manualPresses || []).filter(function(mp) { return mp.accepted && mp.startHole === h2; });
+    if (pressesHere.length) {
+      var flags = pressesHere.map(function(mp) {
+        var sl = mp.segType === 'front9' ? 'F' : mp.segType === 'back9' ? 'B' : 'T';
+        return '<div class="np2-press-flag">🔒' + sl + '<br>$' + mp.stake + '</div>';
+      }).join('');
+      html += '<td style="padding:1px;vertical-align:top;background:#f0faf0;">' + flags + '</td>';
+    } else {
+      html += '<td></td>';
+    }
+  }
+  html += '</tr></tbody></table></div>';
+  // Guess current hole for pre-fill
+  var hintHole = 1;
+  participantIdxs.forEach(function(idx) {
+    var row = sc.scores && sc.scores[String(idx)];
+    if (!row) return;
+    for (var h3 = 18; h3 >= 1; h3--) { if (row[h3] != null && row[h3] > 0) { hintHole = Math.max(hintHole, h3); break; } }
+  });
+  html += '<button class="np2-add-press-btn" onclick="openNassauPressSheet(' + g.id + ',' + hintHole + ')">🔒 Add Press</button>';
+  html += '</div>';
   return html;
 }
 
@@ -9342,6 +9441,46 @@ window.nassauPressClose = function() {
   _npState = {};
 };
 
+// ── Nassau Per-Hole Press Sheet (scorecard) ──────────────────────────────────
+var _np2GameId = null;
+
+window.openNassauPressSheet = function(gameId, hintHole) {
+  _np2GameId = gameId;
+  var g = (state.sideGames || []).find(function(x) { return x.id === gameId; });
+  var holeEl = document.getElementById('np2Hole');
+  var amtEl  = document.getElementById('np2Amt');
+  var segEl  = document.getElementById('np2Seg');
+  if (holeEl) holeEl.value = hintHole || '';
+  if (amtEl && g) {
+    var defAmt = parseFloat(g.stakes.back) || parseFloat(g.stakes.front) || parseFloat(g.stakes.amount) || '';
+    amtEl.value = defAmt;
+  }
+  if (segEl && hintHole) segEl.value = hintHole <= 9 ? 'front9' : 'back9';
+  document.getElementById('np2Overlay').classList.add('open');
+};
+
+window.np2Close = function() {
+  var el = document.getElementById('np2Overlay');
+  if (el) el.classList.remove('open');
+  _np2GameId = null;
+};
+
+window.np2Confirm = function() {
+  var g = (state.sideGames || []).find(function(x) { return x.id === _np2GameId; });
+  if (!g) { np2Close(); return; }
+  var hole = parseInt((document.getElementById('np2Hole') || {}).value, 10);
+  var seg  = (document.getElementById('np2Seg')  || {}).value || 'back9';
+  var amt  = parseFloat((document.getElementById('np2Amt')  || {}).value) || 0;
+  if (!hole || hole < 1 || hole > 18) { alert('Enter a hole number between 1 and 18.'); return; }
+  if (!amt || amt <= 0) { alert('Enter a press amount greater than $0.'); return; }
+  if (!g.manualPresses) g.manualPresses = [];
+  g.manualPresses.push({ id: Date.now(), segType: seg, startHole: hole, stake: amt, accepted: true });
+  if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+  autoSave();
+  np2Close();
+  if (state.step === 6 && !isEvent() && typeof renderSingleScorecard === 'function') renderSingleScorecard();
+};
+
 // ============================================================
 // SETTLE UP OVERLAY
 // ============================================================
@@ -10506,6 +10645,21 @@ function nassauCardHtml(g, engineGame, ctx, context, scope, total){
   var nameB = namesForIdxs(bd.sideB);
   var title = 'Nassau'+(context?' ('+context+')':'')+' — '+nameA+' vs '+nameB;
   var html = '<div class="card"><div class="section-title">'+escapeHtml(title)+'</div>';
+  // Net stroke differential
+  try {
+    var sm_nc = ctx.strokesMap || {};
+    var strokeLines_nc = [];
+    (engineGame.participants || []).forEach(function(idx) {
+      var sr = sm_nc[String(idx)] && sm_nc[String(idx)].strokesReceived;
+      if (sr > 0) {
+        var pname = (state.players[parseInt(idx)] || {}).name || ('Player ' + (parseInt(idx) + 1));
+        strokeLines_nc.push('<strong>' + escapeHtml(pname) + '</strong> +' + sr + ' stroke' + (sr === 1 ? '' : 's'));
+      }
+    });
+    if (strokeLines_nc.length) {
+      html += '<div class="np2-strokes">⛳ ' + strokeLines_nc.join(' &middot; ') + ' in this match</div>';
+    }
+  } catch(e) {}
 
   [['front','Front 9','front9'],['back','Back 9','back9'],['total','Total 18','overall']].forEach(function(pair){
     var key = pair[0], segName = pair[1], segKey = pair[2];
@@ -10521,15 +10675,7 @@ function nassauCardHtml(g, engineGame, ctx, context, scope, total){
     } else {
       statusText = liveMatchStatusText(seg, nameA, nameB)+' — thru '+seg.holesPlayed+'/'+seg.holes.length;
     }
-    // Press button: show for in-progress segments (at least 1 hole played, not complete)
-    var pressBtn = '';
-    if (!seg.complete && seg.holesPlayed > 0) {
-      var alreadyPressed = (g.manualPresses || []).some(function(mp){ return mp.accepted && mp.segType === segKey; });
-      if (!alreadyPressed) {
-        pressBtn = '<button class="press-btn" onclick="nassauPressOpen('+g.id+',\''+segKey+'\')">🔒 Press</button>';
-      }
-    }
-    html += '<div class="summary-row"><span class="lbl">'+segName+' ($'+seg.stake+')</span><span class="val">'+escapeHtml(statusText)+pressBtn+'</span></div>';
+    html += '<div class="summary-row"><span class="lbl">'+segName+' ($'+seg.stake+')</span><span class="val">'+escapeHtml(statusText)+'</span></div>';
 
     var moneyText;
     if (!seg.complete){
