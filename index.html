@@ -516,6 +516,24 @@
   .hl-warn{color:#c87000;font-size:12px;margin-top:10px;padding:8px 12px;background:#fff8e1;border-radius:6px;border:1px solid #f0c040;}
   .hl-warn li{margin-bottom:3px;}
   .hl-chain-ended{font-size:12px;color:#6c757d;margin-top:8px;text-align:center;font-style:italic;}
+  /* ── Wolf / Cry Baby table entry buttons ── */
+  .wolf-entry-btn{width:100%;padding:5px 2px;border:1px solid #ddd;border-radius:6px;background:#f8f9fa;color:#555;font-size:11px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .wolf-entry-btn.wolf-entry-set{background:var(--green,#16284a);color:#fff;border-color:var(--green,#16284a);font-weight:700;}
+  .wolf-entry-btn.auto-wolf{background:#e8f0e8;color:#2d5a1e;border-color:#b8d4b8;font-style:italic;}
+  .wolf-bool-btn{width:100%;padding:5px 2px;border:1px solid #ddd;border-radius:6px;background:#f8f9fa;color:#aaa;font-size:11px;cursor:pointer;}
+  .wolf-bool-btn.wolf-bool-yes{background:#fff3cd;color:#856404;border-color:#ffc107;font-weight:700;}
+  .crybaby-btn{width:100%;padding:5px 2px;border:1px solid #ddd;border-radius:6px;background:#f8f9fa;color:#aaa;font-size:11px;cursor:pointer;}
+  .crybaby-btn.has-crybaby{background:#d4f4e0;color:#1a6e3c;border-color:#28a745;font-weight:700;}
+  .hlbs-player-btn{width:100%;padding:18px 16px;margin-bottom:10px;border-radius:12px;border:2px solid #ddd;background:#f8f9fa;color:var(--ink,#1c2522);font-size:16px;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;}
+  .hlbs-player-btn.selected{background:var(--green,#16284a);color:#fff;border-color:var(--green,#16284a);}
+  .hlbs-player-btn.auto-wolf{border-color:#b8d4b8;background:#e8f0e8;color:#2d5a1e;}
+  .hlbs-side-btn.teamA{background:#e8efff;border-color:#4a6fd4;color:#1a3ca8;}
+  .hlbs-side-btn.teamB{background:#fef0e0;border-color:#d4830a;color:#7a4000;}
+  .hlbs-entry-side.teamA{background:#e8efff;color:#1a3ca8;}
+  .hlbs-entry-side.teamB{background:#fef0e0;color:#7a4000;}
+  .cb-amount-display{font-size:52px;font-weight:800;text-align:center;padding:20px 0 8px;color:var(--green,#16284a);letter-spacing:-1px;}
+  .cb-adj-row{display:flex;align-items:center;justify-content:center;gap:20px;margin-bottom:18px;}
+  .cb-adj-btn{width:58px;height:58px;border-radius:50%;border:2px solid #ddd;background:#f0f0f0;font-size:28px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
   /* ── Hammer Bottom Sheet v2 — large-button UX ── */
   .hlbs-multiplier{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:10px 14px;background:var(--green,#16284a);border-radius:10px;color:#fff;}
   .hlbs-mult-col{display:flex;flex-direction:column;}
@@ -715,8 +733,7 @@
   .fb-round-bar{background:#f0f8ee;border-bottom:1px solid #cfe0cb;padding:5px 14px;display:flex;align-items:center;justify-content:space-between;font-size:12px;flex-shrink:0;}
   .fb-round-bar .rb-user{color:var(--green-dark);font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;text-decoration:underline;text-decoration-color:rgba(30,100,60,0.35);text-underline-offset:2px;}
   .fb-round-bar .rb-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
-  .fb-round-bar .rb-code{color:var(--green-dark);font-weight:800;letter-spacing:1.5px;cursor:pointer;font-size:13px;user-select:none;}
-  .fb-round-bar .rb-code::after{content:' ⎘';font-size:11px;opacity:.7;}
+  .fb-round-bar .rb-code{border:none;background:var(--accent);color:#fff;border-radius:6px;font-size:11px;font-weight:700;padding:4px 9px;cursor:pointer;letter-spacing:.3px;user-select:none;}
   .fb-round-bar .rb-share{border:none;background:var(--accent);color:#fff;border-radius:6px;font-size:11px;font-weight:700;padding:4px 9px;cursor:pointer;letter-spacing:.3px;}
   .fb-round-bar .rb-out{border:none;background:none;font-size:11px;color:var(--muted);cursor:pointer;padding:2px 0;}
   .fb-toast{position:fixed;bottom:95px;left:50%;transform:translateX(-50%);background:rgba(14,28,53,.93);color:#fff;padding:9px 20px;border-radius:22px;font-size:13.5px;font-weight:600;z-index:10001;pointer-events:none;opacity:0;transition:opacity .18s;white-space:nowrap;}
@@ -2533,7 +2550,7 @@
   <div id="fb-round-bar" class="fb-round-bar" style="display:none">
     <span class="rb-user" id="rb-user-name" onclick="fbShowAccount()" title="My Account"></span>
     <div class="rb-actions">
-      <span class="rb-code" id="rb-round-code" onclick="if(window.fbRoundCode)showQrOverlay(window.fbRoundCode)" title="Tap for QR code"></span>
+      <span class="rb-code" id="rb-round-code" onclick="if(window.fbRoundCode)showQrOverlay(window.fbRoundCode)" title="Share Round Code">Share Round Code</span>
       <button class="rb-out" onclick="fbSignOut()">Sign Out</button>
     </div>
   </div>
@@ -7935,9 +7952,9 @@ function buildEventTablesHtml(games, idxs, sc, ns){
       var nPart = participantIdxs.length;
       var wolfAutoFn = teeOrd ? function(h){ return teeOrd[(h-1) % teeOrd.length]; }
                                : function(h){ return participantIdxs[(h-1) % nPart]; };
-      html += buildSelectRow('Wolf', g, participantIdxs, sc, ns, 'wolf', true, wolfAutoFn);
-      html += buildSelectRow('Partner', g, participantIdxs, sc, ns, 'partner', true);
-      html += buildBoolRow('Blind?', g, sc, ns, 'blind');
+      html += buildWolfPlayerRow('Wolf', g, participantIdxs, sc, ns, 'wolf', wolfAutoFn);
+      html += buildWolfPlayerRow('Partner', g, participantIdxs, sc, ns, 'partner', null);
+      html += buildWolfBoolRow('Blind?', g, sc, ns, 'blind');
       if (g.stakes.hammerOn === 'On') html += buildHammerLogRow('Hammers', g, sc, ns);
       html += buildCryBabyAmtRow('Chaser $', g, sc, ns);
       legend = [
@@ -7954,9 +7971,9 @@ function buildEventTablesHtml(games, idxs, sc, ns){
       var nPart2 = participantIdxs.length;
       var wolfAutoFn2 = teeOrd2 ? function(h){ return teeOrd2[(h-1) % teeOrd2.length]; }
                                  : function(h){ return participantIdxs[(h-1) % nPart2]; };
-      html += buildSelectRow('Wolf', g, participantIdxs, sc, ns, 'wolf', true, wolfAutoFn2);
-      html += buildSelectRow('Partner', g, participantIdxs, sc, ns, 'partner', true);
-      html += buildBoolRow('Blind?', g, sc, ns, 'blind');
+      html += buildWolfPlayerRow('Wolf', g, participantIdxs, sc, ns, 'wolf', wolfAutoFn2);
+      html += buildWolfPlayerRow('Partner', g, participantIdxs, sc, ns, 'partner', null);
+      html += buildWolfBoolRow('Blind?', g, sc, ns, 'blind');
       html += buildHammerLogRow('Hammers', g, sc, ns);
       legend = [
         'Wolf — auto-rotates each hole based on tee order (set above). Leave blank to use auto-rotation; pick a player to manually override for that hole.',
@@ -8176,7 +8193,7 @@ function wireEventTablesEvents(games, idxs, sc, ns){
   // Viewers (non-host, non-scorekeeper) are read-only — disable all interactive cells
   var _canEdit = (typeof isCurrentUserHost !== 'function') || isCurrentUserHost();
   if (!_canEdit) {
-    Array.prototype.forEach.call(document.querySelectorAll('[data-sc-event^="'+ns+'|"],[data-sc-team^="'+ns+'|"],[data-sc-eventnum^="'+ns+'|"],[data-cfw-trigger^="'+ns+'|"],[data-cfw-flip^="'+ns+'|"]'), function(el){
+    Array.prototype.forEach.call(document.querySelectorAll('[data-sc-event^="'+ns+'|"],[data-sc-team^="'+ns+'|"],[data-sc-eventnum^="'+ns+'|"],[data-cfw-trigger^="'+ns+'|"],[data-cfw-flip^="'+ns+'|"],[data-wolf-player^="'+ns+'|"],[data-wolf-bool^="'+ns+'|"],[data-crybaby^="'+ns+'|"]'), function(el){
       el.disabled = true;
       el.style.pointerEvents = 'none';
       el.style.opacity = '0.6';
@@ -8259,6 +8276,45 @@ function wireEventTablesEvents(games, idxs, sc, ns){
       if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
     });
   });
+  // Wolf player buttons — open Wolf/Partner picker sheet
+  Array.prototype.forEach.call(document.querySelectorAll('[data-wolf-player^="'+ns+'|"]'), function(btn){
+    btn.addEventListener('click', function(){
+      var parts = btn.getAttribute('data-wolf-player').split('|');
+      var gid = parseInt(parts[1],10), hole = parseInt(parts[2],10), fieldKey = parts[3];
+      var g = null;
+      for (var gi=0; gi<(games||[]).length; gi++){ if (games[gi].id===gid){ g=games[gi]; break; } }
+      if (!g) return;
+      if (!sc.events[hole]) sc.events[hole] = {};
+      openWolfPlayerEntry(ns, gid, hole, sc, g, fieldKey);
+    });
+  });
+
+  // Wolf bool buttons — open Blind Wolf yes/no sheet
+  Array.prototype.forEach.call(document.querySelectorAll('[data-wolf-bool^="'+ns+'|"]'), function(btn){
+    btn.addEventListener('click', function(){
+      var parts = btn.getAttribute('data-wolf-bool').split('|');
+      var gid = parseInt(parts[1],10), hole = parseInt(parts[2],10), fieldKey = parts[3];
+      var g = null;
+      for (var gi=0; gi<(games||[]).length; gi++){ if (games[gi].id===gid){ g=games[gi]; break; } }
+      if (!g) return;
+      if (!sc.events[hole]) sc.events[hole] = {};
+      openWolfBoolEntry(ns, gid, hole, sc, g, fieldKey);
+    });
+  });
+
+  // Cry Baby / Chaser $ buttons — open amount entry sheet
+  Array.prototype.forEach.call(document.querySelectorAll('[data-crybaby^="'+ns+'|"]'), function(btn){
+    btn.addEventListener('click', function(){
+      var parts = btn.getAttribute('data-crybaby').split('|');
+      var gid = parseInt(parts[1],10), hole = parseInt(parts[2],10);
+      var g = null;
+      for (var gi=0; gi<(games||[]).length; gi++){ if (games[gi].id===gid){ g=games[gi]; break; } }
+      if (!g) return;
+      if (!sc.events[hole]) sc.events[hole] = {};
+      openCryBabyEntry(ns, gid, hole, sc, g);
+    });
+  });
+
   // Hammer log tap buttons — open per-hole hammer log editor
   Array.prototype.forEach.call(document.querySelectorAll('[data-hammer-log^="'+ns+'|"]'), function(el){
     el.addEventListener('click', function(){
@@ -8313,14 +8369,15 @@ function buildHammerLogRow(label, g, sc, ns){
   return html;
 }
 
-// Per-hole Cry Baby/Chaser dollar amount row — tap any cell to override the stake.
+// Per-hole Cry Baby/Chaser dollar amount row — tap any cell to open bottom sheet.
 // Stored as sc.events[hole].cryBabyAmt; 0/blank = no override.
 function buildCryBabyAmtRow(label, g, sc, ns){
   var html = '<tr><td class="sc-rowlabel">'+escapeHtml(label)+'</td>';
   for (var h=1; h<=18; h++){
     var ev = sc.events[h] || {};
     var val = parseFloat(ev.cryBabyAmt || 0) || 0;
-    html += '<td><input type="number" min="0" max="9999" step="1" style="width:46px;text-align:center;font-size:12px;" value="'+(val>0?val:'')+'" placeholder="—" data-sc-eventnum="'+ns+'|'+g.id+'|'+h+'|cryBabyAmt"></td>';
+    var cls = 'crybaby-btn' + (val > 0 ? ' has-crybaby' : '');
+    html += '<td><button class="'+cls+'" data-crybaby="'+ns+'|'+g.id+'|'+h+'">'+(val>0?'$'+val:'—')+'</button></td>';
   }
   html += '</tr>';
   return html;
@@ -8368,6 +8425,42 @@ function buildBankerWagerRow(g, sc, ns){
     var changed = (Math.abs(wager - baseAmount) > 0.001 || multi !== 1);
     var label = '$' + wager + (multi > 1 ? '×' + multi : '');
     html += '<td><span class="sc-rowlabel'+(changed?' stake-changed':'')+'" style="font-size:10px;white-space:nowrap;">'+escapeHtml(label)+'</span></td>';
+  }
+  html += '</tr>';
+  return html;
+}
+
+// Wolf "Who is Wolf" / "Partner" row — button cells that open bottom sheet
+function buildWolfPlayerRow(label, g, participantIdxs, sc, ns, fieldKey, autoValueFn){
+  var html = '<tr><td class="sc-rowlabel">'+escapeHtml(label)+'</td>';
+  for (var h=1; h<=18; h++){
+    var ev = sc.events[h] || {};
+    var val = ev[fieldKey];
+    var autoVal = (val == null && autoValueFn) ? autoValueFn(h) : null;
+    var dispIdx = val != null ? val : autoVal;
+    var dispName = '—';
+    var isAuto = (val == null && autoVal != null);
+    var isSet = (val != null);
+    if (dispIdx != null){
+      var p = state.players[dispIdx];
+      var fullName = p ? p.name : ('P'+(parseInt(dispIdx,10)+1));
+      dispName = fullName.length > 6 ? fullName.slice(0,5)+'…' : fullName;
+    }
+    var cls = 'wolf-entry-btn' + (isSet ? ' wolf-entry-set' : (isAuto ? ' auto-wolf' : ''));
+    html += '<td><button class="'+cls+'" data-wolf-player="'+ns+'|'+g.id+'|'+h+'|'+fieldKey+'">'+escapeHtml(dispName)+'</button></td>';
+  }
+  html += '</tr>';
+  return html;
+}
+
+// Wolf "Blind?" row — button cells that open Yes/No bottom sheet
+function buildWolfBoolRow(label, g, sc, ns, fieldKey){
+  var html = '<tr><td class="sc-rowlabel">'+escapeHtml(label)+'</td>';
+  for (var h=1; h<=18; h++){
+    var ev = sc.events[h] || {};
+    var val = !!ev[fieldKey];
+    var cls = 'wolf-bool-btn' + (val ? ' wolf-bool-yes' : '');
+    html += '<td><button class="'+cls+'" data-wolf-bool="'+ns+'|'+g.id+'|'+h+'|'+fieldKey+'">'+(val?'Yes':'—')+'</button></td>';
   }
   html += '</tr>';
   return html;
@@ -9767,7 +9860,7 @@ function openCrackLog(ns, gid, hole, sc, game){
   var teamALabel = 'Team A (' + tA.map(name).join(' & ') + ')';
   var teamBLabel = 'Team B (' + tB.map(name).join(' & ') + ')';
 
-  state.__crackLog = { ns: ns, gid: gid, hole: hole, sc: sc, game: game, teamALabel: teamALabel, teamBLabel: teamBLabel };
+  state.__crackLog = { ns: ns, gid: gid, hole: hole, sc: sc, game: game, teamALabel: teamALabel, teamBLabel: teamBLabel, step: 'idle', pendingSide: null };
   renderCrackLogSheet();
   $('crackLogOverlay').style.display = 'flex';
 }
@@ -9800,130 +9893,161 @@ function renderCrackLogSheet(){
   var log = Array.isArray(ev.crackLog) ? ev.crackLog : [];
   var baseAmount = parseFloat((e.game.stakes && e.game.stakes.amount)) || 0;
 
-  // Find effective amount for this hole (last scotchStake change on or before hole)
+  // Find effective $/pt for this hole (last scotchStake change on or before hole)
   var holeAmount = baseAmount;
   for (var sh = 1; sh <= e.hole; sh++) {
     var shEv = (sc.events && sc.events[sh]) || {};
     if (shEv.scotchStake != null && parseFloat(shEv.scotchStake) > 0) holeAmount = parseFloat(shEv.scotchStake);
   }
 
-  // Track running amount through crack log
+  // Compute running multiplier and stake labels
   var running = holeAmount;
   var stakeAfter = [];
   var firstDeclineIdx = -1;
   for (var si = 0; si < log.length; si++){
     if (log[si].accepted){
-      running *= 2;
-      stakeAfter.push('→ $' + running + '/pt');
+      var prev = running;
+      running = running * 2;
+      stakeAfter.push('$' + prev + ' → $' + running);
     } else {
-      stakeAfter.push('→ chain ends at $' + running + '/pt');
+      stakeAfter.push('settled $' + running + '/pt');
       if (firstDeclineIdx < 0) firstDeclineIdx = si;
     }
   }
-
+  var currentBet = running;
+  var multiplier = (holeAmount > 0 && log.length > 0) ? Math.round(currentBet / holeAmount) : 1;
   var canAdd = firstDeclineIdx < 0;
-  var nextAllowed = null;
-  if (log.length > 0 && canAdd){
-    nextAllowed = log[log.length - 1].side === 'A' ? 'B' : 'A';
-  }
-
-  var warnings = [];
-  for (var vi = 1; vi < log.length; vi++){
-    if (log[vi].side === log[vi-1].side){
-      warnings.push('Entry '+(vi+1)+': same team as entry '+vi+' — teams must alternate.');
-    }
-  }
-  if (firstDeclineIdx >= 0 && firstDeclineIdx < log.length - 1){
-    warnings.push('Entries after a decline are ignored — crack chain ended at entry '+(firstDeclineIdx+1)+'.');
-  }
+  var nextAllowed = (log.length > 0 && canAdd) ? (log[log.length - 1].side === 'A' ? 'B' : 'A') : null;
+  var step = e.step || 'idle';
+  var pendingSide = e.pendingSide || null;
 
   var html = '<div class="hl-sheet">';
-  html += '<div class="hl-head"><div class="hl-title">Crack — Hole '+e.hole+'</div>';
+  html += '<div class="hl-head"><div class="hl-title">💥 Crack — Hole ' + e.hole + '</div>';
   html += '<button class="btn-link" id="clClose">Close ✕</button></div>';
-  html += '<div class="hl-stake-info">Base: $'+holeAmount+'/pt · Only the team DOWN $ may crack first · Other team may crack back · Decline ends chain</div>';
-  html += '<div style="font-size:11px;color:#888;margin-bottom:10px;">'+e.teamALabel+' vs '+e.teamBLabel+'</div>';
+  html += '<div class="hl-stake-info">Base: $' + holeAmount + '/pt · Down team cracks first · Other team may crack back · Decline ends chain</div>';
+  html += '<div style="font-size:11px;color:#888;margin-bottom:10px;">' + e.teamALabel + ' vs ' + e.teamBLabel + '</div>';
 
-  if (log.length === 0){
-    html += '<div class="hl-empty">No cracks on this hole — tap + Add to log one.</div>';
+  // Running bet pill
+  if (log.length > 0) {
+    html += '<div class="hlbs-multiplier">';
+    html += '<div class="hlbs-mult-col"><div class="hlbs-mult-label">Current $/pt</div><div class="hlbs-mult-value">$' + currentBet + '</div></div>';
+    html += '<div class="hlbs-mult-col" style="text-align:right"><div class="hlbs-mult-label">Multiplier</div><div class="hlbs-mult-value">' + multiplier + '×</div></div>';
+    html += '</div>';
+  }
+
+  // Logged entries as chips
+  if (log.length === 0 && step === 'idle') {
+    html += '<div class="hl-empty" style="padding:18px 0 12px;">No cracks on this hole yet.</div>';
   } else {
     for (var li = 0; li < log.length; li++){
       var entry = log[li];
-      var isPostDecline = firstDeclineIdx >= 0 && li > firstDeclineIdx;
-      html += '<div class="hl-entry"'+(isPostDecline?' style="opacity:0.45"':'')+'>';
-      html += '<div class="hl-entry-num">'+(li+1)+'.</div>';
-      html += '<select class="hl-side-sel '+(entry.side==='A'?'wolf':'opp')+'" data-cl-side="'+li+'">';
-      html += '<option value="A"'+(entry.side==='A'?' selected':'')+'>Team A</option>';
-      html += '<option value="B"'+(entry.side==='B'?' selected':'')+'>Team B</option>';
-      html += '</select>';
-      html += '<div class="hl-arrow">→</div>';
-      html += '<select class="hl-out-sel '+(entry.accepted?'accepted':'declined')+'" data-cl-outcome="'+li+'">';
-      html += '<option value="accepted"'+(entry.accepted?' selected':'')+'>Crack ✓</option>';
-      html += '<option value="declined"'+(!entry.accepted?' selected':'')+'>Decline ✗</option>';
-      html += '</select>';
-      html += '<div class="hl-running">'+(stakeAfter[li]||'')+'</div>';
-      html += '<button class="hl-remove" data-cl-remove="'+li+'">×</button>';
+      var isPost = firstDeclineIdx >= 0 && li > firstDeclineIdx;
+      html += '<div class="hlbs-entry"' + (isPost ? ' style="opacity:0.38"' : '') + '>';
+      html += '<span class="hlbs-entry-num">' + (li + 1) + '</span>';
+      html += '<span class="hlbs-entry-side ' + (entry.side === 'A' ? 'teamA' : 'teamB') + '">' + (entry.side === 'A' ? '🅰 Team A' : '🅱 Team B') + '</span>';
+      html += '<span class="hlbs-entry-arrow">→</span>';
+      html += '<span class="hlbs-entry-outcome ' + (entry.accepted ? 'accepted' : 'declined') + '">' + (entry.accepted ? '✓ Cracked' : '✗ Declined') + '</span>';
+      html += '<span class="hlbs-entry-running">' + (stakeAfter[li] || '') + '</span>';
+      if (!isPost) html += '<button class="hlbs-entry-del" data-cl-remove="' + li + '">×</button>';
       html += '</div>';
     }
   }
 
-  if (warnings.length){
-    html += '<div class="hl-warn">⚠ <ul style="padding-left:16px;margin:4px 0;">';
-    warnings.forEach(function(w){ html += '<li>'+escapeHtml(w)+'</li>'; });
-    html += '</ul></div>';
+  // Stepped input area
+  if (step === 'idle') {
+    if (canAdd) {
+      html += '<button class="hlbs-throw-btn" id="clThrow">💥 Crack!</button>';
+    } else {
+      html += '<div class="hlbs-chain-banner">⛔ Chain ended — hole settles at $' + currentBet + '/pt</div>';
+    }
+  } else if (step === 'side') {
+    html += '<div class="hlbs-step-label">Which team cracked?</div>';
+    html += '<div class="hlbs-two-btn">';
+    var aDis = (nextAllowed && nextAllowed !== 'A') ? ' disabled' : '';
+    var bDis = (nextAllowed && nextAllowed !== 'B') ? ' disabled' : '';
+    html += '<button class="hlbs-side-btn teamA" id="clSideA"' + aDis + '>🅰 Team A';
+    if (!aDis && nextAllowed === 'A') html += '<span class="hlbs-next-badge">← their turn</span>';
+    html += '</button>';
+    html += '<button class="hlbs-side-btn teamB" id="clSideB"' + bDis + '>🅱 Team B';
+    if (!bDis && nextAllowed === 'B') html += '<span class="hlbs-next-badge">← their turn</span>';
+    html += '</button>';
+    html += '</div>';
+    html += '<button class="hlbs-cancel-btn" id="clStepCancel">Cancel</button>';
+  } else if (step === 'outcome') {
+    var sideName = pendingSide === 'A' ? '🅰 Team A' : '🅱 Team B';
+    html += '<div class="hlbs-step-label">' + sideName + ' cracked —<br>Accepted or Declined?</div>';
+    html += '<div class="hlbs-two-btn">';
+    html += '<button class="hlbs-outcome-btn accept" id="clOutAccept">✓<br><span style="font-size:13px">Cracked</span></button>';
+    html += '<button class="hlbs-outcome-btn decline" id="clOutDecline">✗<br><span style="font-size:13px">Declined</span></button>';
+    html += '</div>';
+    html += '<button class="hlbs-cancel-btn" id="clStepCancel">← Back</button>';
   }
-  if (!canAdd && log.length > 0){
-    html += '<div class="hl-chain-ended">Crack chain ended — a decline stops the doubling.</div>';
-  }
-  html += '<button class="hl-add-btn" id="clAdd"'+(canAdd?'':' disabled')+'>+ Add crack</button>';
+
   html += '</div>';
 
   var ov = $('crackLogOverlay');
   ov.innerHTML = html;
 
   $('clClose').addEventListener('click', closeCrackLog);
+  ov.addEventListener('click', function(evt){ if (evt.target === ov) closeCrackLog(); });
 
-  var addBtn = $('clAdd');
-  if (addBtn && canAdd){
-    addBtn.addEventListener('click', function(){
-      if (!ev.crackLog) ev.crackLog = [];
-      var defaultSide = nextAllowed || 'A';
-      ev.crackLog.push({ side: defaultSide, accepted: true });
-      updateCrackLogBtn(e.ns, e.gid, e.hole, sc);
-      renderCrackLogSheet();
-      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
-    });
-  }
-
-  Array.prototype.forEach.call(ov.querySelectorAll('[data-cl-side]'), function(sel){
-    sel.addEventListener('change', function(){
-      var idx = parseInt(sel.getAttribute('data-cl-side'), 10);
-      ev.crackLog[idx] = { side: sel.value, accepted: ev.crackLog[idx].accepted };
-      updateCrackLogBtn(e.ns, e.gid, e.hole, sc);
-      renderCrackLogSheet();
-      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
-    });
-  });
-
-  Array.prototype.forEach.call(ov.querySelectorAll('[data-cl-outcome]'), function(sel){
-    sel.addEventListener('change', function(){
-      var idx = parseInt(sel.getAttribute('data-cl-outcome'), 10);
-      ev.crackLog[idx] = { side: ev.crackLog[idx].side, accepted: sel.value === 'accepted' };
-      updateCrackLogBtn(e.ns, e.gid, e.hole, sc);
-      renderCrackLogSheet();
-      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
-    });
-  });
-
+  // Delete entry
   Array.prototype.forEach.call(ov.querySelectorAll('[data-cl-remove]'), function(btn){
     btn.addEventListener('click', function(){
       var idx = parseInt(btn.getAttribute('data-cl-remove'), 10);
       ev.crackLog.splice(idx, 1);
       if (!ev.crackLog.length) delete ev.crackLog;
+      e.step = 'idle'; e.pendingSide = null;
       updateCrackLogBtn(e.ns, e.gid, e.hole, sc);
-      renderCrackLogSheet();
+      autoSave();
       if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+      renderCrackLogSheet();
     });
   });
+
+  var throwBtn = $('clThrow');
+  if (throwBtn) { throwBtn.addEventListener('click', function(){ e.step = 'side'; renderCrackLogSheet(); }); }
+
+  var sideABtn = $('clSideA');
+  if (sideABtn && !sideABtn.disabled) { sideABtn.addEventListener('click', function(){ e.pendingSide = 'A'; e.step = 'outcome'; renderCrackLogSheet(); }); }
+
+  var sideBBtn = $('clSideB');
+  if (sideBBtn && !sideBBtn.disabled) { sideBBtn.addEventListener('click', function(){ e.pendingSide = 'B'; e.step = 'outcome'; renderCrackLogSheet(); }); }
+
+  var acceptBtn = $('clOutAccept');
+  if (acceptBtn) {
+    acceptBtn.addEventListener('click', function(){
+      if (!ev.crackLog) ev.crackLog = [];
+      ev.crackLog.push({ side: pendingSide || 'A', accepted: true });
+      e.step = 'idle'; e.pendingSide = null;
+      updateCrackLogBtn(e.ns, e.gid, e.hole, sc);
+      autoSave();
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+      renderCrackLogSheet();
+    });
+  }
+
+  var declineBtn = $('clOutDecline');
+  if (declineBtn) {
+    declineBtn.addEventListener('click', function(){
+      if (!ev.crackLog) ev.crackLog = [];
+      ev.crackLog.push({ side: pendingSide || 'A', accepted: false });
+      e.step = 'idle'; e.pendingSide = null;
+      updateCrackLogBtn(e.ns, e.gid, e.hole, sc);
+      autoSave();
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+      renderCrackLogSheet();
+    });
+  }
+
+  var cancelBtn = $('clStepCancel');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function(){
+      if (step === 'outcome') { e.step = 'side'; } else { e.step = 'idle'; }
+      e.pendingSide = null;
+      renderCrackLogSheet();
+    });
+  }
 }
 
 // ── Scotch $/pt Stake Change ──────────────────────────────────────────────────
@@ -10179,6 +10303,190 @@ function renderHammerLogSheet(){
       renderHammerLogSheet();
     });
   }
+}
+
+// ── Wolf Player Entry — bottom sheet to pick Wolf or Partner ─────────────────
+function openWolfPlayerEntry(ns, gid, hole, sc, game, fieldKey){
+  var label = fieldKey === 'wolf' ? 'Who is the Wolf?' : "Wolf's Partner?";
+  state.__wolfPlayerEntry = { ns: ns, gid: gid, hole: hole, sc: sc, game: game, fieldKey: fieldKey, label: label };
+  renderWolfPlayerSheet();
+  $('crackLogOverlay').style.display = 'flex';
+}
+
+function renderWolfPlayerSheet(){
+  var e = state.__wolfPlayerEntry;
+  if (!e) return;
+  var sc = e.sc;
+  if (!sc.events[e.hole]) sc.events[e.hole] = {};
+  var ev = sc.events[e.hole];
+  var curVal = ev[e.fieldKey] != null ? String(ev[e.fieldKey]) : null;
+  var participantIdxs = e.game.participants;
+  var isPartner = e.fieldKey === 'partner';
+
+  function closeWP(){ $('crackLogOverlay').style.display='none'; $('crackLogOverlay').innerHTML=''; state.__wolfPlayerEntry=null; }
+
+  var html = '<div class="hl-sheet">';
+  html += '<div class="hl-head"><div class="hl-title">🐺 Hole '+e.hole+' — '+e.label+'</div>';
+  html += '<button class="btn-link" id="wpClose">Close ✕</button></div>';
+  html += '<div class="hl-stake-info" style="margin-bottom:14px;">Tap a player to assign for hole '+e.hole+'. Tap again to clear.</div>';
+  participantIdxs.forEach(function(idx){
+    var p = state.players[idx];
+    var name = p ? p.name : ('Player '+(parseInt(idx,10)+1));
+    var isSel = String(idx) === curVal;
+    html += '<button class="hlbs-player-btn'+(isSel?' selected':'')+'" data-wp-idx="'+idx+'">'+escapeHtml(name)+(isSel?' ✓':'')+'</button>';
+  });
+  html += '<button class="hlbs-cancel-btn" id="wpClear" style="margin-top:4px;">'+(isPartner?'None — Solo wolf':'Auto-rotation (clear override)')+'</button>';
+  html += '</div>';
+
+  var ov = $('crackLogOverlay');
+  ov.innerHTML = html;
+
+  $('wpClose').addEventListener('click', closeWP);
+  ov.addEventListener('click', function(evt){ if(evt.target===ov) closeWP(); });
+
+  Array.prototype.forEach.call(ov.querySelectorAll('[data-wp-idx]'), function(btn){
+    btn.addEventListener('click', function(){
+      var idx = btn.getAttribute('data-wp-idx');
+      sc.events[e.hole][e.fieldKey] = idx;
+      var tableBtn = document.querySelector('[data-wolf-player="'+e.ns+'|'+e.gid+'|'+e.hole+'|'+e.fieldKey+'"]');
+      if (tableBtn){
+        var p = state.players[idx];
+        var n = p ? p.name : ('P'+(parseInt(idx,10)+1));
+        tableBtn.textContent = n.length>6?n.slice(0,5)+'…':n;
+        tableBtn.className = 'wolf-entry-btn wolf-entry-set';
+      }
+      autoSave();
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+      closeWP();
+    });
+  });
+
+  $('wpClear').addEventListener('click', function(){
+    delete sc.events[e.hole][e.fieldKey];
+    var tableBtn = document.querySelector('[data-wolf-player="'+e.ns+'|'+e.gid+'|'+e.hole+'|'+e.fieldKey+'"]');
+    if (tableBtn){ tableBtn.textContent = '—'; tableBtn.className = 'wolf-entry-btn'; }
+    autoSave();
+    if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    closeWP();
+  });
+}
+
+// ── Wolf Bool Entry — bottom sheet for Blind Wolf yes/no ─────────────────────
+function openWolfBoolEntry(ns, gid, hole, sc, game, fieldKey){
+  state.__wolfBoolEntry = { ns: ns, gid: gid, hole: hole, sc: sc, game: game, fieldKey: fieldKey };
+  renderWolfBoolSheet();
+  $('crackLogOverlay').style.display = 'flex';
+}
+
+function renderWolfBoolSheet(){
+  var e = state.__wolfBoolEntry;
+  if (!e) return;
+  var sc = e.sc;
+  if (!sc.events[e.hole]) sc.events[e.hole] = {};
+  var ev = sc.events[e.hole];
+  var curVal = !!ev[e.fieldKey];
+
+  function closeWB(){ $('crackLogOverlay').style.display='none'; $('crackLogOverlay').innerHTML=''; state.__wolfBoolEntry=null; }
+
+  var html = '<div class="hl-sheet">';
+  html += '<div class="hl-head"><div class="hl-title">🐺 Hole '+e.hole+' — Blind Wolf?</div>';
+  html += '<button class="btn-link" id="wbClose">Close ✕</button></div>';
+  html += '<div class="hl-stake-info" style="margin-bottom:14px;">Blind = wolf declared before anyone tees off. Wolf locked in alone at 3× the stake.</div>';
+  html += '<div class="hlbs-two-btn">';
+  html += '<button class="hlbs-outcome-btn accept'+(curVal?' hlbs-active':'')+'" id="wbYes" style="'+(curVal?'outline:3px solid #28a745;':'')+'">';
+  html += '✓<br><span style="font-size:13px">Yes — Blind Wolf</span></button>';
+  html += '<button class="hlbs-outcome-btn decline'+(!curVal?' hlbs-active':'')+'" id="wbNo" style="'+((!curVal&&ev[e.fieldKey]!==undefined)?'outline:3px solid #dc3545;':'')+'">';
+  html += '—<br><span style="font-size:13px">No / Clear</span></button>';
+  html += '</div>';
+  html += '</div>';
+
+  var ov = $('crackLogOverlay');
+  ov.innerHTML = html;
+
+  $('wbClose').addEventListener('click', closeWB);
+  ov.addEventListener('click', function(evt){ if(evt.target===ov) closeWB(); });
+
+  $('wbYes').addEventListener('click', function(){
+    sc.events[e.hole][e.fieldKey] = true;
+    var tableBtn = document.querySelector('[data-wolf-bool="'+e.ns+'|'+e.gid+'|'+e.hole+'|'+e.fieldKey+'"]');
+    if (tableBtn){ tableBtn.textContent='Yes'; tableBtn.className='wolf-bool-btn wolf-bool-yes'; }
+    autoSave();
+    if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    closeWB();
+  });
+
+  $('wbNo').addEventListener('click', function(){
+    delete sc.events[e.hole][e.fieldKey];
+    var tableBtn = document.querySelector('[data-wolf-bool="'+e.ns+'|'+e.gid+'|'+e.hole+'|'+e.fieldKey+'"]');
+    if (tableBtn){ tableBtn.textContent='—'; tableBtn.className='wolf-bool-btn'; }
+    autoSave();
+    if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    closeWB();
+  });
+}
+
+// ── Cry Baby / Chaser $ — bottom sheet number entry ──────────────────────────
+function openCryBabyEntry(ns, gid, hole, sc, game){
+  state.__cryBabyEntry = { ns: ns, gid: gid, hole: hole, sc: sc, game: game };
+  renderCryBabySheet();
+  $('crackLogOverlay').style.display = 'flex';
+}
+
+function renderCryBabySheet(){
+  var e = state.__cryBabyEntry;
+  if (!e) return;
+  var sc = e.sc;
+  if (!sc.events[e.hole]) sc.events[e.hole] = {};
+  var ev = sc.events[e.hole];
+  var baseAmount = parseFloat((e.game.stakes && e.game.stakes.amount)) || 1;
+  var curVal = parseFloat(ev.cryBabyAmt || 0) || 0;
+  var displayVal = curVal > 0 ? curVal : baseAmount;
+
+  function closeCB(){ $('crackLogOverlay').style.display='none'; $('crackLogOverlay').innerHTML=''; state.__cryBabyEntry=null; }
+
+  var html = '<div class="hl-sheet">';
+  html += '<div class="hl-head"><div class="hl-title">😭 Chaser $ — Hole '+e.hole+'</div>';
+  html += '<button class="btn-link" id="cbClose">Close ✕</button></div>';
+  html += '<div class="hl-stake-info" style="margin-bottom:8px;">Base stake: $'+baseAmount+' · Enter a custom Cry Baby/Chaser amount for this hole. Set the wolf manually via the Wolf row.</div>';
+  html += '<div class="cb-amount-display" id="cbDisplay">$'+displayVal+'</div>';
+  html += '<div class="cb-adj-row">';
+  html += '<button class="cb-adj-btn" id="cbMinus">−</button>';
+  html += '<button class="cb-adj-btn" id="cbPlus">+</button>';
+  html += '</div>';
+  html += '<button class="hlbs-throw-btn" id="cbSet" style="margin-bottom:10px;">Set Chaser $</button>';
+  html += '<button class="hlbs-cancel-btn" id="cbClear">Clear override</button>';
+  html += '</div>';
+
+  var ov = $('crackLogOverlay');
+  ov.innerHTML = html;
+
+  var dispEl = $('cbDisplay');
+  var adjVal = displayVal;
+
+  function setDisp(v){ adjVal = Math.max(1, v); dispEl.textContent = '$'+adjVal; }
+
+  $('cbClose').addEventListener('click', closeCB);
+  ov.addEventListener('click', function(evt){ if(evt.target===ov) closeCB(); });
+  $('cbMinus').addEventListener('click', function(){ setDisp(adjVal - 1); });
+  $('cbPlus').addEventListener('click', function(){ setDisp(adjVal + 1); });
+
+  $('cbSet').addEventListener('click', function(){
+    sc.events[e.hole].cryBabyAmt = adjVal;
+    var tableBtn = document.querySelector('[data-crybaby="'+e.ns+'|'+e.gid+'|'+e.hole+'"]');
+    if (tableBtn){ tableBtn.textContent='$'+adjVal; tableBtn.className='crybaby-btn has-crybaby'; }
+    autoSave();
+    if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    closeCB();
+  });
+
+  $('cbClear').addEventListener('click', function(){
+    delete sc.events[e.hole].cryBabyAmt;
+    var tableBtn = document.querySelector('[data-crybaby="'+e.ns+'|'+e.gid+'|'+e.hole+'"]');
+    if (tableBtn){ tableBtn.textContent='—'; tableBtn.className='crybaby-btn'; }
+    autoSave();
+    if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    closeCB();
+  });
 }
 
 // ---- Score entry bottom sheet ----
@@ -12029,7 +12337,7 @@ function fbActivateRound(code) {
   var caddieBarEl = document.getElementById('caddie-bar');
   if (caddieBarEl) caddieBarEl.style.display = 'flex';
   if (nameEl) nameEl.textContent   = isAnon ? 'Viewer' : (fbUser.displayName || fbUser.email.split('@')[0]);
-  if (codeEl) codeEl.textContent   = code;
+  // codeEl always shows "Share Round Code" — no textContent update needed
   // Change Sign Out → Exit for anonymous viewers
   var outBtn  = document.querySelector('.rb-out');
   if (outBtn)  outBtn.textContent    = isAnon ? 'Exit' : 'Sign Out';
