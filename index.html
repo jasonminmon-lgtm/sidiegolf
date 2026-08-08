@@ -8049,7 +8049,9 @@ function buildNassauPressCardHtml(g, idxs, sc) {
     if (!row) return;
     for (var h3 = 18; h3 >= 1; h3--) { if (row[h3] != null && row[h3] > 0) { hintHole = Math.max(hintHole, h3); break; } }
   });
-  html += '<button class="np2-add-press-btn" onclick="openNassauPressSheet(' + g.id + ',' + hintHole + ')">🔒 Add Press</button>';
+  if ((typeof isCurrentUserHost !== 'function') || isCurrentUserHost()) {
+    html += '<button class="np2-add-press-btn" onclick="openNassauPressSheet(' + g.id + ',' + hintHole + ')">🔒 Add Press</button>';
+  }
   html += '</div>';
   return html;
 }
@@ -8142,6 +8144,16 @@ function buildOptionsRow(label, g, sc, ns, fieldKey, options){
 }
 
 function wireEventTablesEvents(games, idxs, sc, ns){
+  // Viewers (non-host, non-scorekeeper) are read-only — disable all interactive cells
+  var _canEdit = (typeof isCurrentUserHost !== 'function') || isCurrentUserHost();
+  if (!_canEdit) {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-sc-event^="'+ns+'|"],[data-sc-team^="'+ns+'|"],[data-sc-eventnum^="'+ns+'|"],[data-cfw-trigger^="'+ns+'|"],[data-cfw-flip^="'+ns+'|"]'), function(el){
+      el.disabled = true;
+      el.style.pointerEvents = 'none';
+      el.style.opacity = '0.6';
+    });
+    return;
+  }
   Array.prototype.forEach.call(document.querySelectorAll('[data-sc-event^="'+ns+'|"]'), function(el){
     el.addEventListener('change', function(){
       var parts = el.getAttribute('data-sc-event').split('|');
