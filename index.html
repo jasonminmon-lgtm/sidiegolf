@@ -2496,7 +2496,7 @@
   <div id="fb-round-bar" class="fb-round-bar" style="display:none">
     <span class="rb-user" id="rb-user-name" onclick="fbShowAccount()" title="My Account"></span>
     <div class="rb-actions">
-      <span class="rb-code" id="rb-round-code" onclick="fbCopyCode()" title="Tap to copy code"></span>
+      <span class="rb-code" id="rb-round-code" onclick="if(window.fbRoundCode)showQrOverlay(window.fbRoundCode)" title="Tap for QR code"></span>
       <button class="rb-out" onclick="fbSignOut()">Sign Out</button>
     </div>
   </div>
