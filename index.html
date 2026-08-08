@@ -3554,12 +3554,24 @@ var GHIN_API_TOKEN = 'REPLACE_WITH_REAL_GHIN_TOKEN';
 var GHIN_API_BASE  = 'https://api.ghin.com/api/v1';
 
 function golfApiFetch(path){
-  return fetch(GOLF_API_BASE + path, { headers: { 'Authorization': 'Key ' + GOLF_API_KEY } })
+  // Route through Vercel serverless proxy — avoids CORS, keeps API key server-side
+  var qIdx = path.indexOf('?');
+  var endpoint = qIdx >= 0 ? path.slice(0, qIdx) : path;
+  var qs       = qIdx >= 0 ? path.slice(qIdx + 1) : '';
+  var proxyUrl;
+  if (endpoint === '/v1/search') {
+    proxyUrl = '/api/golf?type=search&' + qs;
+  } else if (endpoint.indexOf('/v1/courses/') === 0) {
+    proxyUrl = '/api/golf?type=course&id=' + endpoint.slice('/v1/courses/'.length);
+  } else {
+    proxyUrl = '/api/golf?type=search&' + qs;
+  }
+  return fetch(proxyUrl)
     .then(function(resp){
-      if (resp.status === 401) throw new Error('API key was rejected (HTTP 401).');
-      if (resp.status === 429) throw new Error("Today's free request limit (50/day) has been reached.");
-      if (!resp.ok) throw new Error('Golf course API error (HTTP ' + resp.status + ').');
-      return resp.json();
+      return resp.json().then(function(data){
+        if (!resp.ok) throw new Error(data.error || 'Golf API error (HTTP ' + resp.status + ').');
+        return data;
+      });
     });
 }
 function golfApiSearch(query){
