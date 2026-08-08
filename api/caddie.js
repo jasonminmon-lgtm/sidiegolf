@@ -109,7 +109,7 @@ const CADDIE_TOOLS = [
   // ── Side games ──────────────────────────────────────────────────────────────
   {
     name: 'add_side_game',
-    description: 'Add a side game. Available: "Wolf", "Coin Flip Wolf", "3-Man Wolf", "Nassau", "Skins", "Scotch", "Banker", "9 Point", "Bingo Bango Bongo", "Snake", "Vegas".\n\nWolf: amount($), hammerOn, birdieEagle, birdieEagleBasis, carryRule, teeOrder(player names array for wolf rotation).\n\nNassau: front($), back($), total($), carryTies, pressAuto.\n\nSkins: amount($), basis("Net"/"Gross"), carryover("Yes"/"No").\n\n9 Point: amount($), birdiesDouble("Off"/"On"), cryBaby("Off"/"On"), cryBabyStartHole(16 or 17), cryBabyPerPoint($).\n\nScotch: amount($), teamMethod("Fixed Partners"/"Sixes"/"High/Low HCP"/"Captain\'s Draft"), umbrella("Off"/"On"), crackOn("Off"/"On").\n\nBanker: minBet($), ties("Push"/"Banker Wins"), bogeyRule("Off"/"On"), birdieBonus("Off"/"On").\n\nBingo Bango Bongo/Snake/Vegas: amount($).\n\nNote: Wolf Cry Baby/Chaser is per-hole — entered in the Chaser $ row during play, not at setup.',
+    description: 'Add a side game. Available: "Wolf", "Coin Flip Wolf", "3-Man Wolf", "Nassau", "Skins", "Scotch", "Banker", "9 Point", "Bingo Bango Bongo", "Snake", "Vegas".\n\nWolf: amount($), hammerOn, birdieEagle, birdieEagleBasis, carryRule, teeOrder(player names array for wolf rotation).\n\nNassau: front($), back($), total($), carryTies, pressAuto, perMan("Per Man"/"Total Pot" — default "Per Man", meaning each player individually wins/loses the stated $; use "Total Pot" to split the stake across teammates).\n\nSkins: amount($), basis("Net"/"Gross"), carryover("Yes"/"No").\n\n9 Point: amount($), birdiesDouble("Off"/"On"), cryBaby("Off"/"On"), cryBabyStartHole(16 or 17), cryBabyPerPoint($).\n\nScotch: amount($), teamMethod("Fixed Partners"/"Sixes"/"High/Low HCP"/"Captain\'s Draft"), umbrella("Off"/"On"), crackOn("Off"/"On").\n\nBanker: minBet($), ties("Push"/"Banker Wins"), bogeyRule("Off"/"On"), birdieBonus("Off"/"On").\n\nBingo Bango Bongo/Snake/Vegas: amount($).\n\nNote: Wolf Cry Baby/Chaser is per-hole — entered in the Chaser $ row during play, not at setup.',
     input_schema: {
       type: 'object',
       properties: {
@@ -119,6 +119,7 @@ const CADDIE_TOOLS = [
         back: { type: 'number', description: 'Nassau: back 9 $' },
         total: { type: 'number', description: 'Nassau: total 18 $' },
         carryTies: { type: 'string', enum: ['Off','On'] },
+        perMan: { type: 'string', enum: ['Per Man','Total Pot'], description: 'Nassau only — default "Per Man"' },
         pressAuto: { type: 'string', enum: ['Off','1 hole','2 holes'] },
         hammerOn: { type: 'string', enum: ['Off','On'] },
         birdieEagle: { type: 'string', enum: ['Off','Birdie 2x / Eagle 3x','Birdie 2x / Eagle 4x'] },

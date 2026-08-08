@@ -1577,14 +1577,21 @@
     var pressOn = game.stakes.presses && game.stakes.presses !== 'Off';
     var pressThreshold = game.stakes.presses === '2 holes' ? 2 : 1;
 
-    var frontSeg = settleSegmentBreakdown(ctx, sideA, sideB, range(1, 9), front, pressOn, pressThreshold, game.participants);
+    // Per-man mode: each stated stake is what every individual player wins/loses.
+    // payAcross() divides the stake by team size, so we pre-multiply to cancel that division.
+    // Default is Per Man (undefined or 'Per Man'); opt out by setting 'Total Pot'.
+    var perMan = (game.stakes.perMan == null) || (game.stakes.perMan === 'Per Man');
+    var teamSize = Math.max(sideA.length, sideB.length, 1);
+    var fm = perMan ? teamSize : 1;
+
+    var frontSeg = settleSegmentBreakdown(ctx, sideA, sideB, range(1, 9), front * fm, pressOn, pressThreshold, game.participants);
     // Carry ties: if front 9 ends all square and option is on, front stake carries to back 9
-    var effectiveBack = back;
+    var effectiveBack = back * fm;
     if (game.stakes.carryTies === 'On' && frontSeg.complete && frontSeg.label === 'All square') {
-      effectiveBack = back + front;
+      effectiveBack = effectiveBack + front * fm;
     }
     var backSeg = settleSegmentBreakdown(ctx, sideA, sideB, range(10, 18), effectiveBack, pressOn, pressThreshold, game.participants);
-    var totalSeg = settleSegmentBreakdown(ctx, sideA, sideB, range(1, 18), total, false, pressThreshold, game.participants); // total bet doesn't press
+    var totalSeg = settleSegmentBreakdown(ctx, sideA, sideB, range(1, 18), total * fm, false, pressThreshold, game.participants); // total bet doesn't press
 
     var combinedDeltas = zero(game.participants);
     [frontSeg, backSeg, totalSeg].forEach(function (seg) {
@@ -1598,12 +1605,13 @@
       var pressHoles = range(mp.startHole, 18);
       var pressRes = SidieGolfEngine.computeMatchPlayResult(ctx, sideA, sideB, pressHoles);
       var pd = zero(game.participants);
-      settleMatch(pd, sideA, sideB, pressRes, mp.stake);
+      // In per-man mode mp.stake is the per-player amount; scale by fm so payAcross yields that amount per player
+      settleMatch(pd, sideA, sideB, pressRes, mp.stake * fm);
       game.participants.forEach(function(id) { combinedDeltas[id] = (combinedDeltas[id] || 0) + (pd[id] || 0); });
       manualPressResults.push({ mp: mp, res: pressRes, deltas: pd });
     });
 
-    return { sideA: sideA, sideB: sideB, front: frontSeg, back: backSeg, total: totalSeg, combinedDeltas: combinedDeltas, manualPressResults: manualPressResults };
+    return { sideA: sideA, sideB: sideB, front: frontSeg, back: backSeg, total: totalSeg, combinedDeltas: combinedDeltas, manualPressResults: manualPressResults, perMan: perMan };
   };
 
   games['Nassau'] = function (game, ctx) {
@@ -3362,7 +3370,8 @@ var SIDE_GAME_DEFS = {
       {key:'back', label:'Back 9 $', type:'number', placeholder:'5'},
       {key:'total', label:'Total 18 $', type:'number', placeholder:'5'},
       {key:'presses', label:'Auto-press when down by', type:'select', options:['Off','1 hole','2 holes']},
-      {key:'carryTies', label:'Carry front 9 tie to back 9', type:'select', options:['Off','On']}
+      {key:'carryTies', label:'Carry front 9 tie to back 9', type:'select', options:['Off','On']},
+      {key:'perMan', label:'Stakes are', type:'select', options:['Per Man','Total Pot']}
     ]
   },
   'Skins': {
@@ -5923,7 +5932,8 @@ function summarizeStakes(g){
   if (g.type==='Nassau'){
     var f=g.stakes.front||0, b=g.stakes.back||0, t=g.stakes.total||0;
     if (!f && !b && !t) return '';
-    return '$'+f+'/$'+b+'/$'+t;
+    var _nassauPmLabel = (g.stakes.perMan == null || g.stakes.perMan === 'Per Man') ? '/man' : '';
+    return '$'+f+'/$'+b+'/$'+t+_nassauPmLabel;
   }
   if (g.type==='Quota'){
     var parts = [];
@@ -8021,9 +8031,10 @@ function buildNassauPressCardHtml(g, idxs, sc) {
   for (var h2 = 1; h2 <= 18; h2++) {
     var pressesHere = (g.manualPresses || []).filter(function(mp) { return mp.accepted && mp.startHole === h2; });
     if (pressesHere.length) {
+      var _npmLabel = (g.stakes.perMan == null || g.stakes.perMan === 'Per Man') ? '/man' : '';
       var flags = pressesHere.map(function(mp) {
         var sl = mp.segType === 'front9' ? 'F' : mp.segType === 'back9' ? 'B' : 'T';
-        return '<div class="np2-press-flag">🔒' + sl + '<br>$' + mp.stake + '</div>';
+        return '<div class="np2-press-flag">🔒' + sl + '<br>$' + mp.stake + _npmLabel + '</div>';
       }).join('');
       html += '<td style="padding:1px;vertical-align:top;background:#f0faf0;">' + flags + '</td>';
     } else {
@@ -14098,6 +14109,7 @@ async function executeCaddieTool(name, input) {
         if (input.back != null) stakes.back = input.back;
         if (input.total != null) stakes.total = input.total;
         if (input.carryTies != null) stakes.carryTies = input.carryTies;
+        if (input.perMan != null) stakes.perMan = input.perMan;
         if (input.pressAuto != null) stakes.presses = input.pressAuto;
         // Wolf-specific
         if (input.hammerOn != null) stakes.hammerOn = input.hammerOn;
