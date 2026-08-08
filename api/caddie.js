@@ -425,6 +425,24 @@ const CADDIE_TOOLS = [
     }
   },
 
+  // ── Round history ────────────────────────────────────────────────────────────
+  {
+    name: 'get_round_history',
+    description: 'Fetch the current user\'s recent completed rounds (up to 10, newest first). Returns date, course, tee, round type, side games, player names, and round code for each. Use this first when the player asks to repeat or recall a previous round.',
+    input_schema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'get_round_setup',
+    description: 'Fetch the complete setup config from a previously completed round by its round code. Returns round type, scoring method, course, tee, all players with HI/GHIN, and all side games with every setting — everything needed to replay the round with existing setup tools.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        roundCode: { type: 'string', description: '6-letter round code from get_round_history' }
+      },
+      required: ['roundCode']
+    }
+  },
+
   // ── Feedback ────────────────────────────────────────────────────────────────
   {
     name: 'submit_feedback',
@@ -668,6 +686,14 @@ When someone scans the QR (or follows a share link):
 • Already signed in → auto-joins the round
 
 SCOREKEEPER: a player who claims a tee-time group to enter scores on behalf of that group. They see the same scorecard as the manager for their group. Scorekeepers are assigned per tee-time group — each group can have one active scorekeeper.
+
+━━ REPEATING A PREVIOUS ROUND ━━
+When a player asks to "set up the same round as yesterday/last Friday/last time":
+1. get_round_history → show a short summary, ask player to confirm which round
+2. get_round_setup(roundCode) → extract full setup config
+3. Execute IN ORDER: set_round_type → set_course (use courseIdx if valid, else search_course(courseName)) → set_date("today") → set_player_count(N) → add_player for each (use hi/ghin from setup) → add_side_game for each with all stakes
+4. Confirm the configured setup with the player before calling lock_and_start
+Never skip the confirmation step — player may want to change the date, swap a player, or adjust stakes.
 
 ━━ ACCOUNTS & OVERLAYS ━━
 - open_account → My Account (name/GHIN/HI, history)

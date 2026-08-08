@@ -14537,6 +14537,78 @@ async function executeCaddieTool(name, input) {
         return 'Feedback submitted — thanks!';
       }
 
+      case 'get_round_history': {
+        if (!window.fbDb || !window.fbUser) return 'Must be signed in to access round history';
+        return await new Promise(function(resolve) {
+          fbDb.collection('completedRounds')
+            .where('participants', 'array-contains', fbUser.uid)
+            .get()
+            .then(function(snap) {
+              var rounds = [];
+              snap.forEach(function(doc) {
+                var d = doc.data();
+                var fs = d.fullState || {};
+                rounds.push({
+                  roundCode:     doc.id,
+                  date:          d.date || '',
+                  courseName:    d.courseName || '',
+                  tee:           d.teeName || fs.tee || '',
+                  roundType:     d.roundType || '',
+                  scoringMethod: fs.scoringMethod || '',
+                  players:       d.playerNames || [],
+                  sideGames:     (fs.sideGames || []).map(function(g){ return g.type; }).filter(Boolean),
+                  _ts:           d.completedAt ? (d.completedAt.seconds || 0) : 0
+                });
+              });
+              rounds.sort(function(a, b){ return b._ts - a._ts; });
+              var summary = rounds.slice(0, 10).map(function(r){
+                return { roundCode: r.roundCode, date: r.date, courseName: r.courseName, tee: r.tee,
+                  roundType: r.roundType, scoringMethod: r.scoringMethod, players: r.players, sideGames: r.sideGames };
+              });
+              if (!summary.length) resolve('No completed rounds found.');
+              else resolve(JSON.stringify(summary, null, 2));
+            })
+            .catch(function(e){ resolve('Error loading history: ' + e.message); });
+        });
+      }
+
+      case 'get_round_setup': {
+        if (!window.fbDb) return 'Not connected to Firestore';
+        var code_grs = (input.roundCode || '').trim().toUpperCase();
+        if (!code_grs) return 'roundCode required';
+        return await new Promise(function(resolve) {
+          fbDb.collection('completedRounds').doc(code_grs).get()
+            .then(function(snap) {
+              if (!snap.exists) { resolve('Round ' + code_grs + ' not found'); return; }
+              var d = snap.data();
+              var fs = d.fullState || {};
+              var courseIdx_grs = (fs.courseIdx != null) ? fs.courseIdx : null;
+              var cd_grs = fs._courseData || {};
+              var courseName_grs = d.courseName || cd_grs.name || '';
+              // Restore course data into MOCK_COURSES so search_course / set_course can use it
+              if (courseIdx_grs != null && cd_grs.name && !MOCK_COURSES[courseIdx_grs]) {
+                MOCK_COURSES[courseIdx_grs] = cd_grs;
+              }
+              var players_grs = (fs.players || []).filter(function(p){
+                var n = (p.name||'').trim(); return n && !/^player\s*\d+$/i.test(n);
+              }).map(function(p){ return { name: p.name.trim(), hi: p.hi||'', ghin: p.ghin||'', tee: p.tee||'' }; });
+              var sideGames_grs = (fs.sideGames || []).map(function(g){ return { type: g.type, stakes: g.stakes || {} }; });
+              var recipe = {
+                roundType:     fs.roundType || d.roundType || 'stroke',
+                scoringMethod: fs.scoringMethod || '',
+                courseIdx:     courseIdx_grs,
+                courseName:    courseName_grs,
+                tee:           d.teeName || fs.tee || '',
+                originalDate:  d.date || '',
+                players:       players_grs,
+                sideGames:     sideGames_grs
+              };
+              resolve(JSON.stringify(recipe, null, 2));
+            })
+            .catch(function(e){ resolve('Error fetching round: ' + e.message); });
+        });
+      }
+
       default:
         return 'Unknown tool: ' + name;
     }
