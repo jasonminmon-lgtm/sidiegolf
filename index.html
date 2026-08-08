@@ -7992,7 +7992,9 @@ function buildEventTablesHtml(games, idxs, sc, ns){
 function buildNassauPressCardHtml(g, idxs, sc) {
   var participantIdxs = g.participants.filter(function(p){ return idxs.indexOf(p) !== -1; });
   if (participantIdxs.length < 2) return '';
-  var html = '<div class="card"><div class="sc-game-title">Nassau — Presses</div>';
+  var _npNames = participantIdxs.map(function(idx){ return (state.players[parseInt(idx)] || {}).name || ('P' + (parseInt(idx)+1)); });
+  var _npTitle = _npNames.length >= 2 ? escapeHtml(_npNames[0]) + ' vs ' + escapeHtml(_npNames[1]) : _npNames.map(escapeHtml).join(' &amp; ');
+  var html = '<div class="card"><div class="sc-game-title">Nassau — ' + _npTitle + '</div>';
   // Stroke differential
   try {
     var course_np = state.course != null ? MOCK_COURSES[state.course] : null;
@@ -13769,9 +13771,10 @@ function buildCaddieContext() {
     ctx.step = state.step;
     if (state.roundType) ctx.roundType = state.roundType;
     if (state.scoringMethod) ctx.scoringMethod = state.scoringMethod;
-    if (state.courseIdx != null && MOCK_COURSES[state.courseIdx]) {
-      var c = MOCK_COURSES[state.courseIdx];
-      ctx.course = { name: c.name, idx: state.courseIdx, tees: (c.tees||[]).map(function(t){return t.name;}) };
+    var _ctxCourseIdx = state.course != null ? state.course : state.courseIdx;
+    if (_ctxCourseIdx != null && MOCK_COURSES[_ctxCourseIdx]) {
+      var c = MOCK_COURSES[_ctxCourseIdx];
+      ctx.course = { name: c.name, idx: _ctxCourseIdx, tees: (c.tees||[]).map(function(t){return t.name;}) };
     }
     if (state.players && state.players.length) {
       // Report total slots and only real (non-placeholder) players to Caddie
@@ -13925,7 +13928,7 @@ async function executeCaddieTool(name, input) {
           step: state.step,
           roundType: state.roundType,
           scoringMethod: state.scoringMethod,
-          course: state.courseIdx != null && MOCK_COURSES[state.courseIdx] ? MOCK_COURSES[state.courseIdx].name + ' (idx ' + state.courseIdx + ')' : null,
+          course: (state.course != null || state.courseIdx != null) && MOCK_COURSES[state.course != null ? state.course : state.courseIdx] ? MOCK_COURSES[state.course != null ? state.course : state.courseIdx].name + ' (idx ' + (state.course != null ? state.course : state.courseIdx) + ')' : null,
           tee: state.tee,
           date: state.date,
           players: (state.players||[]).map(function(p,i){ return {index:i, name:p.name, hi:p.hi, tee:p.tee}; }),
@@ -13994,7 +13997,8 @@ async function executeCaddieTool(name, input) {
       case 'set_course': {
         var ci = parseInt(input.courseIdx, 10);
         if (!MOCK_COURSES[ci]) return 'Course idx ' + ci + ' not found. Run search_course first.';
-        state.courseIdx = ci;
+        state.course = ci;    // canonical field used by renderCourseStep + all game engines
+        state.courseIdx = ci; // alias kept for Caddie context builder
         var course = MOCK_COURSES[ci];
         var tees = course.tees || [];
         if (input.tee && tees.find(function(t){ return t.name === input.tee; })) {
@@ -14284,7 +14288,8 @@ async function executeCaddieTool(name, input) {
 
       case 'get_scorecard': {
         var sc_gs = state.scorecard || { scores: {}, events: {} };
-        var course_gs = state.courseIdx != null ? MOCK_COURSES[state.courseIdx] : null;
+        var _gsIdx = state.course != null ? state.course : state.courseIdx;
+        var course_gs = _gsIdx != null ? MOCK_COURSES[_gsIdx] : null;
         var teeObj_gs = course_gs && state.tee ? (course_gs.tees||[]).filter(function(t){return t.name===state.tee;})[0] : null;
         if (!course_gs || !teeObj_gs) return 'No active course/tee set — cannot compute scorecard.';
         var idxs_gs = (state.players||[]).map(function(_,i){return i;}).filter(function(i){
