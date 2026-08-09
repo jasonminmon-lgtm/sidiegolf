@@ -18,6 +18,24 @@
     </div>
   </noscript>
 <script>
+// QR tap fix: <a> inside SVG foreignObject doesn't navigate on iOS Safari.
+// Window-level listeners survive document.documentElement.replaceWith().
+(function() {
+  function qrNav(e) {
+    var el = e.target;
+    while (el && el.tagName) {
+      if (el.tagName.toLowerCase() === 'a' && el.href && el.href.indexOf('sidiegolf.com') > -1) {
+        e.preventDefault();
+        window.open('https://www.sidiegolf.com', '_blank');
+        return;
+      }
+      el = el.parentElement;
+    }
+  }
+  window.addEventListener('click', qrNav, true);
+  window.addEventListener('touchend', qrNav, true);
+})();
+
 window.addEventListener('load', function() {
   var audio = document.createElement('audio');
   audio.id = 'hype-audio';
