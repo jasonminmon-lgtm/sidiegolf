@@ -18,15 +18,20 @@
   :root{
     --green:#16284a;
     --green-dark:#0e1c35;
-    --green-light:#e9ecf3;
+    --green-light:#eaf0f7;
     --accent:#4f7942;
     --accent-dark:#3a5b31;
-    --ink:#1c2522;
-    --muted:#6b7670;
+    --ink:#1a2030;
+    --ink-2:#3a4460;
+    --muted:#7a8799;
     --card-bg:#ffffff;
-    --bg:#f4f6f4;
+    --bg:#f5f6f8;
+    --border:#e4e8ed;
     --danger:#c0392b;
-    --radius:14px;
+    --radius:16px;
+    --radius-sm:10px;
+    --shadow-card:0 2px 8px rgba(0,0,0,.06);
+    --shadow-overlay:0 8px 40px rgba(0,0,0,.18);
   }
   *{box-sizing:border-box;}
   body{
@@ -57,31 +62,32 @@
   }
   .brand{display:flex;align-items:center;justify-content:center;font-weight:700;font-size:19px;letter-spacing:0.3px;}
   .brand .dot{color:var(--accent);}
-  .step-bar{background:#fff;padding:10px 18px 12px;border-bottom:1px solid #e6e9e6;}
-  .step-row{display:flex;justify-content:space-between;align-items:center;color:var(--ink);}
-  .step-label{font-size:12px;color:var(--muted);}
-  .progress-track{height:5px;background:#e3e7e2;border-radius:4px;margin-top:8px;overflow:hidden;}
-  .progress-fill{height:100%;background:var(--accent);border-radius:4px;transition:width .25s ease;}
+  .step-bar{background:#fff;padding:12px 18px 14px;border-bottom:1px solid var(--border);}
+  .step-row{display:flex;justify-content:space-between;align-items:center;color:var(--ink);font-weight:700;font-size:15px;}
+  .step-label{font-size:12px;font-weight:600;color:var(--muted);}
+  .progress-track{height:4px;background:#e4e8ed;border-radius:4px;margin-top:10px;overflow:hidden;}
+  .progress-fill{height:100%;background:var(--accent);border-radius:4px;transition:width .3s ease;}
   main{flex:1;min-height:0;overflow-y:auto;padding:18px;padding-bottom:130px;}
   .screen{display:none;}
   .screen.active{display:block;animation:fadeIn .2s ease;}
   @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
-  h1.title{font-size:20px;margin:0 0 4px;}
-  p.subtitle{color:var(--muted);font-size:13.5px;margin:0 0 16px;}
-  .card{background:var(--card-bg);border-radius:var(--radius);padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);border:1px solid #eceeec;}
-  .option-card{background:var(--card-bg);border:2px solid #e3e7e3;border-radius:var(--radius);padding:16px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:border-color .15s, background .15s;}
-  .option-card:hover{border-color:#c7d6cc;}
-  .option-card.selected{border-color:var(--green);background:var(--green-light);}
-  .option-icon{font-size:26px;line-height:1;}
-  .option-text .opt-name{font-weight:700;font-size:15.5px;}
-  .option-text .opt-desc{font-size:12.5px;color:var(--muted);margin-top:2px;}
-  .check-badge{margin-left:auto;width:22px;height:22px;border-radius:50%;border:2px solid #d4d8d4;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;flex-shrink:0;}
-  .option-card.selected .check-badge{background:var(--green);border-color:var(--green);}
-  label.field-label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin:10px 0 4px;text-transform:uppercase;letter-spacing:0.3px;}
-  input[type=text],input[type=number],select{width:100%;padding:10px 12px;border:1px solid #d8ddd8;border-radius:10px;font-size:14.5px;background:#fcfdfc;}
-  input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border-color:var(--green);}
+  h1.title{font-size:22px;font-weight:800;margin:0 0 6px;color:var(--ink);letter-spacing:-.3px;}
+  p.subtitle{color:var(--muted);font-size:14.5px;margin:0 0 20px;line-height:1.5;}
+  .card{background:var(--card-bg);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow-card);border:1px solid var(--border);}
+  .option-card{background:var(--card-bg);border:1.5px solid var(--border);border-radius:var(--radius);padding:18px 16px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:0;transition:border-color .15s,background .15s,box-shadow .15s;min-height:74px;}
+  .option-card:active{background:#f5f6f8;}
+  .option-card.selected{border-color:var(--accent);border-width:2px;background:#f0f7ee;}
+  .option-icon{display:none;}
+  .option-text{flex:1;min-width:0;}
+  .option-text .opt-name{font-weight:700;font-size:17px;color:var(--ink);line-height:1.2;}
+  .option-text .opt-desc{font-size:13.5px;color:var(--muted);margin-top:4px;line-height:1.4;}
+  .check-badge{margin-left:14px;width:26px;height:26px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0;}
+  .option-card.selected .check-badge{background:var(--accent);border-color:var(--accent);}
+  label.field-label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:14px 0 6px;text-transform:uppercase;letter-spacing:0.5px;}
+  input[type=text],input[type=number],select{width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:16px;background:#fff;color:var(--ink);-webkit-appearance:none;appearance:none;}
+  input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(22,40,74,.08);}
   .btn-remove-player{background:#fdeeee;color:var(--danger);border:none;border-radius:8px;width:34px;height:34px;font-size:16px;cursor:pointer;flex-shrink:0;}
-  .btn-add-player{width:100%;padding:10px;border:1.5px dashed #b9c4bb;border-radius:10px;background:transparent;color:var(--green);font-weight:600;cursor:pointer;margin-top:8px;}
+  .btn-add-player{width:100%;padding:13px;border:1.5px dashed var(--border);border-radius:12px;background:transparent;color:var(--green);font-weight:700;font-size:15px;cursor:pointer;margin-top:8px;}
   .player-row{display:flex;gap:6px;margin-bottom:8px;align-items:center;}
   .player-avatar{width:30px;height:30px;border-radius:50%;background:var(--green-light);color:var(--green-dark);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
   .player-row input[data-player-name]{flex:1 1 auto;width:auto;min-width:0;}
@@ -98,10 +104,10 @@
   .ghin-ok{color:#2d9e5f;}
   .ghin-err{color:var(--danger);}
   .ghin-loading{color:var(--muted);font-style:italic;}
-  .section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--green-dark);margin-bottom:8px;}
-  .game-card{border:1px solid #e3e7e3;border-radius:var(--radius);padding:14px;margin-bottom:12px;background:#fff;}
+  .section-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);margin-bottom:10px;}
+  .game-card{border:1.5px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;background:#fff;box-shadow:var(--shadow-card);}
   .game-card-head{display:flex;justify-content:space-between;align-items:flex-start;}
-  .game-card-head .gname{font-weight:700;font-size:15px;}
+  .game-card-head .gname{font-weight:700;font-size:16px;color:var(--ink);}
   .game-card-head .gname .stake-tag{display:inline-block;margin-left:6px;background:var(--green-light);color:var(--green-dark);font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;}
   .btn-link{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;text-decoration:underline;padding:0;}
   .btn-link.danger{color:var(--danger);}
@@ -121,10 +127,10 @@
   .proto-tag{text-align:center;font-size:10px;color:var(--muted);letter-spacing:.6px;text-transform:uppercase;padding:4px 18px 8px;}
   .nav-row{display:flex;gap:10px;}
   .fb-modal-logo{text-align:center;margin-bottom:5px;}
-  button.nav-btn{flex:1;padding:13px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;border:none;}
-  .btn-back{background:#eef0ee;color:var(--ink);}
+  button.nav-btn{flex:1;padding:15px;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;border:none;letter-spacing:.1px;}
+  .btn-back{background:#edf0f5;color:var(--ink);}
   .btn-next{background:var(--green);color:#fff;}
-  .btn-next:disabled{background:#b9c4bb;cursor:not-allowed;}
+  .btn-next:disabled{background:#b0b8c8;cursor:not-allowed;}
   .summary-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f1f0;font-size:13.5px;}
   .summary-row:last-child{border-bottom:none;}
   .summary-row .lbl{color:var(--muted);}
@@ -356,10 +362,10 @@
   .sg-jc-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:420px;padding:28px 22px 50px;box-sizing:border-box;}
   .sg-jc-title{font-size:18px;font-weight:800;color:var(--green-dark,#1a5c36);text-align:center;margin-bottom:4px;}
   .sg-jc-sub{font-size:13px;color:var(--muted,#666);text-align:center;margin-bottom:24px;}
-  .sg-jc-opt{width:100%;padding:14px 16px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;margin-bottom:10px;box-sizing:border-box;}
+  .sg-jc-opt{width:100%;padding:16px;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;margin-bottom:10px;box-sizing:border-box;}
   .sg-jc-watch{background:#f5f5f5;border:2px solid #e0e0e0;color:#333;}
   .sg-jc-keep{background:var(--green-dark,#1a5c36);border:2px solid transparent;color:#fff;}
-  .sg-jc-icon{font-size:22px;flex-shrink:0;}
+  .sg-jc-icon{display:none;}
   .sg-jc-label{font-size:15px;font-weight:700;display:block;}
   .sg-jc-desc{font-size:12px;opacity:.7;font-weight:400;display:block;margin-top:2px;}
   /* QR trigger button (shown next to round code displays) */
@@ -369,10 +375,9 @@
   .help-sheet-title{font-size:17px;font-weight:700;color:var(--green-dark);}
   .help-close{background:none;border:none;font-size:24px;color:var(--muted);cursor:pointer;line-height:1;padding:0 4px;}
   .help-section{border-bottom:1px solid #f0f1f0;}
-  .help-sec-head{display:flex;align-items:center;padding:13px 16px;cursor:pointer;user-select:none;gap:10px;}
-  .help-sec-head:active{background:#f8f9f8;}
-  .help-sec-icon{font-size:18px;flex-shrink:0;}
-  .help-sec-label{font-size:14.5px;font-weight:600;color:var(--ink);flex:1;}
+  .help-sec-head{display:flex;align-items:center;padding:15px 16px;cursor:pointer;user-select:none;gap:10px;}
+  .help-sec-head:active{background:#f5f6f8;}
+  .help-sec-label{font-size:15px;font-weight:600;color:var(--ink);flex:1;}
   .help-sec-arrow{font-size:11px;color:var(--muted);transition:transform .2s;flex-shrink:0;}
   .help-section.hopen .help-sec-arrow{transform:rotate(180deg);}
   .help-body{display:none;padding:4px 16px 14px 44px;font-size:13.5px;color:var(--muted);line-height:1.6;}
@@ -711,15 +716,15 @@
   .rc-team-name-b{border-color:#4a78b5 !important;background:#f3f6fb;}
   /* ===== Firebase auth / round modals ===== */
   .fb-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}
-  .fb-modal{background:#fff;border-radius:18px;padding:28px 22px;width:100%;max-width:360px;box-shadow:0 12px 50px rgba(0,0,0,.3);}
+  .fb-modal{background:#fff;border-radius:20px;padding:30px 24px;width:100%;max-width:360px;box-shadow:0 16px 60px rgba(0,0,0,.3);}
   .fb-modal-logo{font-size:22px;font-weight:800;color:var(--green-dark);text-align:center;margin-bottom:5px;letter-spacing:-.5px;}
-  .fb-modal-sub{text-align:center;font-size:13px;color:var(--muted);margin-bottom:18px;}
-  .fb-tabs{display:flex;border-radius:9px;overflow:hidden;border:1.5px solid #e0e4e0;margin-bottom:18px;}
-  .fb-tab{flex:1;padding:9px;border:none;background:#f7f8f7;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--muted);transition:background .15s,color .15s;}
-  .fb-tab.active{background:var(--green-dark);color:#fff;}
-  .fb-input{width:100%;box-sizing:border-box;padding:12px 13px;border:1.5px solid #dde2dd;border-radius:9px;font-size:14px;margin-bottom:10px;font-family:inherit;}
-  .fb-input:focus{outline:none;border-color:var(--green);}
-  .fb-btn{width:100%;padding:13px;background:var(--green-dark);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;font-family:inherit;}
+  .fb-modal-sub{text-align:center;font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.4;}
+  .fb-tabs{display:flex;border-radius:12px;overflow:hidden;border:1.5px solid var(--border);margin-bottom:20px;}
+  .fb-tab{flex:1;padding:11px;border:none;background:#f5f6f8;font-size:14px;font-weight:700;cursor:pointer;color:var(--muted);transition:background .15s,color .15s;}
+  .fb-tab.active{background:var(--green);color:#fff;}
+  .fb-input{width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:16px;margin-bottom:10px;font-family:inherit;color:var(--ink);}
+  .fb-input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(22,40,74,.08);}
+  .fb-btn{width:100%;padding:15px;background:var(--green);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:4px;font-family:inherit;}
   .fb-btn:disabled{opacity:.45;cursor:default;}
   .fb-err{color:#c03030;font-size:12.5px;margin-top:8px;min-height:16px;text-align:center;}
   .share-qr-section{margin-top:16px;border-top:1px solid rgba(0,0,0,.08);padding-top:14px;text-align:center;}
@@ -2504,7 +2509,7 @@
     </div>
     <div style="text-align:center;margin:18px 0 6px;font-size:12px;color:var(--muted,#888);">— or watch without an account —</div>
     <input class="fb-input" id="fb-watch-input" placeholder="6-Character Round Code" maxlength="6" autocomplete="off" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase;letter-spacing:2px;font-weight:700;">
-    <button class="fb-btn" id="fb-watch-btn" onclick="fbWatchRound()" style="background:#555;">Watch Live →</button>
+    <button class="fb-btn" id="fb-watch-btn" onclick="fbWatchRound()" style="background:#4a5568;">Watch Live</button>
     <div class="fb-err" id="fb-watch-err"></div>
   </div>
 </div>
@@ -2513,7 +2518,7 @@
 <div id="fb-round-overlay" class="fb-overlay" style="display:none">
   <div class="fb-modal">
     <div class="fb-modal-logo"><img src="logo.png" alt="SidieGolf" style="height:72px;width:auto;display:block;margin:0 auto;"></div>
-    <div class="fb-modal-sub" style="display:flex;align-items:center;justify-content:center;gap:6px;">Welcome, <strong id="fb-welcome-name" onclick="fbShowAccount()" title="My Account" style="cursor:pointer;color:var(--green-dark);text-decoration:underline;text-decoration-color:rgba(30,100,60,0.35);text-underline-offset:2px;"></strong><button onclick="fbShowAccount()" title="My Account" style="background:none;border:none;padding:0 0 0 2px;cursor:pointer;font-size:15px;line-height:1;color:var(--green-dark);">⚙️</button></div>
+    <div class="fb-modal-sub" style="display:flex;align-items:center;justify-content:center;gap:6px;">Welcome, <strong id="fb-welcome-name" onclick="fbShowAccount()" title="My Account" style="cursor:pointer;color:var(--green-dark);text-decoration:underline;text-decoration-color:rgba(22,40,74,0.3);text-underline-offset:2px;"></strong><button onclick="fbShowAccount()" title="My Account" style="background:none;border:none;padding:0 0 0 2px;cursor:pointer;font-size:13px;font-weight:700;line-height:1;color:var(--muted);">Account</button></div>
     <div class="fb-tabs">
       <button class="fb-tab active" id="fb-tab-new" onclick="fbRoundTab('new')">New Round</button>
       <button class="fb-tab" id="fb-tab-join" onclick="fbRoundTab('join')">Join Round</button>
@@ -2530,11 +2535,11 @@
       <div class="fb-err" id="fb-join-err"></div>
     </div>
     <div style="margin-top:18px;border-top:1px solid rgba(0,0,0,0.08);padding-top:14px;">
-      <button onclick="showBuddies()" style="width:100%;padding:10px;background:transparent;border:1.5px solid var(--green-dark,#1a5c36);color:var(--green-dark,#1a5c36);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">&#128101; My Buddies</button>
-      <button onclick="openMyCourses()" style="width:100%;margin-top:8px;padding:10px;background:transparent;border:1.5px solid var(--green-dark,#1a5c36);color:var(--green-dark,#1a5c36);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">&#9971; My Courses</button>
+      <button onclick="showBuddies()" style="width:100%;padding:13px;background:transparent;border:1.5px solid var(--border);color:var(--ink);border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;">My Buddies</button>
+      <button onclick="openMyCourses()" style="width:100%;margin-top:8px;padding:13px;background:transparent;border:1.5px solid var(--border);color:var(--ink);border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;">My Courses</button>
     </div>
     <div class="share-qr-section">
-      <div class="share-qr-label">📲 Share SidieGolf</div>
+      <div class="share-qr-label">Share SidieGolf</div>
       <div id="share-qr"></div>
       <div class="share-qr-url">www.sidiegolf.com</div>
     </div>
@@ -3703,7 +3708,7 @@ function wireCourseSearch(ns, onPicked){
       commCourses.forEach(function(c, i){
         html += '<div class="option-card" style="margin-bottom:6px;" data-community-pick="'+i+'">'+
           '<div class="option-text"><div class="opt-name">'+escapeHtml(c.name)+'</div>'+
-          '<div class="opt-desc">'+escapeHtml(c.location || '')+'&nbsp;&nbsp;📋 Community Course</div></div></div>';
+          '<div class="opt-desc">'+escapeHtml(c.location || '')+'&nbsp;&nbsp;· Community Course</div></div></div>';
       });
       // Then API results
       apiCourses.slice(0, 8).forEach(function(c, i){
@@ -4290,7 +4295,6 @@ function renderRoundTypes(){
   ROUND_TYPES.forEach(function(rt){
     var sel = state.roundType===rt.id ? ' selected' : '';
     html += '<div class="option-card'+sel+'" data-roundtype="'+rt.id+'">'+
-      '<div class="option-icon">'+rt.icon+'</div>'+
       '<div class="option-text"><div class="opt-name">'+rt.name+'</div><div class="opt-desc">'+rt.desc+'</div></div>'+
       '<div class="check-badge">'+(state.roundType===rt.id?'✓':'')+'</div></div>';
   });
@@ -4301,11 +4305,9 @@ function renderRoundTypes(){
     var sdSel = state.multiDay === false ? ' selected' : '';
     var mdSel = state.multiDay === true  ? ' selected' : '';
     html += '<div class="option-card'+sdSel+'" data-event-multiday="false" style="margin-bottom:8px;">'+
-      '<div class="option-icon">🏌️</div>'+
       '<div class="option-text"><div class="opt-name">Single Day</div><div class="opt-desc">One course, multiple tee times — skins, nassau, group games.</div></div>'+
       '<div class="check-badge">'+(state.multiDay===false?'✓':'')+'</div></div>';
     html += '<div class="option-card'+mdSel+'" data-event-multiday="true">'+
-      '<div class="option-icon">📅</div>'+
       '<div class="option-text"><div class="opt-name">Multi-Day</div><div class="opt-desc">Ryder Cup, golf trips — different courses or formats each day.</div></div>'+
       '<div class="check-badge">'+(state.multiDay===true?'✓':'')+'</div></div>';
     html += '</div>';
@@ -4373,14 +4375,12 @@ function renderScoringOptions(){
   SCORING_METHODS[state.roundType].forEach(function(m){
     if (m.comingSoon){
       html += '<div class="option-card" style="opacity:0.5;cursor:not-allowed;">'+
-        '<div class="option-icon">🔒</div>'+
         '<div class="option-text"><div class="opt-name">'+m.name+' <span style="font-size:10.5px;background:#e8f0e8;color:#3a5b31;border-radius:999px;padding:2px 8px;font-weight:600;letter-spacing:.3px;">Coming Soon</span></div><div class="opt-desc">'+m.desc+'</div></div>'+
         '<div class="check-badge"></div></div>';
       return;
     }
     var sel = state.scoringMethod===m.name ? ' selected' : '';
     html += '<div class="option-card'+sel+'" data-method="'+m.name+'">'+
-      '<div class="option-icon">📊</div>'+
       '<div class="option-text"><div class="opt-name">'+m.name+'</div><div class="opt-desc">'+m.desc+'</div></div>'+
       '<div class="check-badge">'+(state.scoringMethod===m.name?'✓':'')+'</div></div>';
   });
