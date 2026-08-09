@@ -17,6 +17,53 @@
       This page requires JavaScript to display.
     </div>
   </noscript>
+<script>
+window.addEventListener('load', function() {
+  var audio = document.createElement('audio');
+  audio.id = 'hype-audio';
+  audio.src = '/hype-music.mp3';
+  audio.loop = true;
+  audio.preload = 'auto';
+
+  var style = document.createElement('style');
+  style.textContent = '@keyframes sgPulse{0%,100%{box-shadow:0 2px 16px rgba(0,0,0,.5),0 0 0 0 rgba(79,121,66,.7)}70%{box-shadow:0 2px 16px rgba(0,0,0,.5),0 0 0 10px rgba(79,121,66,0)}} #sg-audio-btn.pulsing{animation:sgPulse 1.6s infinite;}';
+  document.head.appendChild(style);
+
+  var btn = document.createElement('div');
+  btn.id = 'sg-audio-btn';
+  btn.className = 'pulsing';
+  btn.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:2147483647;background:rgba(22,40,74,0.95);border:2px solid #4f7942;border-radius:28px;padding:11px 20px;display:flex;align-items:center;gap:9px;cursor:pointer;font-size:15px;font-weight:700;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#fff;letter-spacing:.5px;backdrop-filter:blur(6px);box-shadow:0 2px 16px rgba(0,0,0,0.5);transition:transform .15s;';
+  btn.innerHTML = '<span id="sg-audio-icon" style="font-size:22px;">&#127925;</span><span id="sg-audio-label">TAP FOR MUSIC</span>';
+
+  document.body.appendChild(audio);
+  document.body.appendChild(btn);
+
+  var icon  = document.getElementById('sg-audio-icon');
+  var label = document.getElementById('sg-audio-label');
+
+  function setPlaying(){ icon.innerHTML='&#128266;'; label.textContent='MUSIC ON'; btn.classList.remove('pulsing'); }
+  function setMuted(){   icon.innerHTML='&#128263;'; label.textContent='UNMUTE';   btn.classList.remove('pulsing'); }
+  function setBlocked(){ icon.innerHTML='&#127925;'; label.textContent='TAP FOR MUSIC'; btn.classList.add('pulsing'); }
+
+  audio.muted = false;
+  var p = audio.play();
+  if(p !== undefined){
+    p.then(function(){ setPlaying(); })
+     .catch(function(){
+       audio.muted = true;
+       audio.play().then(function(){ setMuted(); }).catch(function(){ setBlocked(); });
+     });
+  } else { setPlaying(); }
+
+  btn.addEventListener('click', function(){
+    if(audio.paused){ audio.muted=false; audio.play().then(setPlaying).catch(function(){}); }
+    else if(audio.muted){ audio.muted=false; setPlaying(); }
+    else { audio.muted=true; setMuted(); }
+  });
+  btn.addEventListener('mouseenter', function(){ btn.style.transform='scale(1.07)'; });
+  btn.addEventListener('mouseleave', function(){ btn.style.transform='scale(1)'; });
+});
+</script>
 </head>
 <body>
   <div id="__bundler_thumbnail">
