@@ -8069,8 +8069,18 @@ function buildEventTablesHtml(games, idxs, sc, ns){
 function buildNassauPressCardHtml(g, idxs, sc) {
   var participantIdxs = g.participants.filter(function(p){ return idxs.indexOf(p) !== -1; });
   if (participantIdxs.length < 2) return '';
-  var _npNames = participantIdxs.map(function(idx){ return (state.players[parseInt(idx)] || {}).name || ('P' + (parseInt(idx)+1)); });
-  var _npTitle = _npNames.length >= 2 ? escapeHtml(_npNames[0]) + ' vs ' + escapeHtml(_npNames[1]) : _npNames.map(escapeHtml).join(' &amp; ');
+  // Build title using team assignments when available, else positional fallback
+  var _npTitle;
+  if (g.teamAssign && Object.keys(g.teamAssign).length > 0) {
+    var _npTA = participantIdxs.filter(function(idx){ return (g.teamAssign[String(idx)] || g.teamAssign[idx] || 'A') === 'A'; })
+      .map(function(idx){ return (state.players[parseInt(idx)] || {}).name || ('P'+(parseInt(idx)+1)); });
+    var _npTB = participantIdxs.filter(function(idx){ return (g.teamAssign[String(idx)] || g.teamAssign[idx]) === 'B'; })
+      .map(function(idx){ return (state.players[parseInt(idx)] || {}).name || ('P'+(parseInt(idx)+1)); });
+    _npTitle = escapeHtml(_npTA.join(' & ')) + ' vs ' + escapeHtml(_npTB.join(' & '));
+  } else {
+    var _npNames = participantIdxs.map(function(idx){ return (state.players[parseInt(idx)] || {}).name || ('P'+(parseInt(idx)+1)); });
+    _npTitle = _npNames.length >= 2 ? escapeHtml(_npNames[0]) + ' vs ' + escapeHtml(_npNames[1]) : _npNames.map(escapeHtml).join(' &amp; ');
+  }
   var html = '<div class="card"><div class="sc-game-title">Nassau — ' + _npTitle + '</div>';
   // Stroke differential
   try {
@@ -8082,13 +8092,15 @@ function buildNassauPressCardHtml(g, idxs, sc) {
       var sm_np = npCtx.strokesMap || {};
       var strokeLines_np = [];
       participantIdxs.forEach(function(idx) {
+        var pname = (state.players[parseInt(idx)] || {}).name || ('Player ' + (parseInt(idx) + 1));
         var sr = sm_np[String(idx)] && sm_np[String(idx)].strokesReceived;
         if (sr > 0) {
-          var pname = (state.players[parseInt(idx)] || {}).name || ('Player ' + (parseInt(idx) + 1));
           strokeLines_np.push('<strong>' + escapeHtml(pname) + '</strong> +' + sr + ' stroke' + (sr === 1 ? '' : 's'));
+        } else {
+          strokeLines_np.push('<strong>' + escapeHtml(pname) + '</strong> (scratch)');
         }
       });
-      html += '<div class="np2-strokes">⛳ ' + (strokeLines_np.length ? strokeLines_np.join(' &middot; ') + ' in this match' : 'Even — no handicap strokes in this match') + '</div>';
+      html += '<div class="np2-strokes">⛳ ' + strokeLines_np.join(' &middot; ') + ' in this match</div>';
     }
   } catch(e) {}
   // Press flag row
@@ -11119,8 +11131,8 @@ function matchPlayLeaderboardHtml(idxs, ctx, sc, title){
 // combined (front+back+total) hole-by-hole breakdown for this Nassau game.
 function nassauCardHtml(g, engineGame, ctx, context, scope, total){
   var bd = SidieGolfEngine.nassauBreakdown(engineGame, ctx);
-  var nameA = namesForIdxs(bd.sideA);
-  var nameB = namesForIdxs(bd.sideB);
+  var nameA = bd.sideA.map(function(idx){ return (state.players[parseInt(idx)]||{}).name||('Player '+(parseInt(idx)+1)); }).join(' & ');
+  var nameB = bd.sideB.map(function(idx){ return (state.players[parseInt(idx)]||{}).name||('Player '+(parseInt(idx)+1)); }).join(' & ');
   var title = 'Nassau'+(context?' ('+context+')':'')+' — '+nameA+' vs '+nameB;
   var html = '<div class="card"><div class="section-title">'+escapeHtml(title)+'</div>';
   // Net stroke differential
@@ -11128,10 +11140,12 @@ function nassauCardHtml(g, engineGame, ctx, context, scope, total){
     var sm_nc = ctx.strokesMap || {};
     var strokeLines_nc = [];
     (engineGame.participants || []).forEach(function(idx) {
+      var pname = (state.players[parseInt(idx)] || {}).name || ('Player ' + (parseInt(idx) + 1));
       var sr = sm_nc[String(idx)] && sm_nc[String(idx)].strokesReceived;
       if (sr > 0) {
-        var pname = (state.players[parseInt(idx)] || {}).name || ('Player ' + (parseInt(idx) + 1));
         strokeLines_nc.push('<strong>' + escapeHtml(pname) + '</strong> +' + sr + ' stroke' + (sr === 1 ? '' : 's'));
+      } else {
+        strokeLines_nc.push('<strong>' + escapeHtml(pname) + '</strong> (scratch)');
       }
     });
     if (strokeLines_nc.length) {
