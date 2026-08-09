@@ -2676,7 +2676,7 @@
       <h1 class="title">Leaderboard &amp; Money</h1>
       <p class="subtitle">Live standings based on the scores you've entered. Check back anytime during the round.</p>
       <div id="reviewArea"></div>
-      <a class="restart-link" id="editScoresLink">✏️ Back to Scorecard</a>
+      <a class="restart-link" id="editScoresLink"><svg width="14" height="14" viewBox="0 0 48 48" fill="none" style="vertical-align:middle;margin-right:3px;"><path d="M10,38 L14,44 36,22 32,16 Z" fill="rgba(22,40,74,0.12)" stroke="#16284a" stroke-width="2.5" stroke-linejoin="round"/><polygon points="32,16 36,22 42,14" fill="#4f7942"/><polygon points="10,38 6,44 14,44" fill="#16284a"/></svg>Back to Scorecard</a>
       <a class="restart-link" id="restartLink">↺ Start a new round setup</a>
     </section>
   </main>
@@ -3369,7 +3369,9 @@ var SGICONS = {
   settle:    '<path d="M7,17 L35,17" stroke="#16284a" stroke-width="3" stroke-linecap="round"/><polygon points="33,13 43,17 33,21" fill="#16284a"/><path d="M41,31 L13,31" stroke="#4f7942" stroke-width="3" stroke-linecap="round"/><polygon points="15,27 5,31 15,35" fill="#4f7942"/>',
   clipboard: '<rect x="16" y="3" width="16" height="9" rx="4.5" fill="#16284a"/><rect x="6" y="7" width="36" height="37" rx="4" fill="rgba(22,40,74,0.06)" stroke="#16284a" stroke-width="2"/><line x1="12" y1="21" x2="36" y2="21" stroke="#16284a" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/><line x1="12" y1="28" x2="36" y2="28" stroke="#16284a" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/><line x1="12" y1="35" x2="28" y2="35" stroke="#16284a" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>',
   warning:   '<polygon points="24,4 46,43 2,43" fill="rgba(186,117,23,0.15)" stroke="#BA7517" stroke-width="2.5" stroke-linejoin="round"/><rect x="22" y="17" width="4" height="15" rx="2" fill="#BA7517"/><circle cx="24" cy="38" r="2.5" fill="#BA7517"/>',
-  chart:     '<rect x="5" y="30" width="10" height="14" rx="2" fill="#16284a" opacity="0.4"/><rect x="19" y="20" width="10" height="24" rx="2" fill="#16284a" opacity="0.65"/><rect x="33" y="8" width="10" height="36" rx="2" fill="#4f7942"/><line x1="3" y1="44" x2="45" y2="44" stroke="#16284a" stroke-width="2" stroke-linecap="round"/>'
+  chart:     '<rect x="5" y="30" width="10" height="14" rx="2" fill="#16284a" opacity="0.4"/><rect x="19" y="20" width="10" height="24" rx="2" fill="#16284a" opacity="0.65"/><rect x="33" y="8" width="10" height="36" rx="2" fill="#4f7942"/><line x1="3" y1="44" x2="45" y2="44" stroke="#16284a" stroke-width="2" stroke-linecap="round"/>',
+  pencil:    '<path d="M10,38 L14,44 36,22 32,16 Z" fill="rgba(22,40,74,0.12)" stroke="#16284a" stroke-width="2.5" stroke-linejoin="round"/><polygon points="32,16 36,22 42,14" fill="#4f7942"/><polygon points="10,38 6,44 14,44" fill="#16284a"/>',
+  bulb:      '<path d="M24,5 Q13,5 13,18 Q13,26 19,31 L19,39 L29,39 L29,31 Q35,26 35,18 Q35,5 24,5Z" fill="rgba(22,40,74,0.10)" stroke="#16284a" stroke-width="2.5"/><rect x="19" y="39" width="10" height="3" rx="1.5" fill="#16284a"/><rect x="20" y="42" width="8" height="3" rx="1.5" fill="#16284a"/><line x1="20" y1="22" x2="28" y2="22" stroke="#4f7942" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/><line x1="19" y1="26" x2="29" y2="26" stroke="#4f7942" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>'
 };
 function sgIcon(name, size) {
   size = size || 20;
@@ -8123,7 +8125,7 @@ function buildNassauPressCardHtml(g, idxs, sc) {
           strokeLines_np.push('<strong>' + escapeHtml(pname) + '</strong> (scratch)');
         }
       });
-      html += '<div class="np2-strokes">⛳ ' + strokeLines_np.join(' &middot; ') + ' in this match</div>';
+      html += '<div class="np2-strokes">'+sgIcon('flag',14)+' ' + strokeLines_np.join(' &middot; ') + ' in this match</div>';
     }
   } catch(e) {}
   // Press flag row
@@ -8644,7 +8646,7 @@ function renderReview(){
   }
   // Update "Back to Scorecard" link text — multi-day events navigate to the Event Hub
   var _editScLink = document.getElementById('editScoresLink');
-  if (_editScLink) _editScLink.textContent = isMultiDay() ? '← Event Hub' : '✏️ Back to Scorecard';
+  if (_editScLink) _editScLink.innerHTML = isMultiDay() ? '← Event Hub' : sgIcon('pencil',14)+' Back to Scorecard';
   try {
   var rt = ROUND_TYPES.filter(function(r){return r.id===state.roundType;})[0];
   var html = '';
@@ -10243,7 +10245,7 @@ function renderHammerLogSheet(){
   // Stepped input area
   if (step === 'idle') {
     if (canAdd) {
-      html += '<button class="hlbs-throw-btn" id="hlThrow">'+sgIcon('hammer',18)+' Throw Hammer</button>';
+      html += '<button class="hlbs-throw-btn" id="hlThrow">Throw Hammer</button>';
     } else {
       html += '<div class="hlbs-chain-banner">⛔ Chain ended — a decline forfeits the hole at $' + currentBet + '/man</div>';
     }
@@ -10714,7 +10716,7 @@ function renderScoreEntrySheet(){
 function showSmartPayoutModal(ledgerByIdx){
   var txs = computeSmartPayout(ledgerByIdx);
   var html = '<div class="sp-sheet">';
-  html += '<div class="sp-head"><div class="sp-title">💡 Smart Payout</div><button class="btn-link" id="smartPayoutClose" type="button">Close ✕</button></div>';
+  html += '<div class="sp-head"><div class="sp-title">'+sgIcon('bulb',18)+' Smart Payout</div><button class="btn-link" id="smartPayoutClose" type="button">Close ✕</button></div>';
   if (!txs.length){
     html += '<div class="sp-subtitle">All square — no money changes hands!</div>';
   } else {
@@ -10755,7 +10757,7 @@ function ledgerCardHtml(ledgerByIdx, title, opts){
       html += '<div class="ledger-line"><span>'+escapeHtml(line.name)+'</span><span class="amt '+(line.amt>=0?'pos':'neg')+'">'+(line.amt>=0?'+':'')+'$'+Math.abs(line.amt).toFixed(2)+'</span></div>';
     });
     if (opts.isFinal){
-      html += '<button class="smart-payout-btn" data-smart-payout="'+escapeHtml(JSON.stringify(ledgerByIdx))+'" type="button">💡 Smart Payout — Tap to settle up</button>';
+      html += '<button class="smart-payout-btn" data-smart-payout="'+escapeHtml(JSON.stringify(ledgerByIdx))+'" type="button">'+sgIcon('bulb',16)+' Smart Payout — Tap to settle up</button>';
     }
   }
   html += '</div>';
@@ -11172,7 +11174,7 @@ function nassauCardHtml(g, engineGame, ctx, context, scope, total){
       }
     });
     if (strokeLines_nc.length) {
-      html += '<div class="np2-strokes">⛳ ' + strokeLines_nc.join(' &middot; ') + ' in this match</div>';
+      html += '<div class="np2-strokes">'+sgIcon('flag',14)+' ' + strokeLines_nc.join(' &middot; ') + ' in this match</div>';
     }
   } catch(e) {}
 
@@ -11216,7 +11218,7 @@ function nassauCardHtml(g, engineGame, ctx, context, scope, total){
         var pname = state.players[id] ? state.players[id].name : ('Player '+(parseInt(id,10)+1));
         return pname+' '+(amt>=0?'+':'')+'$'+Math.abs(amt).toFixed(2);
       }).filter(Boolean);
-      html += '<div class="press-result">🔒 Manual press ($'+r.mp.stake+', '+pHoles+'): '+escapeHtml(pLabel)+(pParts.length ? ' — '+pParts.join(' · ') : '')+'</div>';
+      html += '<div class="press-result">'+sgIcon('lock',13)+' Manual press ($'+r.mp.stake+', '+pHoles+'): '+escapeHtml(pLabel)+(pParts.length ? ' — '+pParts.join(' · ') : '')+'</div>';
     });
   });
 
