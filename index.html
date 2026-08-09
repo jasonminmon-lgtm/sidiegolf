@@ -2580,7 +2580,7 @@
     <div class="fb-hist-hdr">
       <h2>My Rounds</h2>
       <div style="display:flex;align-items:center;gap:8px;">
-        <button class="fb-hist-ledger-btn" onclick="fbShowSeasonLedger()">💰 Ledger</button>
+        <button class="fb-hist-ledger-btn" onclick="fbShowSeasonLedger()"><svg width="16" height="16" viewBox="0 0 48 48" fill="none" style="vertical-align:middle;margin-right:4px;"><circle cx="24" cy="24" r="20" fill="#16284a"/><text x="24" y="33" text-anchor="middle" font-family="system-ui,sans-serif" font-size="26" font-weight="700" fill="white">$</text><line x1="24" y1="9" x2="24" y2="14" stroke="white" stroke-width="2.5" stroke-linecap="round"/><line x1="24" y1="34" x2="24" y2="39" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>Ledger</button>
         <button class="fb-hist-close" onclick="fbCloseHistory()">×</button>
       </div>
     </div>
@@ -2607,7 +2607,7 @@
   <div class="sl-hdr">
     <div class="sl-hdr-row">
       <button class="sl-back" onclick="fbCloseSeasonLedger()">‹</button>
-      <span class="sl-title">💰 Season Money Ledger</span>
+      <span class="sl-title"><svg width="18" height="18" viewBox="0 0 48 48" fill="none" style="vertical-align:middle;margin-right:5px;"><circle cx="24" cy="24" r="20" fill="#16284a"/><text x="24" y="33" text-anchor="middle" font-family="system-ui,sans-serif" font-size="26" font-weight="700" fill="white">$</text><line x1="24" y1="9" x2="24" y2="14" stroke="white" stroke-width="2.5" stroke-linecap="round"/><line x1="24" y1="34" x2="24" y2="39" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>Season Money Ledger</span>
       <button class="sl-filter-btn active" id="sl-filter-btn" onclick="toggleSeasonFilter()">Unsettled</button>
     </div>
     <div class="sl-tabs">
@@ -2731,7 +2731,7 @@
 <!-- ===== Nassau Per-Hole Press Sheet (scorecard) ===== -->
 <div id="np2Overlay" class="np2-overlay" onclick="if(event.target===this)np2Close()">
   <div class="np2-sheet">
-    <div class="np2-title">🔒 Add Press</div>
+    <div class="np2-title"><svg width="20" height="20" viewBox="0 0 48 48" fill="none" style="vertical-align:middle;margin-right:6px;"><path d="M15,24 L15,16 Q15,6 24,6 Q33,6 33,16 L33,24" stroke="#16284a" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="8" y="22" width="32" height="22" rx="5" fill="#16284a"/><circle cx="24" cy="31" r="4" fill="white"/><rect x="22" y="33" width="4" height="7" rx="1" fill="white"/></svg>Add Press</div>
     <div class="np2-row">
       <div class="np2-label">Starting Hole</div>
       <input id="np2Hole" class="np2-input" type="number" min="1" max="18" placeholder="1–18">
@@ -2792,10 +2792,10 @@
     <div class="ro-section-label">Share with the group</div>
     <div class="ro-text-box" id="roTextBox"></div>
     <div class="ro-share-row">
-      <button class="ro-share-btn copy" onclick="copyResultsText()">📋 Copy Text</button>
+      <button class="ro-share-btn copy" onclick="copyResultsText()"><svg width="16" height="16" viewBox="0 0 48 48" fill="none" style="vertical-align:middle;margin-right:4px;"><rect x="16" y="3" width="16" height="9" rx="4.5" fill="#16284a"/><rect x="6" y="7" width="36" height="37" rx="4" fill="rgba(22,40,74,0.06)" stroke="#16284a" stroke-width="2"/><line x1="12" y1="21" x2="36" y2="21" stroke="#16284a" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/><line x1="12" y1="28" x2="36" y2="28" stroke="#16284a" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/><line x1="12" y1="35" x2="28" y2="35" stroke="#16284a" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/></svg>Copy Text</button>
       <button class="ro-share-btn share" id="roShareBtn" onclick="shareResultsText()" style="display:none;">📤 Share</button>
     </div>
-    <button id="roScorecardBtn" class="ro-share-btn share" onclick="shareScorecardAndLedger()" style="width:100%;margin-top:8px;">📊 Scorecard & Ledger</button>
+    <button id="roScorecardBtn" class="ro-share-btn share" onclick="shareScorecardAndLedger()" style="width:100%;margin-top:8px;"><svg width="16" height="16" viewBox="0 0 48 48" fill="none" style="vertical-align:middle;margin-right:4px;"><rect x="5" y="30" width="10" height="14" rx="2" fill="#16284a" opacity="0.4"/><rect x="19" y="20" width="10" height="24" rx="2" fill="#16284a" opacity="0.65"/><rect x="33" y="8" width="10" height="36" rx="2" fill="#4f7942"/><line x1="3" y1="44" x2="45" y2="44" stroke="#16284a" stroke-width="2" stroke-linecap="round"/></svg>Scorecard &amp; Ledger</button>
   </div>
 </div>
 
@@ -3353,6 +3353,29 @@
 <div id="crackLogOverlay" class="score-entry-overlay" style="display:none;"></div>
 
 <script>
+// ================= CUSTOM ICON SYSTEM =================
+var SGICONS = {
+  coin:      '<circle cx="24" cy="24" r="20" fill="rgba(22,40,74,0.1)" stroke="#16284a" stroke-width="2.5"/><circle cx="24" cy="24" r="16" fill="none" stroke="#16284a" stroke-width="0.75" stroke-dasharray="2.5 2"/><line x1="24" y1="5" x2="24" y2="43" stroke="#16284a" stroke-width="1.5"/><text x="14" y="28" font-family="system-ui,sans-serif" font-size="10" font-weight="700" fill="#16284a">H</text><text x="28" y="28" font-family="system-ui,sans-serif" font-size="10" font-weight="700" fill="#16284a">T</text>',
+  hammer:    '<rect x="5" y="6" width="38" height="16" rx="5" fill="#16284a"/><rect x="5" y="6" width="12" height="16" rx="5" fill="#4f7942"/><rect x="19" y="20" width="10" height="24" rx="5" fill="#4f7942"/>',
+  wolf:      '<polygon points="8,28 16,6 22,24" fill="#16284a"/><polygon points="26,24 32,6 40,28" fill="#16284a"/><circle cx="24" cy="30" r="15" fill="rgba(22,40,74,0.08)" stroke="#16284a" stroke-width="2.5"/><circle cx="19" cy="27" r="2.5" fill="#16284a"/><circle cx="29" cy="27" r="2.5" fill="#16284a"/><ellipse cx="24" cy="33" rx="2.5" ry="2" fill="#16284a"/>',
+  crack:     '<polygon points="28,3 14,26 23,26 20,45 34,22 25,22" fill="#16284a"/><polygon points="28,3 23,26 25,26 20,45 34,22 27,22" fill="#4f7942" opacity="0.35"/>',
+  crybaby:   '<circle cx="24" cy="20" r="15" fill="rgba(22,40,74,0.08)" stroke="#16284a" stroke-width="2.5"/><path d="M17,17 L20,20 M17,20 L20,17" stroke="#16284a" stroke-width="2" stroke-linecap="round"/><path d="M28,17 L31,20 M28,20 L31,17" stroke="#16284a" stroke-width="2" stroke-linecap="round"/><path d="M16,28 Q24,23 32,28" stroke="#16284a" stroke-width="2.5" fill="none" stroke-linecap="round"/><ellipse cx="18" cy="32" rx="2" ry="4" fill="#4f7942" opacity="0.8"/><ellipse cx="30" cy="32" rx="2" ry="4" fill="#4f7942" opacity="0.8"/><ellipse cx="18" cy="40" rx="1.5" ry="3" fill="#4f7942" opacity="0.45"/><ellipse cx="30" cy="40" rx="1.5" ry="3" fill="#4f7942" opacity="0.45"/>',
+  banker:    '<rect x="6" y="6" width="36" height="36" rx="8" fill="#16284a"/><text x="24" y="33" text-anchor="middle" font-family="system-ui,sans-serif" font-size="26" font-weight="700" fill="white">$</text>',
+  lock:      '<path d="M15,24 L15,16 Q15,6 24,6 Q33,6 33,16 L33,24" stroke="#16284a" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="8" y="22" width="32" height="22" rx="5" fill="#16284a"/><circle cx="24" cy="31" r="4" fill="white"/><rect x="22" y="33" width="4" height="7" rx="1" fill="white"/>',
+  flag:      '<ellipse cx="20" cy="44" rx="12" ry="3.5" fill="#16284a" opacity="0.2"/><line x1="20" y1="6" x2="20" y2="44" stroke="#16284a" stroke-width="2.5" stroke-linecap="round"/><polygon points="20,6 20,24 38,15" fill="#4f7942"/><circle cx="16" cy="44" r="3" fill="#16284a"/>',
+  trophy:    '<path d="M12,6 L36,6 L32,26 Q31,34 24,36 Q17,34 16,26 Z" fill="#16284a"/><path d="M12,8 Q5,8 5,18 Q5,27 13,29" stroke="#16284a" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M36,8 Q43,8 43,18 Q43,27 35,29" stroke="#16284a" stroke-width="3.5" fill="none" stroke-linecap="round"/><rect x="21" y="36" width="6" height="6" fill="#16284a"/><rect x="14" y="42" width="20" height="4" rx="2" fill="#16284a"/><circle cx="24" cy="20" r="5" fill="#4f7942" opacity="0.55"/>',
+  qr:        '<rect x="10" y="2" width="28" height="44" rx="6" fill="none" stroke="#16284a" stroke-width="2.5"/><rect x="14" y="8" width="20" height="28" rx="2" fill="rgba(22,40,74,0.08)"/><rect x="16" y="10" width="7" height="7" rx="1" fill="#16284a"/><rect x="17" y="11" width="5" height="5" rx="0.5" fill="white"/><rect x="18" y="12" width="3" height="3" fill="#16284a"/><rect x="25" y="10" width="7" height="7" rx="1" fill="#16284a"/><rect x="26" y="11" width="5" height="5" rx="0.5" fill="white"/><rect x="27" y="12" width="3" height="3" fill="#16284a"/><rect x="16" y="19" width="7" height="7" rx="1" fill="#16284a"/><rect x="17" y="20" width="5" height="5" rx="0.5" fill="white"/><rect x="18" y="21" width="3" height="3" fill="#16284a"/><rect x="25" y="19" width="3" height="3" rx="0.5" fill="#16284a"/><rect x="29" y="19" width="3" height="3" rx="0.5" fill="#4f7942"/><rect x="25" y="23" width="3" height="3" rx="0.5" fill="#4f7942"/><rect x="29" y="23" width="3" height="3" rx="0.5" fill="#16284a"/><rect x="20" y="40" width="8" height="2.5" rx="1.5" fill="#16284a"/>',
+  ledger:    '<circle cx="24" cy="24" r="20" fill="#16284a"/><text x="24" y="33" text-anchor="middle" font-family="system-ui,sans-serif" font-size="26" font-weight="700" fill="white">$</text><line x1="24" y1="9" x2="24" y2="14" stroke="white" stroke-width="2.5" stroke-linecap="round"/><line x1="24" y1="34" x2="24" y2="39" stroke="white" stroke-width="2.5" stroke-linecap="round"/>',
+  settle:    '<path d="M7,17 L35,17" stroke="#16284a" stroke-width="3" stroke-linecap="round"/><polygon points="33,13 43,17 33,21" fill="#16284a"/><path d="M41,31 L13,31" stroke="#4f7942" stroke-width="3" stroke-linecap="round"/><polygon points="15,27 5,31 15,35" fill="#4f7942"/>',
+  clipboard: '<rect x="16" y="3" width="16" height="9" rx="4.5" fill="#16284a"/><rect x="6" y="7" width="36" height="37" rx="4" fill="rgba(22,40,74,0.06)" stroke="#16284a" stroke-width="2"/><line x1="12" y1="21" x2="36" y2="21" stroke="#16284a" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/><line x1="12" y1="28" x2="36" y2="28" stroke="#16284a" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/><line x1="12" y1="35" x2="28" y2="35" stroke="#16284a" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>',
+  warning:   '<polygon points="24,4 46,43 2,43" fill="rgba(186,117,23,0.15)" stroke="#BA7517" stroke-width="2.5" stroke-linejoin="round"/><rect x="22" y="17" width="4" height="15" rx="2" fill="#BA7517"/><circle cx="24" cy="38" r="2.5" fill="#BA7517"/>',
+  chart:     '<rect x="5" y="30" width="10" height="14" rx="2" fill="#16284a" opacity="0.4"/><rect x="19" y="20" width="10" height="24" rx="2" fill="#16284a" opacity="0.65"/><rect x="33" y="8" width="10" height="36" rx="2" fill="#4f7942"/><line x1="3" y1="44" x2="45" y2="44" stroke="#16284a" stroke-width="2" stroke-linecap="round"/>'
+};
+function sgIcon(name, size) {
+  size = size || 20;
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 48 48" fill="none" style="vertical-align:middle;flex-shrink:0;">'+(SGICONS[name]||'')+'</svg>';
+}
+
 // ================= STATIC DATA =================
 var ROUND_TYPES = [
   {id:'stroke', icon:'⛳', name:'Stroke Play Round', desc:'Total strokes across 18 (or 9) holes.'},
@@ -4451,7 +4474,7 @@ function renderRyderCupTeamSetup(containerId){
   var nameB = state.rcTeamNames.B || 'Europe';
 
   var html = '<div class="card" id="rcTeamSetupCard" style="margin-top:12px;">';
-  html += '<div class="section-title">🏆 Ryder Cup Teams</div>';
+  html += '<div class="section-title">'+sgIcon('trophy',16)+' Ryder Cup Teams</div>';
   html += '<div class="rc-team-name-row">';
   html += '<div><label style="color:#4f7942;">Team A Name</label><input class="rc-team-name-a" id="rcNameA" type="text" value="'+escapeHtml(nameA)+'" placeholder="USA"></div>';
   html += '<div><label style="color:#4a78b5;">Team B Name</label><input class="rc-team-name-b" id="rcNameB" type="text" value="'+escapeHtml(nameB)+'" placeholder="Europe"></div>';
@@ -4829,7 +4852,7 @@ function renderNetworkedPlayersStep(){
   html += '<div style="font-size:34px;font-weight:800;letter-spacing:8px;color:var(--green-dark,#1a5c36);margin-bottom:10px;cursor:pointer;" onclick="showQrOverlay(\''+escapeHtml(code)+'\')" title="Show QR code">'+escapeHtml(code)+'</div>';
   html += '<div style="display:flex;gap:8px;justify-content:center;">';
   html += '<button onclick="fbCopyCode()" style="padding:6px 16px;border-radius:6px;border:1.5px solid var(--green-dark,#1a5c36);background:transparent;color:var(--green-dark,#1a5c36);font-size:12px;cursor:pointer;font-weight:600;" id="fb-copy-code-btn">Copy Code</button>';
-  html += '<button onclick="showQrOverlay(\''+escapeHtml(code)+'\')" class="sg-qr-btn">📱 QR Code</button>';
+  html += '<button onclick="showQrOverlay(\''+escapeHtml(code)+'\')" class="sg-qr-btn">'+sgIcon('qr',16)+' QR Code</button>';
   html += '</div>';
   html += '</div>';
   // Player count selector
@@ -5115,7 +5138,7 @@ function buildCompactLobbyHtml(){
     html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">';
     html += '<div style="font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--muted,#666);">JOIN CODE</div>';
     html += '<div style="font-size:18px;font-weight:800;letter-spacing:4px;color:var(--green-dark,#1a5c36);cursor:pointer;" onclick="showQrOverlay(\''+escapeHtml(fbRoundCode)+'\')" title="Show QR">'+escapeHtml(fbRoundCode)+'</div>';
-    html += '<button onclick="showQrOverlay(\''+escapeHtml(fbRoundCode)+'\')" class="sg-qr-btn" style="margin-left:auto;">📱 QR</button>';
+    html += '<button onclick="showQrOverlay(\''+escapeHtml(fbRoundCode)+'\')" class="sg-qr-btn" style="margin-left:auto;">'+sgIcon('qr',16)+' QR</button>';
     html += '</div>';
   }
   html += '<div style="font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--muted,#666);margin-bottom:10px;">PLAYERS JOINED ('+named.length+' / '+total+')</div>';
@@ -6219,31 +6242,31 @@ function buildGameCardHtml(g, scope){
   // Player-count warnings
   var n = g.participants.length;
   if ((g.type==='Wolf' || g.type==='Hammer Wolf') && n < 3 && n > 0){
-    html += '<div class="player-count-warn">⚠️ Wolf needs at least 3 players — add one more.</div>';
+    html += '<div class="player-count-warn">'+sgIcon('warning',16)+'Wolf needs at least 3 players — add one more.</div>';
   }
   if (g.type==='Coin Flip Wolf' && (n < 4 || n > 5) && n > 0){
-    html += '<div class="player-count-warn">⚠️ Coin Flip Wolf requires 4 or 5 players (currently '+n+').</div>';
+    html += '<div class="player-count-warn">'+sgIcon('warning',16)+'Coin Flip Wolf requires 4 or 5 players (currently '+n+').</div>';
   }
   if (g.type==='3-Man Wolf' && n !== 3 && n > 0){
-    html += '<div class="player-count-warn">⚠️ 3-Man Wolf requires exactly 3 players (currently '+n+').</div>';
+    html += '<div class="player-count-warn">'+sgIcon('warning',16)+'3-Man Wolf requires exactly 3 players (currently '+n+').</div>';
   }
   if (g.type==='Vegas' && n !== 4 && n > 0){
-    html += '<div class="player-count-warn">⚠️ Vegas requires exactly 4 players (2 per team). Currently '+n+'.</div>';
+    html += '<div class="player-count-warn">'+sgIcon('warning',16)+'Vegas requires exactly 4 players (2 per team). Currently '+n+'.</div>';
   }
   if (g.type==='Round Robin (2-man teams)' && n !== 4 && n > 0){
-    html += '<div class="player-count-warn">⚠️ Round Robin auto-rotation is designed for exactly 4 players. Currently '+n+'.</div>';
+    html += '<div class="player-count-warn">'+sgIcon('warning',16)+'Round Robin auto-rotation is designed for exactly 4 players. Currently '+n+'.</div>';
   }
   if (g.type==='Scotch' && n !== 4 && n > 0){
-    html += '<div class="player-count-warn">⚠️ Scotch requires exactly 4 players (2 per team). Currently '+n+'.</div>';
+    html += '<div class="player-count-warn">'+sgIcon('warning',16)+'Scotch requires exactly 4 players (2 per team). Currently '+n+'.</div>';
   }
   if (g.type==='Banker' && n < 2 && n > 0){
-    html += '<div class="player-count-warn">⚠️ Banker requires at least 2 players. Currently '+n+'.</div>';
+    html += '<div class="player-count-warn">'+sgIcon('warning',16)+'Banker requires at least 2 players. Currently '+n+'.</div>';
   }
   if (g.type==='9 Point' && n !== 3 && n > 0){
-    html += '<div class="player-count-warn">⚠️ 9 Point is a threesome — it needs exactly 3 players. Currently '+n+'.</div>';
+    html += '<div class="player-count-warn">'+sgIcon('warning',16)+'9 Point is a threesome — it needs exactly 3 players. Currently '+n+'.</div>';
   }
   if ((g.type==='Nassau') && n < 2 && n > 0){
-    html += '<div class="player-count-warn">⚠️ Nassau needs at least 2 players.</div>';
+    html += '<div class="player-count-warn">'+sgIcon('warning',16)+'Nassau needs at least 2 players.</div>';
   }
 
   // Team picker for Nassau / Vegas / Round Robin / Scotch (all methods except Sixes & High/Low auto-assign)
@@ -6314,14 +6337,14 @@ function buildTeamPickerHtml(g){
 
   var html = '<label class="field-label">Team Assignment <span style="font-weight:400;font-size:11px;color:var(--muted);">(tap a player to swap teams)</span></label>';
   html += '<div class="team-picker">';
-  html += '<div class="team-col team-a-col"><div class="team-col-label" style="color:#3a5b31;">⛳ Team A</div>';
+  html += '<div class="team-col team-a-col"><div class="team-col-label" style="color:#3a5b31;">'+sgIcon('flag',16)+' Team A</div>';
   teamA.forEach(function(idx){
     var nm = state.players[idx] ? state.players[idx].name : ('Player '+(idx+1));
     html += '<div class="team-chip" data-team-swap="'+g.id+'|'+idx+'">'+escapeHtml(nm)+' <span class="tc-arrow">→B</span></div>';
   });
   if (!teamA.length) html += '<div style="font-size:11.5px;color:var(--muted);padding:4px;">Empty</div>';
   html += '</div>';
-  html += '<div class="team-col team-b-col"><div class="team-col-label" style="color:#1a5ca8;">⛳ Team B</div>';
+  html += '<div class="team-col team-b-col"><div class="team-col-label" style="color:#1a5ca8;">'+sgIcon('flag',16)+' Team B</div>';
   teamB.forEach(function(idx){
     var nm = state.players[idx] ? state.players[idx].name : ('Player '+(idx+1));
     html += '<div class="team-chip" data-team-swap="'+g.id+'|'+idx+'">'+escapeHtml(nm)+' <span class="tc-arrow">→A</span></div>';
@@ -6642,7 +6665,7 @@ function renderEventHub(){
   var code = fbRoundCode || '';
   var html = '<div class="event-hub">';
   html += '<div class="event-hub-header">';
-  html += '<div class="event-hub-title">'+(isRyderCup() ? '🏆 Ryder Cup Event' : '⛳ Golf Event')+'</div>';
+  html += '<div class="event-hub-title">'+(isRyderCup() ? sgIcon('trophy',20)+' Ryder Cup Event' : sgIcon('flag',20)+' Golf Event')+'</div>';
   html += '<div class="event-hub-sub">'+state.days.length+'-Day Event  •  '+numPlayers+' Players</div>';
   if (code && isCurrentUserHost()) {
     html += '<div class="event-hub-code" style="cursor:pointer;" onclick="showQrOverlay(\''+escapeHtml(code)+'\')" title="Show QR code"><span class="event-hub-code-label">Join Code</span><span class="event-hub-code-val">'+escapeHtml(code)+'</span><span style="font-size:14px;margin-left:6px;opacity:.8;">📱</span></div>';
@@ -6679,11 +6702,11 @@ function renderEventHub(){
   html += '<div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">';
   var anyScoring = state.days.some(function(d){return (d.status==='active'||d.status==='completed')&&d.courseIdx!=null;});
   if (anyScoring) {
-    html += '<button onclick="goToStep(7)" style="width:100%;padding:13px;border-radius:8px;border:1.5px solid var(--green-dark,#1a5c36);background:transparent;color:var(--green-dark,#1a5c36);font-size:14px;font-weight:700;cursor:pointer;">📊 View Full Leaderboard</button>';
+    html += '<button onclick="goToStep(7)" style="width:100%;padding:13px;border-radius:8px;border:1.5px solid var(--green-dark,#1a5c36);background:transparent;color:var(--green-dark,#1a5c36);font-size:14px;font-weight:700;cursor:pointer;">'+sgIcon('chart',16)+' View Full Leaderboard</button>';
   }
   var allDone = state.days.every(function(d){return d.status==='completed';});
   if (allDone && isCurrentUserHost()) {
-    html += '<button onclick="showResultsSummary(null)" style="width:100%;padding:13px;border-radius:8px;border:none;background:#e8f5e9;color:var(--green-dark,#1a5c36);font-size:14px;font-weight:700;cursor:pointer;">🏆 Event Results — Share with Group</button>';
+    html += '<button onclick="showResultsSummary(null)" style="width:100%;padding:13px;border-radius:8px;border:none;background:#e8f5e9;color:var(--green-dark,#1a5c36);font-size:14px;font-weight:700;cursor:pointer;">'+sgIcon('trophy',16)+' Event Results — Share with Group</button>';
   }
   html += '</div>';
   html += '</div>';
@@ -7541,7 +7564,7 @@ function renderEventScorecard(){
     if (day.status === 'active') {
       html += '<button onclick="markDayComplete('+day.id+')" style="background:#e8f5e9;border:1.5px solid var(--green,#2e7d32);color:var(--green-dark,#1a5c36);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">✓ Mark Day Complete</button>';
     } else if (day.status === 'completed') {
-      html += '<button onclick="showResultsSummary('+day.id+')" style="background:#e8f5e9;border:1.5px solid var(--green,#2e7d32);color:var(--green-dark,#1a5c36);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">📊 Day Results</button>';
+      html += '<button onclick="showResultsSummary('+day.id+')" style="background:#e8f5e9;border:1.5px solid var(--green,#2e7d32);color:var(--green-dark,#1a5c36);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">'+sgIcon('chart',14)+' Day Results</button>';
     }
     html += '</div>';
   }
@@ -8113,7 +8136,7 @@ function buildNassauPressCardHtml(g, idxs, sc) {
       var _npmLabel = (g.stakes.perMan == null || g.stakes.perMan === 'Per Man') ? '/man' : '';
       var flags = pressesHere.map(function(mp) {
         var sl = mp.segType === 'front9' ? 'F' : mp.segType === 'back9' ? 'B' : 'T';
-        return '<div class="np2-press-flag">🔒' + sl + '<br>$' + mp.stake + _npmLabel + '</div>';
+        return '<div class="np2-press-flag">'+sgIcon('lock',14)+' ' + sl + '<br>$' + mp.stake + _npmLabel + '</div>';
       }).join('');
       html += '<td style="padding:1px;vertical-align:top;background:#f0faf0;">' + flags + '</td>';
     } else {
@@ -8129,7 +8152,7 @@ function buildNassauPressCardHtml(g, idxs, sc) {
     for (var h3 = 18; h3 >= 1; h3--) { if (row[h3] != null && row[h3] > 0) { hintHole = Math.max(hintHole, h3); break; } }
   });
   if ((typeof isCurrentUserHost !== 'function') || isCurrentUserHost()) {
-    html += '<button class="np2-add-press-btn" onclick="openNassauPressSheet(' + g.id + ',' + hintHole + ')">🔒 Add Press</button>';
+    html += '<button class="np2-add-press-btn" onclick="openNassauPressSheet(' + g.id + ',' + hintHole + ')">'+sgIcon('lock',16)+' Add Press</button>';
   }
   html += '</div>';
   return html;
@@ -8273,7 +8296,7 @@ function wireEventTablesEvents(games, idxs, sc, ns){
       // Animate
       el.classList.remove('cfw-flipped');
       el.classList.add('flipping');
-      el.textContent = '🪙';
+      el.innerHTML = sgIcon('coin',20);
       setTimeout(function(){
         el.classList.remove('flipping');
         // Randomize
@@ -8506,7 +8529,7 @@ function buildCFWFlipRows(g, participantIdxs, sc, ns){
   var pStr = participantIdxs.join(',');
   var html = '';
   // ---- Flip trigger row ----
-  html += '<tr><td class="sc-rowlabel">🪙 Flip</td>';
+  html += '<tr><td class="sc-rowlabel">'+sgIcon('coin',18)+' Flip</td>';
   for (var h=1; h<=18; h++){
     var ev = sc.events[h] || {};
     var flips = ev.cfwFlips || {};
@@ -8515,7 +8538,7 @@ function buildCFWFlipRows(g, participantIdxs, sc, ns){
     if (allSet) {
       var hCt = participantIdxs.filter(function(idx){ return flips[String(idx)]==='H'; }).length;
       label = hCt+'H·'+(participantIdxs.length-hCt)+'T';
-    } else { label = '🪙'; }
+    } else { label = sgIcon('coin',20); }
     html += '<td style="text-align:center;"><button class="cfw-flip-btn'+(allSet?' cfw-flipped':'')+'" data-cfw-trigger="'+ns+'|'+g.id+'|'+h+'|'+pStr+'">'+label+'</button></td>';
   }
   html += '</tr>';
@@ -8719,7 +8742,7 @@ function renderReview(){
 
   var _isAnonReview = !!(window.fbUser && window.fbUser.isAnonymous);
   if (!_isAnonReview) {
-    html += '<button class="su-share-btn" onclick="openSettleUp()" type="button" style="margin-bottom:20px;">💸 Settle Up</button>';
+    html += '<button class="su-share-btn" onclick="openSettleUp()" type="button" style="margin-bottom:20px;">'+sgIcon('settle',16)+' Settle Up</button>';
   }
 
   $('reviewArea').innerHTML = html;
@@ -9739,7 +9762,7 @@ function renderSettleUp() {
   try { txs = computeSmartPayout(window._sidieLastLedger || {}); } catch(e){}
 
   var html = '<div class="sp-sheet">';
-  html += '<div class="sp-head"><div class="sp-title">💸 Settle Up</div><button class="btn-link" onclick="closeSettleUp()" type="button">Close ✕</button></div>';
+  html += '<div class="sp-head"><div class="sp-title">'+sgIcon('settle',18)+' Settle Up</div><button class="btn-link" onclick="closeSettleUp()" type="button">Close ✕</button></div>';
   html += '<div class="sp-subtitle">Enter your Venmo handle so others can pay you directly.</div>';
 
   html += '<div class="su-section-title">Venmo Handles</div>';
@@ -9955,7 +9978,7 @@ function renderCrackLogSheet(){
   var pendingSide = e.pendingSide || null;
 
   var html = '<div class="hl-sheet">';
-  html += '<div class="hl-head"><div class="hl-title">💥 Crack — Hole ' + e.hole + '</div>';
+  html += '<div class="hl-head"><div class="hl-title">'+sgIcon('crack',22)+' Crack — Hole ' + e.hole + '</div>';
   html += '<button class="btn-link" id="clClose">Close ✕</button></div>';
   html += '<div class="hl-stake-info">Base: $' + holeAmount + '/pt · Down team cracks first · Other team may crack back · Decline ends chain</div>';
   html += '<div style="font-size:11px;color:#888;margin-bottom:10px;">' + e.teamALabel + ' vs ' + e.teamBLabel + '</div>';
@@ -9989,7 +10012,7 @@ function renderCrackLogSheet(){
   // Stepped input area
   if (step === 'idle') {
     if (canAdd) {
-      html += '<button class="hlbs-throw-btn" id="clThrow">💥 Crack!</button>';
+      html += '<button class="hlbs-throw-btn" id="clThrow">'+sgIcon('crack',18)+' Crack!</button>';
     } else {
       html += '<div class="hlbs-chain-banner">⛔ Chain ended — hole settles at $' + currentBet + '/pt</div>';
     }
@@ -10187,7 +10210,7 @@ function renderHammerLogSheet(){
   var pendingSide = e.pendingSide || null;
 
   var html = '<div class="hl-sheet">';
-  html += '<div class="hl-head"><div class="hl-title">🔨 Hammers — Hole ' + e.hole + '</div>';
+  html += '<div class="hl-head"><div class="hl-title">'+sgIcon('hammer',22)+' Hammers — Hole ' + e.hole + '</div>';
   html += '<button class="btn-link" id="hlClose">Close ✕</button></div>';
   html += '<div class="hl-stake-info">Base: $' + baseAmount + '/man · Accepted doubles the bet · Teams must alternate · Decline ends the chain</div>';
 
@@ -10208,7 +10231,7 @@ function renderHammerLogSheet(){
       var isPost = firstDeclineIdx >= 0 && li > firstDeclineIdx;
       html += '<div class="hlbs-entry"' + (isPost ? ' style="opacity:0.38"' : '') + '>';
       html += '<span class="hlbs-entry-num">' + (li + 1) + '</span>';
-      html += '<span class="hlbs-entry-side ' + (entry.side === 'wolf' ? 'wolf' : 'opp') + '">' + (entry.side === 'wolf' ? '🏌️ Wolf' : '⛳ Opp') + '</span>';
+      html += '<span class="hlbs-entry-side ' + (entry.side === 'wolf' ? 'wolf' : 'opp') + '">' + (entry.side === 'wolf' ? sgIcon('wolf',16)+' Wolf' : sgIcon('flag',16)+' Opp') + '</span>';
       html += '<span class="hlbs-entry-arrow">→</span>';
       html += '<span class="hlbs-entry-outcome ' + (entry.accepted ? 'accepted' : 'declined') + '">' + (entry.accepted ? '✓ Accepted' : '✗ Declined') + '</span>';
       html += '<span class="hlbs-entry-running">' + (stakeAfter[li] || '') + '</span>';
@@ -10220,7 +10243,7 @@ function renderHammerLogSheet(){
   // Stepped input area
   if (step === 'idle') {
     if (canAdd) {
-      html += '<button class="hlbs-throw-btn" id="hlThrow">🔨 Throw Hammer</button>';
+      html += '<button class="hlbs-throw-btn" id="hlThrow">'+sgIcon('hammer',18)+' Throw Hammer</button>';
     } else {
       html += '<div class="hlbs-chain-banner">⛔ Chain ended — a decline forfeits the hole at $' + currentBet + '/man</div>';
     }
@@ -10229,16 +10252,16 @@ function renderHammerLogSheet(){
     html += '<div class="hlbs-two-btn">';
     var wolfDis = (nextAllowed && nextAllowed !== 'wolf') ? ' disabled' : '';
     var oppDis  = (nextAllowed && nextAllowed !== 'opp')  ? ' disabled' : '';
-    html += '<button class="hlbs-side-btn wolf" id="hlSideWolf"' + wolfDis + '>🏌️ Wolf<br>Side';
+    html += '<button class="hlbs-side-btn wolf" id="hlSideWolf"' + wolfDis + '>'+sgIcon('wolf',20)+'<br>Wolf<br>Side';
     if (!wolfDis && nextAllowed === 'wolf') html += '<span class="hlbs-next-badge">← their turn</span>';
     html += '</button>';
-    html += '<button class="hlbs-side-btn opp" id="hlSideOpp"' + oppDis + '>⛳ Opp<br>Side';
+    html += '<button class="hlbs-side-btn opp" id="hlSideOpp"' + oppDis + '>'+sgIcon('flag',20)+'<br>Opp<br>Side';
     if (!oppDis && nextAllowed === 'opp') html += '<span class="hlbs-next-badge">← their turn</span>';
     html += '</button>';
     html += '</div>';
     html += '<button class="hlbs-cancel-btn" id="hlStepCancel">Cancel</button>';
   } else if (step === 'outcome') {
-    var sideName = pendingSide === 'wolf' ? '🏌️ Wolf Side' : '⛳ Opp Side';
+    var sideName = pendingSide === 'wolf' ? sgIcon('wolf',16)+' Wolf Side' : sgIcon('flag',16)+' Opp Side';
     html += '<div class="hlbs-step-label">' + sideName + ' threw —<br>Accepted or Declined?</div>';
     html += '<div class="hlbs-two-btn">';
     html += '<button class="hlbs-outcome-btn accept" id="hlOutAccept">✓<br><span style="font-size:13px">Accepted</span></button>';
@@ -10359,7 +10382,7 @@ function renderWolfPlayerSheet(){
   function closeWP(){ $('crackLogOverlay').style.display='none'; $('crackLogOverlay').innerHTML=''; state.__wolfPlayerEntry=null; }
 
   var html = '<div class="hl-sheet">';
-  html += '<div class="hl-head"><div class="hl-title">🐺 Hole '+e.hole+' — '+e.label+'</div>';
+  html += '<div class="hl-head"><div class="hl-title">'+sgIcon('wolf',22)+' Hole '+e.hole+' — '+e.label+'</div>';
   html += '<button class="btn-link" id="wpClose">Close ✕</button></div>';
   html += '<div class="hl-stake-info" style="margin-bottom:14px;">Tap a player to assign for hole '+e.hole+'. Tap again to clear.</div>';
   participantIdxs.forEach(function(idx){
@@ -10422,7 +10445,7 @@ function renderWolfBoolSheet(){
   function closeWB(){ $('crackLogOverlay').style.display='none'; $('crackLogOverlay').innerHTML=''; state.__wolfBoolEntry=null; }
 
   var html = '<div class="hl-sheet">';
-  html += '<div class="hl-head"><div class="hl-title">🐺 Hole '+e.hole+' — Blind Wolf?</div>';
+  html += '<div class="hl-head"><div class="hl-title">'+sgIcon('wolf',22)+' Hole '+e.hole+' — Blind Wolf?</div>';
   html += '<button class="btn-link" id="wbClose">Close ✕</button></div>';
   html += '<div class="hl-stake-info" style="margin-bottom:14px;">Blind = wolf declared before anyone tees off. Wolf locked in alone at 3× the stake.</div>';
   html += '<div class="hlbs-two-btn">';
@@ -10478,7 +10501,7 @@ function renderCryBabySheet(){
   function closeCB(){ $('crackLogOverlay').style.display='none'; $('crackLogOverlay').innerHTML=''; state.__cryBabyEntry=null; }
 
   var html = '<div class="hl-sheet">';
-  html += '<div class="hl-head"><div class="hl-title">😭 Chaser $ — Hole '+e.hole+'</div>';
+  html += '<div class="hl-head"><div class="hl-title">'+sgIcon('crybaby',22)+' Chaser $ — Hole '+e.hole+'</div>';
   html += '<button class="btn-link" id="cbClose">Close ✕</button></div>';
   html += '<div class="hl-stake-info" style="margin-bottom:8px;">Base stake: $'+baseAmount+' · Enter a custom Cry Baby/Chaser amount for this hole. Set the wolf manually via the Wolf row.</div>';
   html += '<div class="cb-amount-display" id="cbDisplay">$'+displayVal+'</div>';
@@ -12593,7 +12616,7 @@ function buildScorekeeperPanelHtml() {
   if (!_me && window.fbUser && window.fbUser.displayName) _me = window.fbUser.displayName.trim().toLowerCase();
 
   var html = '<div class="card" id="skPanel">';
-  html += '<div class="section-title">📋 Scorekeeper</div>';
+  html += '<div class="section-title">'+sgIcon('clipboard',16)+' Scorekeeper</div>';
   var hasGroups = false;
   state.days.forEach(function(d, dIdx) {
     var course = d.courseIdx != null ? MOCK_COURSES[d.courseIdx] : null;
@@ -13507,14 +13530,14 @@ function fbRenderAccountBody(prof) {
     '<div class="acct-card">' +
       '<div class="acct-action-row" onclick="fbCloseAccount();fbShowHistory();">' +
         '<div>' +
-          '<div class="acct-action-label">📋 Round History</div>' +
+          '<div class="acct-action-label">'+sgIcon('clipboard',16)+' Round History</div>' +
           '<div class="acct-action-sub">View all completed rounds</div>' +
         '</div>' +
         '<span class="acct-action-chev">›</span>' +
       '</div>' +
       '<div class="acct-action-row" onclick="fbCloseAccount();fbShowSeasonLedger();">' +
         '<div>' +
-          '<div class="acct-action-label">💰 Season Money Ledger</div>' +
+          '<div class="acct-action-label">'+sgIcon('ledger',16)+' Season Money Ledger</div>' +
           '<div class="acct-action-sub">Standings &amp; settlement across all rounds</div>' +
         '</div>' +
         '<span class="acct-action-chev">›</span>' +
@@ -14049,7 +14072,7 @@ if ('serviceWorker' in navigator) {
 <!-- ── QR Code Overlay ─────────────────────────────────────────────────── -->
 <div id="sgQrOverlay" class="sg-qr-overlay" onclick="if(event.target===this)closeQrOverlay()">
   <div class="sg-qr-sheet">
-    <div class="sg-qr-title">📱 Scan to Join</div>
+    <div class="sg-qr-title"><svg width="20" height="20" viewBox="0 0 48 48" fill="none" style="vertical-align:middle;margin-right:6px;"><rect x="10" y="2" width="28" height="44" rx="6" fill="none" stroke="#16284a" stroke-width="2.5"/><rect x="14" y="8" width="20" height="28" rx="2" fill="rgba(22,40,74,0.08)"/><rect x="16" y="10" width="7" height="7" rx="1" fill="#16284a"/><rect x="17" y="11" width="5" height="5" rx="0.5" fill="white"/><rect x="18" y="12" width="3" height="3" fill="#16284a"/><rect x="25" y="10" width="7" height="7" rx="1" fill="#16284a"/><rect x="26" y="11" width="5" height="5" rx="0.5" fill="white"/><rect x="27" y="12" width="3" height="3" fill="#16284a"/><rect x="16" y="19" width="7" height="7" rx="1" fill="#16284a"/><rect x="17" y="20" width="5" height="5" rx="0.5" fill="white"/><rect x="18" y="21" width="3" height="3" fill="#16284a"/><rect x="25" y="19" width="3" height="3" rx="0.5" fill="#16284a"/><rect x="29" y="19" width="3" height="3" rx="0.5" fill="#4f7942"/><rect x="25" y="23" width="3" height="3" rx="0.5" fill="#4f7942"/><rect x="29" y="23" width="3" height="3" rx="0.5" fill="#16284a"/><rect x="20" y="40" width="8" height="2.5" rx="1.5" fill="#16284a"/></svg>Scan to Join</div>
     <div class="sg-qr-sub">Share this QR with your group — scan to join instantly</div>
     <div class="sg-qr-canvas" id="sgQrCanvas"></div>
     <div class="sg-qr-code-lbl" id="sgQrCodeLbl"></div>
@@ -14061,7 +14084,7 @@ if ('serviceWorker' in navigator) {
 <!-- ── Join Choice Overlay (Watch Live vs Keep Score) ─────────────────── -->
 <div id="sgJcOverlay" class="sg-jc-overlay">
   <div class="sg-jc-sheet">
-    <div class="sg-jc-title">⛳ Joining this round</div>
+    <div class="sg-jc-title"><svg width="20" height="20" viewBox="0 0 48 48" fill="none" style="vertical-align:middle;margin-right:6px;"><ellipse cx="20" cy="44" rx="12" ry="3.5" fill="#16284a" opacity="0.2"/><line x1="20" y1="6" x2="20" y2="44" stroke="#16284a" stroke-width="2.5" stroke-linecap="round"/><polygon points="20,6 20,24 38,15" fill="#4f7942"/><circle cx="16" cy="44" r="3" fill="#16284a"/></svg>Joining this round</div>
     <div class="sg-jc-sub" id="sgJcCodeLbl">How do you want to join?</div>
     <button class="sg-jc-opt sg-jc-watch" onclick="sgJoinWatchLive()">
       <span class="sg-jc-icon">👁</span>
@@ -14093,13 +14116,13 @@ if ('serviceWorker' in navigator) {
 </div>
 
 <!-- ── Banker Game FAB ───────────────────────────────────────────────────── -->
-<button id="bankerFab" class="banker-fab" onclick="openBankerOverlay()" title="Set banker for this hole" aria-label="Banker wager entry" style="display:none;">🏦</button>
+<button id="bankerFab" class="banker-fab" onclick="openBankerOverlay()" title="Set banker for this hole" aria-label="Banker wager entry" style="display:none;"><svg width="24" height="24" viewBox="0 0 48 48" fill="none" style="vertical-align:middle;"><rect x="6" y="6" width="36" height="36" rx="8" fill="white"/><text x="24" y="33" text-anchor="middle" font-family="system-ui,sans-serif" font-size="26" font-weight="700" fill="#16284a">$</text></svg></button>
 
 <!-- Banker Overlay -->
 <div id="bankerOverlay" class="banker-overlay" style="display:none;" onclick="if(event.target===this)closeBankerOverlay();">
   <div class="banker-sheet">
     <div class="banker-sheet-header">
-      <span class="banker-sheet-title">🏦 Banker — Hole Setup</span>
+      <span class="banker-sheet-title"><svg width="20" height="20" viewBox="0 0 48 48" fill="none" style="vertical-align:middle;margin-right:5px;"><rect x="6" y="6" width="36" height="36" rx="8" fill="#16284a"/><text x="24" y="33" text-anchor="middle" font-family="system-ui,sans-serif" font-size="26" font-weight="700" fill="white">$</text></svg>Banker — Hole Setup</span>
       <button class="banker-close-btn" onclick="closeBankerOverlay()">✕</button>
     </div>
     <div id="bankerSheetBody"></div>
