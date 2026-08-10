@@ -18,6 +18,9 @@
     </div>
   </noscript>
 <script>
+// Always restart video from beginning (clear Stage's persisted playhead)
+localStorage.removeItem('animstage-v3:t');
+
 // QR tap fix: <a> inside SVG foreignObject doesn't navigate on iOS Safari.
 // Window-level listeners survive document.documentElement.replaceWith().
 (function() {
