@@ -1,5 +1,5 @@
 // SidieGolf Service Worker
-const CACHE_NAME = 'sidiegolf-v70';
+const CACHE_NAME = ' 'sidiegolf-v' + ([int]const CACHE_NAME = 'sidiegolf-v70';.Groups[1].Value + 1) ';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
