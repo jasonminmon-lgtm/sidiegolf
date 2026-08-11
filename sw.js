@@ -1,5 +1,5 @@
 // SidieGolf Service Worker
-const CACHE_NAME = ' 'sidiegolf-v' + ([int]const CACHE_NAME = 'sidiegolf-v70';.Groups[1].Value + 1) ';
+const CACHE_NAME = 'sidiegolf-v71';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -26,7 +26,7 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch: network-first for HTML/API, cache-first for static assets
+// Fetch: network-first for HTML, cache-first for static assets
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
