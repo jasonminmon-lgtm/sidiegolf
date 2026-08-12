@@ -5776,7 +5776,8 @@ function renderEventSchedule(){
         html += '<div class="group-summary-card"><div class="gtitle">Tee Time '+gn+' ('+idxs.length+' players)</div>';
         if (!idxs.length){ html += '<div style="font-size:12.5px;color:var(--muted);">No players assigned yet.</div>'; }
         else {
-          var strokes = strokesForGroup(idxs, course, tee);
+          var hpct = (d.groupHcpPct && d.groupHcpPct[gn] != null) ? d.groupHcpPct[gn] : 100;
+          var strokes = strokesForGroup(idxs, course, tee, hpct);
           idxs.forEach(function(i){
             var s = strokes[i];
             var stext = s.ch==null ? 'enter HCP index' : (s.strokes>0 ? '+'+s.strokes+' strokes' : 'scratch (low handicap)');
@@ -5941,9 +5942,8 @@ function renderEventSchedule(){
       var d = state.days.filter(function(x){return x.id===dayId;})[0];
       if (!d.groupHcpPct) d.groupHcpPct = {};
       d.groupHcpPct[gn] = parseInt(el.value, 10);
-      var dispEl = document.getElementById('rc-hpct-val-'+dayId+'_'+gn);
-      if (dispEl) dispEl.textContent = el.value + '%';
       if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+      renderEventSchedule(); // re-render so stroke counts update immediately
     });
   });
   // Ryder Cup: day format pills (pre-lock)
