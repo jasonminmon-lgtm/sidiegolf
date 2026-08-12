@@ -6083,7 +6083,7 @@ function buildQuotaSplitRowsHtml(gid, places, splitArr){
     var pct=splitArr[i]!=null?splitArr[i]:0;
     html+='<div class="hcp-pct-row" style="margin-top:4px;">';
     html+='<span style="min-width:54px;font-size:13px;">'+(ords[i]||('Place '+(i+1)))+'</span>';
-    html+='<input type="number" min="0" max="100" step="1" value="'+pct+'" data-quota-split-input="'+gid+'|'+i+'" style="width:58px;text-align:right;">';
+    html+='<input type="number" min="0" max="100" step="1" value="'+pct+'" data-quota-split-input="'+gid+'|'+i+'" style="width:76px;text-align:right;">';
     html+='<span style="margin-left:4px;font-size:13px;">%</span>';
     html+='</div>';
   }
@@ -6366,12 +6366,6 @@ function buildGameCardHtml(g, scope){
     var _qSplitArr = _qSplitStr.split(',').map(function(x){return parseFloat(x)||0;});
     var _qTotal = _qSplitArr.reduce(function(a,b){return a+b;},0);
     html += '<label class="field-label">Payout Split</label>';
-    html += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;">';
-    html += '<button class="pill-btn" data-quota-preset="'+g.id+'|1|100">WTA</button>';
-    html += '<button class="pill-btn" data-quota-preset="'+g.id+'|2|60,40">60/40</button>';
-    html += '<button class="pill-btn" data-quota-preset="'+g.id+'|3|55,30,15">55/30/15</button>';
-    html += '<button class="pill-btn" data-quota-preset="'+g.id+'|4|50,25,15,10">50/25/15/10</button>';
-    html += '</div>';
     html += '<div class="hcp-pct-row" style="gap:8px;margin-bottom:6px;">';
     html += '<span style="font-size:13px;">Places paid:</span>';
     html += '<select data-quota-places="'+g.id+'">';
@@ -6391,36 +6385,60 @@ function buildGameCardHtml(g, scope){
   if (g.type==='Nassau Matches'){
     var _nmMatches = g.matches || [];
     html += '<label class="field-label">Matchups</label>';
-    if (!_nmMatches.length) html += '<div style="font-size:13px;color:var(--muted);margin-bottom:8px;">No matches added yet. Press "+ Add Match" below.</div>';
+    if (!_nmMatches.length) html += '<div style="font-size:13px;color:var(--muted);margin-bottom:12px;">No matches yet. Tap "+ Add Match" to set one up.</div>';
     _nmMatches.forEach(function(m, mi){
       var fmt = m.fmt||'1v1';
       var sideA = m.sideA||[], sideB = m.sideB||[];
-      html += '<div style="background:var(--card2,rgba(255,255,255,.07));border-radius:10px;padding:12px;margin-bottom:10px;">';
-      html += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;">';
-      html += '<span style="font-size:13px;font-weight:600;flex:1;">Match '+(mi+1)+'</span>';
+      var maxPerSide = (fmt==='2v2') ? 2 : 1;
+      var unassigned = g.participants.filter(function(pidx){ return sideA.indexOf(pidx)===-1 && sideB.indexOf(pidx)===-1; });
+      html += '<div style="background:var(--card2,rgba(255,255,255,.07));border-radius:14px;padding:14px;margin-bottom:12px;">';
+      // Header row
+      html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">';
+      html += '<span style="font-size:14px;font-weight:600;flex:1;">Match '+(mi+1)+'</span>';
       html += '<button class="pill-btn'+(fmt==='1v1'?' active':'')+'" data-nm-fmt="'+g.id+'|'+mi+'|1v1">1v1</button>';
       html += '<button class="pill-btn'+(fmt==='2v2'?' active':'')+'" data-nm-fmt="'+g.id+'|'+mi+'|2v2">2v2</button>';
-      html += '<button class="pill-btn" style="color:var(--red,#e55);" data-nm-remove="'+g.id+'|'+mi+'">✕ Remove</button>';
+      html += '<button class="pill-btn" style="color:var(--red,#e55);margin-left:4px;" data-nm-remove="'+g.id+'|'+mi+'">✕</button>';
       html += '</div>';
-      var slotsPerSide = (fmt==='2v2') ? 2 : 1;
-      ['A','B'].forEach(function(side){
-        var curSide = side==='A' ? sideA : sideB;
-        html += '<div style="margin-bottom:6px;"><span style="font-size:12px;color:var(--muted);font-weight:600;">Side '+side+'</span></div>';
-        for(var si=0;si<slotsPerSide;si++){
-          var curPidx = curSide[si]!=null ? curSide[si] : -1;
-          html += '<select data-nm-player="'+g.id+'|'+mi+'|'+side+'|'+si+'" style="margin-bottom:4px;width:100%;">';
-          html += '<option value="-1">— pick player —</option>';
-          g.participants.forEach(function(pidx){
-            var pname=(state.players[pidx]||{}).name||('Player '+(pidx+1));
-            html+='<option value="'+pidx+'"'+(pidx===curPidx?' selected':'')+'>'+pname+'</option>';
-          });
-          html += '</select>';
-        }
-      });
-      html += '<div style="display:flex;gap:6px;margin-top:8px;">';
-      html += '<div style="flex:1;text-align:center;"><div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Front $</div><input type="number" min="0" step="1" value="'+(m.front||'')+'" data-nm-stake="'+g.id+'|'+mi+'|front" style="width:100%;text-align:center;"></div>';
-      html += '<div style="flex:1;text-align:center;"><div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Back $</div><input type="number" min="0" step="1" value="'+(m.back||'')+'" data-nm-stake="'+g.id+'|'+mi+'|back" style="width:100%;text-align:center;"></div>';
-      html += '<div style="flex:1;text-align:center;"><div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Total $</div><input type="number" min="0" step="1" value="'+(m.total||'')+'" data-nm-stake="'+g.id+'|'+mi+'|total" style="width:100%;text-align:center;"></div>';
+      // Side assignment — same style as standard Nassau team picker
+      html += '<label class="field-label">Side Assignment <span style="font-weight:400;font-size:11px;color:var(--muted);">(tap a player to move)</span></label>';
+      html += '<div class="team-picker">';
+      // Side A column
+      html += '<div class="team-col team-a-col"><div class="team-col-label" style="color:#3a5b31;">'+sgIcon('flag',14)+' Side A</div>';
+      if (sideA.length) {
+        sideA.forEach(function(pidx){
+          var nm = (state.players[pidx]||{}).name||('Player '+(pidx+1));
+          html += '<div class="team-chip" data-nm-chip="'+g.id+'|'+mi+'|'+pidx+'">'+escapeHtml(nm)+' <span class="tc-arrow">→B</span></div>';
+        });
+      } else {
+        html += '<div style="font-size:11.5px;color:var(--muted);padding:4px;">Empty</div>';
+      }
+      html += '</div>';
+      // Side B column
+      html += '<div class="team-col team-b-col"><div class="team-col-label" style="color:#1a5ca8;">'+sgIcon('flag',14)+' Side B</div>';
+      if (sideB.length) {
+        sideB.forEach(function(pidx){
+          var nm = (state.players[pidx]||{}).name||('Player '+(pidx+1));
+          html += '<div class="team-chip" data-nm-chip="'+g.id+'|'+mi+'|'+pidx+'">'+escapeHtml(nm)+' <span class="tc-arrow">→off</span></div>';
+        });
+      } else {
+        html += '<div style="font-size:11.5px;color:var(--muted);padding:4px;">Empty</div>';
+      }
+      html += '</div>';
+      html += '</div>';
+      // Unassigned players (tap to add to Side A)
+      if (unassigned.length) {
+        html += '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">';
+        unassigned.forEach(function(pidx){
+          var nm = (state.players[pidx]||{}).name||('Player '+(pidx+1));
+          html += '<div class="team-chip" style="opacity:0.45;" data-nm-chip="'+g.id+'|'+mi+'|'+pidx+'">'+escapeHtml(nm)+'</div>';
+        });
+        html += '</div>';
+      }
+      // Stakes
+      html += '<div style="display:flex;gap:8px;margin-top:14px;">';
+      html += '<div style="flex:1;"><label class="field-label" style="margin-bottom:4px;">Front 9 $</label><input type="number" min="0" step="1" value="'+(m.front||'')+'" data-nm-stake="'+g.id+'|'+mi+'|front" style="width:100%;"></div>';
+      html += '<div style="flex:1;"><label class="field-label" style="margin-bottom:4px;">Back 9 $</label><input type="number" min="0" step="1" value="'+(m.back||'')+'" data-nm-stake="'+g.id+'|'+mi+'|back" style="width:100%;"></div>';
+      html += '<div style="flex:1;"><label class="field-label" style="margin-bottom:4px;">Total 18 $</label><input type="number" min="0" step="1" value="'+(m.total||'')+'" data-nm-stake="'+g.id+'|'+mi+'|total" style="width:100%;"></div>';
       html += '</div>';
       html += '</div>';
     });
@@ -6745,17 +6763,28 @@ function wireGameCardEvents(scope){
       rerenderScopeList(scope);
     });
   });
-  // Nassau Matches: Player picker
-  Array.prototype.forEach.call(root.querySelectorAll('[data-nm-player]'), function(el){
-    el.addEventListener('change', function(){
-      var parts = el.getAttribute('data-nm-player').split('|');
-      var id=parseInt(parts[0],10), mi=parseInt(parts[1],10), side=parts[2], si=parseInt(parts[3],10);
+  // Nassau Matches: Chip tap (3-state: unassigned → A → B → unassigned)
+  Array.prototype.forEach.call(root.querySelectorAll('[data-nm-chip]'), function(el){
+    el.addEventListener('click', function(){
+      var parts = el.getAttribute('data-nm-chip').split('|');
+      var id=parseInt(parts[0],10), mi=parseInt(parts[1],10), pidx=parseInt(parts[2],10);
       var g = findGameById(id, scope);
       if (!g.matches || !g.matches[mi]) return;
-      if (side==='A') g.matches[mi].sideA = g.matches[mi].sideA.slice();
-      else g.matches[mi].sideB = g.matches[mi].sideB.slice();
-      var target = side==='A' ? g.matches[mi].sideA : g.matches[mi].sideB;
-      target[si] = parseInt(el.value,10);
+      var m = g.matches[mi];
+      if (!m.sideA) m.sideA = [];
+      if (!m.sideB) m.sideB = [];
+      var maxPerSide = (m.fmt==='2v2') ? 2 : 1;
+      var inA = m.sideA.indexOf(pidx) !== -1;
+      var inB = m.sideB.indexOf(pidx) !== -1;
+      if (!inA && !inB) {
+        if (m.sideA.length < maxPerSide) m.sideA.push(pidx);
+      } else if (inA) {
+        m.sideA = m.sideA.filter(function(x){return x!==pidx;});
+        if (m.sideB.length < maxPerSide) m.sideB.push(pidx);
+      } else {
+        m.sideB = m.sideB.filter(function(x){return x!==pidx;});
+      }
+      rerenderScopeList(scope);
       if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
     });
   });
