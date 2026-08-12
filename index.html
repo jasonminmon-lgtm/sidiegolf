@@ -2214,12 +2214,10 @@
     // the day-wide pool when this game lives on day.dayGames, per the
     // multi-tee-time Quota buy-in described in the product spec).
     if (buyin) {
-      var payouts = SidieGolfEngine.quotaPayouts(buyin, game.participants.length, game.stakes.payoutStructure);
+      var payouts = SidieGolfEngine.quotaPayouts(buyin, game.participants.length, game.stakes.payoutPlaces, game.stakes.payoutSplit);
       var ranked = game.participants.slice().sort(function (a, b) { return pointsOverQuota[b] - pointsOverQuota[a]; });
       game.participants.forEach(function (id) { deltas[id] -= buyin; }); // everyone buys in
-      if (ranked[0] != null) deltas[ranked[0]] += payouts.first;
-      if (ranked[1] != null) deltas[ranked[1]] += payouts.second;
-      if (ranked[2] != null) deltas[ranked[2]] += payouts.third;
+      payouts.places.forEach(function(pl, i) { if (ranked[i] != null) deltas[ranked[i]] += pl.amt; });
     }
     return deltas;
   };
@@ -2230,12 +2228,19 @@
     return Math.round(course.par / 18);
   }
 
-  SidieGolfEngine.quotaPayouts = function (buyin, numPlayers, structure) {
+  SidieGolfEngine.quotaPayouts = function (buyin, numPlayers, payoutPlaces, payoutSplit) {
     var pot = (buyin || 0) * (numPlayers || 0);
-    if (structure === 'Winner Take All') {
-      return { pot: pot, structure: 'wta', first: pot, second: 0, third: 0 };
+    var n = parseInt(payoutPlaces, 10) || 3;
+    var rawSplit = payoutSplit ? String(payoutSplit).split(',').map(function(x){return parseFloat(x)||0;}) : null;
+    if (!rawSplit || !rawSplit.length) {
+      var defs = {1:[100],2:[60,40],3:[55,30,15],4:[50,25,15,10],5:[45,25,15,10,5]};
+      rawSplit = defs[Math.min(n,5)] || [100];
     }
-    return { pot: pot, structure: 'top3', first: pot * 0.55, second: pot * 0.30, third: pot * 0.15 };
+    var places = rawSplit.slice(0,n).map(function(pct,i){return{rank:i+1,pct:pct,amt:pot*pct/100};});
+    return { pot: pot, places: places,
+      first:  places[0] ? places[0].amt : 0,
+      second: places[1] ? places[1].amt : 0,
+      third:  places[2] ? places[2].amt : 0 };
   };
 
   // ---------------- ROUND ROBIN (2-man teams) ----------------
@@ -2255,6 +2260,54 @@
     segments.forEach(function (seg) {
       var res = SidieGolfEngine.computeMatchPlayResult(ctx, seg.teamA, seg.teamB, seg.holes);
       settleMatch(deltas, seg.teamA, seg.teamB, res, amount);
+    });
+    return deltas;
+  };
+
+  // ──── Nassau Matches (cross-group, day-scope) ────────────────────────────
+  // Each match in game.matches: { fmt:'1v1'|'2v2', sideA:[id,...], sideB:[id,...],
+  //   front, back, total } — net stroke play comparison; 2v2 uses best-ball net.
+  games['Nassau Matches'] = function (game, ctx) {
+    var deltas = zero(game.participants);
+    var matches = game.matches || [];
+    matches.forEach(function (m) {
+      var sideA = (m.sideA || []).filter(function(id){return deltas[id]!==undefined;});
+      var sideB = (m.sideB || []).filter(function(id){return deltas[id]!==undefined;});
+      if (!sideA.length || !sideB.length) return;
+      var fmt   = m.fmt || '1v1';
+      var front = parseFloat(m.front) || 0;
+      var back  = parseFloat(m.back)  || 0;
+      var total = parseFloat(m.total) || 0;
+      function sideNet(playerIds, holes) {
+        if (fmt === '2v2') {
+          var tot = 0;
+          holes.forEach(function (h) {
+            var best = null;
+            playerIds.forEach(function (pid) {
+              var n = netFor(ctx, pid, h);
+              if (n !== null && (best === null || n < best)) best = n;
+            });
+            if (best !== null) tot += best;
+          });
+          return tot;
+        } else {
+          var tot = 0;
+          holes.forEach(function (h) {
+            var n = netFor(ctx, playerIds[0], h);
+            if (n !== null) tot += n;
+          });
+          return tot;
+        }
+      }
+      function award(amt, winners, losers) {
+        var ws = amt / winners.length, ls = amt / losers.length;
+        winners.forEach(function(id){ deltas[id] += ws; });
+        losers.forEach(function(id){ deltas[id] -= ls; });
+      }
+      var frontH = range(1,9), backH = range(10,18), allH = range(1,18);
+      if (front) { var aF=sideNet(sideA,frontH), bF=sideNet(sideB,frontH); if(aF<bF) award(front,sideA,sideB); else if(bF<aF) award(front,sideB,sideA); }
+      if (back)  { var aB=sideNet(sideA,backH),  bB=sideNet(sideB,backH);  if(aB<bB) award(back, sideA,sideB); else if(bB<aB) award(back, sideB,sideA); }
+      if (total) { var aT=sideNet(sideA,allH),   bT=sideNet(sideB,allH);   if(aT<bT) award(total,sideA,sideB); else if(bT<aT) award(total,sideB,sideA); }
     });
     return deltas;
   };
@@ -3495,9 +3548,13 @@ var SIDE_GAME_DEFS = {
     fields:[
       {key:'amount', label:'$ Per Point', type:'number', placeholder:'1'},
       {key:'buyin', label:'Buy-In Per Player ($)', type:'number', placeholder:'100'},
-      {key:'payoutStructure', label:'Payout Structure', type:'select', options:['Top 3 (55/30/15)','Winner Take All']},
       {key:'quotaPoints', label:'Points System', type:'select', options:['Standard Stableford','Modified Stableford']}
     ]
+  },
+  'Nassau Matches': {
+    desc: 'Cross-group Nassau — compare net stroke scores between individual (1v1) or team (2v2 best ball) matchups across separate tee times.',
+    scope: 'day',
+    fields: []
   },
   'Round Robin (2-man teams)': {
     desc:'Partners rotate every 6 holes; settle up per segment.',
@@ -6012,12 +6069,25 @@ function dayGameTypeNames(){
   return Object.keys(SIDE_GAME_DEFS).filter(function(name){ return !SIDE_GAME_DEFS[name].legacy && SIDE_GAME_DEFS[name].scope === 'day'; });
 }
 
-function quotaPayouts(buyin, numPlayers, structure){
-  var pot = (buyin||0) * (numPlayers||0);
-  if (structure === 'Winner Take All') {
-    return { pot: pot, structure: 'wta', first: pot, second: 0, third: 0 };
+function quotaPayouts(buyin, numPlayers, payoutPlaces, payoutSplit){
+  return SidieGolfEngine.quotaPayouts(buyin, numPlayers, payoutPlaces, payoutSplit);
+}
+function defaultQuotaSplit(n){
+  var d={1:'100',2:'60,40',3:'55,30,15',4:'50,25,15,10',5:'45,25,15,10,5'};
+  return d[Math.min(n,5)]||'100';
+}
+function buildQuotaSplitRowsHtml(gid, places, splitArr){
+  var ords=['1st','2nd','3rd','4th','5th','6th','7th','8th'];
+  var html='';
+  for(var i=0;i<places;i++){
+    var pct=splitArr[i]!=null?splitArr[i]:0;
+    html+='<div class="hcp-pct-row" style="margin-top:4px;">';
+    html+='<span style="min-width:54px;font-size:13px;">'+(ords[i]||('Place '+(i+1)))+'</span>';
+    html+='<input type="number" min="0" max="100" step="1" value="'+pct+'" data-quota-split-input="'+gid+'|'+i+'" style="width:58px;text-align:right;">';
+    html+='<span style="margin-left:4px;font-size:13px;">%</span>';
+    html+='</div>';
   }
-  return { pot: pot, structure: 'top3', first: pot*0.55, second: pot*0.30, third: pot*0.15 };
+  return html;
 }
 
 function summarizeStakes(g){
@@ -6290,16 +6360,71 @@ function buildGameCardHtml(g, scope){
       html += '<input type="number" min="0" step="1" placeholder="'+(f.placeholder||'')+'" value="'+(g.stakes[f.key]!=null?g.stakes[f.key]:'')+'" data-game-field="'+g.id+'|'+f.key+'">';
     }
   });
-  if (g.type==='Quota' && g.stakes.buyin){
-    var po = quotaPayouts(parseFloat(g.stakes.buyin)||0, g.participants.length, g.stakes.payoutStructure);
-    html += '<div class="payout-box" id="payout-'+g.id+'">'+quotaPayoutHtml(po, g.participants.length)+'</div>';
-    // Suggest Winner Take All for small groups
-    if (g.participants.length < 4 && (g.stakes.payoutStructure || 'Top 3 (55/30/15)') !== 'Winner Take All'){
-      html += '<div style="font-size:11px;color:var(--muted);margin-top:4px;">💡 With '+g.participants.length+' players, consider "Winner Take All" payout.</div>';
+  if (g.type==='Quota'){
+    var _qPlaces = parseInt(g.stakes.payoutPlaces)||3;
+    var _qSplitStr = g.stakes.payoutSplit || defaultQuotaSplit(_qPlaces);
+    var _qSplitArr = _qSplitStr.split(',').map(function(x){return parseFloat(x)||0;});
+    var _qTotal = _qSplitArr.reduce(function(a,b){return a+b;},0);
+    html += '<label class="field-label">Payout Split</label>';
+    html += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;">';
+    html += '<button class="pill-btn" data-quota-preset="'+g.id+'|1|100">WTA</button>';
+    html += '<button class="pill-btn" data-quota-preset="'+g.id+'|2|60,40">60/40</button>';
+    html += '<button class="pill-btn" data-quota-preset="'+g.id+'|3|55,30,15">55/30/15</button>';
+    html += '<button class="pill-btn" data-quota-preset="'+g.id+'|4|50,25,15,10">50/25/15/10</button>';
+    html += '</div>';
+    html += '<div class="hcp-pct-row" style="gap:8px;margin-bottom:6px;">';
+    html += '<span style="font-size:13px;">Places paid:</span>';
+    html += '<select data-quota-places="'+g.id+'">';
+    for(var _pi=1;_pi<=8;_pi++){ html+='<option value="'+_pi+'"'+(_pi===_qPlaces?' selected':'')+'>'+_pi+'</option>'; }
+    html += '</select></div>';
+    html += '<div id="quota-split-rows-'+g.id+'">'+buildQuotaSplitRowsHtml(g.id, _qPlaces, _qSplitArr)+'</div>';
+    var _qOk = Math.abs(_qTotal-100)<0.01;
+    html += '<div class="quota-pct-total" id="quota-total-'+g.id+'" style="font-size:12px;margin-top:4px;color:'+(_qOk?'var(--green)':'var(--red)')+'">Total: '+_qTotal.toFixed(1)+'%'+(_qOk?' ✓':' — must equal 100%')+'</div>';
+    if (g.stakes.buyin){
+      var _qPo = quotaPayouts(parseFloat(g.stakes.buyin)||0, g.participants.length, _qPlaces, _qSplitStr);
+      html += '<div class="payout-box" id="payout-'+g.id+'">'+quotaPayoutHtml(_qPo, g.participants.length)+'</div>';
+    }
+    if (g.stakes.quotaPoints==='Modified Stableford'){
+      html += modifiedStablefordTableEditorHtml();
     }
   }
-  if (g.type==='Quota' && g.stakes.quotaPoints==='Modified Stableford'){
-    html += modifiedStablefordTableEditorHtml();
+  if (g.type==='Nassau Matches'){
+    var _nmMatches = g.matches || [];
+    html += '<label class="field-label">Matchups</label>';
+    if (!_nmMatches.length) html += '<div style="font-size:13px;color:var(--muted);margin-bottom:8px;">No matches added yet. Press "+ Add Match" below.</div>';
+    _nmMatches.forEach(function(m, mi){
+      var fmt = m.fmt||'1v1';
+      var sideA = m.sideA||[], sideB = m.sideB||[];
+      html += '<div style="background:var(--card2,rgba(255,255,255,.07));border-radius:10px;padding:12px;margin-bottom:10px;">';
+      html += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;">';
+      html += '<span style="font-size:13px;font-weight:600;flex:1;">Match '+(mi+1)+'</span>';
+      html += '<button class="pill-btn'+(fmt==='1v1'?' active':'')+'" data-nm-fmt="'+g.id+'|'+mi+'|1v1">1v1</button>';
+      html += '<button class="pill-btn'+(fmt==='2v2'?' active':'')+'" data-nm-fmt="'+g.id+'|'+mi+'|2v2">2v2</button>';
+      html += '<button class="pill-btn" style="color:var(--red,#e55);" data-nm-remove="'+g.id+'|'+mi+'">✕ Remove</button>';
+      html += '</div>';
+      var slotsPerSide = (fmt==='2v2') ? 2 : 1;
+      ['A','B'].forEach(function(side){
+        var curSide = side==='A' ? sideA : sideB;
+        html += '<div style="margin-bottom:6px;"><span style="font-size:12px;color:var(--muted);font-weight:600;">Side '+side+'</span></div>';
+        for(var si=0;si<slotsPerSide;si++){
+          var curPidx = curSide[si]!=null ? curSide[si] : -1;
+          html += '<select data-nm-player="'+g.id+'|'+mi+'|'+side+'|'+si+'" style="margin-bottom:4px;width:100%;">';
+          html += '<option value="-1">— pick player —</option>';
+          g.participants.forEach(function(pidx){
+            var pname=(state.players[pidx]||{}).name||('Player '+(pidx+1));
+            html+='<option value="'+pidx+'"'+(pidx===curPidx?' selected':'')+'>'+pname+'</option>';
+          });
+          html += '</select>';
+        }
+      });
+      html += '<div style="display:flex;gap:6px;margin-top:8px;">';
+      html += '<div style="flex:1;text-align:center;"><div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Front $</div><input type="number" min="0" step="1" value="'+(m.front||'')+'" data-nm-stake="'+g.id+'|'+mi+'|front" style="width:100%;text-align:center;"></div>';
+      html += '<div style="flex:1;text-align:center;"><div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Back $</div><input type="number" min="0" step="1" value="'+(m.back||'')+'" data-nm-stake="'+g.id+'|'+mi+'|back" style="width:100%;text-align:center;"></div>';
+      html += '<div style="flex:1;text-align:center;"><div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Total $</div><input type="number" min="0" step="1" value="'+(m.total||'')+'" data-nm-stake="'+g.id+'|'+mi+'|total" style="width:100%;text-align:center;"></div>';
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '<button class="pill-btn" data-nm-add="'+g.id+'" style="margin-top:4px;">+ Add Match</button>';
   }
   if (g.type==='Wolf' || g.type==='Hammer Wolf' || g.type==='3-Man Wolf'){
     html += buildWolfTeeOrderHtml(g);
@@ -6386,14 +6511,11 @@ function buildWolfTeeOrderHtml(g){
 }
 
 function quotaPayoutHtml(po, numPlayers){
-  var html = '<div class="payout-title">Buy-In Pot ('+numPlayers+' players): $'+po.pot.toFixed(2)+'</div>';
-  if (po.structure === 'wta') {
-    html += '<div class="hcp-row"><span>Winner Take All (100%)</span><span class="strokes">$'+po.first.toFixed(2)+'</span></div>';
-  } else {
-    html += '<div class="hcp-row"><span>1st place (55%)</span><span class="strokes">$'+po.first.toFixed(2)+'</span></div>'+
-      '<div class="hcp-row"><span>2nd place (30%)</span><span class="strokes">$'+po.second.toFixed(2)+'</span></div>'+
-      '<div class="hcp-row"><span>3rd place (15%)</span><span class="strokes">$'+po.third.toFixed(2)+'</span></div>';
-  }
+  var ords=['1st','2nd','3rd','4th','5th','6th','7th','8th'];
+  var html='<div class="payout-title">Buy-In Pot ('+numPlayers+' players): $'+po.pot.toFixed(2)+'</div>';
+  (po.places||[]).forEach(function(pl,i){
+    html+='<div class="hcp-row"><span>'+(ords[i]||('Place '+(i+1)))+' ('+pl.pct+'%)</span><span class="strokes">$'+pl.amt.toFixed(2)+'</span></div>';
+  });
   return html;
 }
 
@@ -6495,9 +6617,9 @@ function wireGameCardEvents(scope){
       // Re-render Scotch card when team method changes (shows/hides team picker)
       if (g.type==='Scotch' && key === 'teamMethod') { rerenderScopeList(scope); return; }
       if (g.type==='Quota'){
-        if (key === 'quotaPoints' || key === 'payoutStructure'){ rerenderScopeList(scope); return; }
+        if (key === 'quotaPoints'){ rerenderScopeList(scope); return; }
         var payoutEl = root.querySelector('#payout-'+id);
-        var po = quotaPayouts(parseFloat(g.stakes.buyin)||0, g.participants.length, g.stakes.payoutStructure);
+        var po = quotaPayouts(parseFloat(g.stakes.buyin)||0, g.participants.length, g.stakes.payoutPlaces, g.stakes.payoutSplit);
         if (g.stakes.buyin){
           if (payoutEl){ payoutEl.innerHTML = quotaPayoutHtml(po, g.participants.length); }
           else { rerenderScopeList(scope); }
@@ -6548,6 +6670,103 @@ function wireGameCardEvents(scope){
       var g = findGameById(gid, scope);
       delete g.stakes.teeOrder;
       rerenderScopeList(scope);
+    });
+  });
+  // Quota payout preset buttons
+  Array.prototype.forEach.call(root.querySelectorAll('[data-quota-preset]'), function(el){
+    el.addEventListener('click', function(){
+      var parts = el.getAttribute('data-quota-preset').split('|');
+      var id = parseInt(parts[0],10), places = parseInt(parts[1],10), split = parts[2];
+      var g = findGameById(id, scope);
+      g.stakes.payoutPlaces = places; g.stakes.payoutSplit = split;
+      rerenderScopeList(scope);
+    });
+  });
+  // Quota places-count selector
+  Array.prototype.forEach.call(root.querySelectorAll('[data-quota-places]'), function(el){
+    el.addEventListener('change', function(){
+      var id = parseInt(el.getAttribute('data-quota-places'),10);
+      var g = findGameById(id, scope);
+      var np = parseInt(el.value,10);
+      g.stakes.payoutPlaces = np; g.stakes.payoutSplit = defaultQuotaSplit(np);
+      rerenderScopeList(scope);
+    });
+  });
+  // Quota per-place % inputs — live-update total indicator + payout box
+  Array.prototype.forEach.call(root.querySelectorAll('[data-quota-split-input]'), function(el){
+    el.addEventListener('input', function(){
+      var parts = el.getAttribute('data-quota-split-input').split('|');
+      var id = parseInt(parts[0],10);
+      var g = findGameById(id, scope);
+      var rows = root.querySelectorAll('[data-quota-split-input^="'+id+'|"]');
+      var splitArr = [];
+      Array.prototype.forEach.call(rows, function(inp){ splitArr.push(parseFloat(inp.value)||0); });
+      g.stakes.payoutSplit = splitArr.join(',');
+      var total = splitArr.reduce(function(a,b){return a+b;},0);
+      var ok = Math.abs(total-100)<0.01;
+      var totalEl = root.querySelector('#quota-total-'+id);
+      if (totalEl){ totalEl.textContent='Total: '+total.toFixed(1)+'%'+(ok?' ✓':' — must equal 100%'); totalEl.style.color=ok?'var(--green)':'var(--red)'; }
+      if (ok && g.stakes.buyin){
+        var payoutEl = root.querySelector('#payout-'+id);
+        var np = parseInt(g.stakes.payoutPlaces)||3;
+        var po = quotaPayouts(parseFloat(g.stakes.buyin)||0, g.participants.length, np, g.stakes.payoutSplit);
+        if (payoutEl) payoutEl.innerHTML = quotaPayoutHtml(po, g.participants.length);
+        else rerenderScopeList(scope);
+      }
+    });
+  });
+  // Nassau Matches: Add match
+  Array.prototype.forEach.call(root.querySelectorAll('[data-nm-add]'), function(el){
+    el.addEventListener('click', function(){
+      var id = parseInt(el.getAttribute('data-nm-add'),10);
+      var g = findGameById(id, scope);
+      if (!g.matches) g.matches = [];
+      g.matches.push({ fmt:'1v1', sideA:[], sideB:[], front:'', back:'', total:'' });
+      rerenderScopeList(scope);
+    });
+  });
+  // Nassau Matches: Remove match
+  Array.prototype.forEach.call(root.querySelectorAll('[data-nm-remove]'), function(el){
+    el.addEventListener('click', function(){
+      var parts = el.getAttribute('data-nm-remove').split('|');
+      var id = parseInt(parts[0],10), mi = parseInt(parts[1],10);
+      var g = findGameById(id, scope);
+      if (g.matches) g.matches.splice(mi,1);
+      rerenderScopeList(scope);
+    });
+  });
+  // Nassau Matches: Format toggle (1v1 / 2v2)
+  Array.prototype.forEach.call(root.querySelectorAll('[data-nm-fmt]'), function(el){
+    el.addEventListener('click', function(){
+      var parts = el.getAttribute('data-nm-fmt').split('|');
+      var id = parseInt(parts[0],10), mi = parseInt(parts[1],10), fmt = parts[2];
+      var g = findGameById(id, scope);
+      if (g.matches && g.matches[mi]) { g.matches[mi].fmt = fmt; g.matches[mi].sideA=[]; g.matches[mi].sideB=[]; }
+      rerenderScopeList(scope);
+    });
+  });
+  // Nassau Matches: Player picker
+  Array.prototype.forEach.call(root.querySelectorAll('[data-nm-player]'), function(el){
+    el.addEventListener('change', function(){
+      var parts = el.getAttribute('data-nm-player').split('|');
+      var id=parseInt(parts[0],10), mi=parseInt(parts[1],10), side=parts[2], si=parseInt(parts[3],10);
+      var g = findGameById(id, scope);
+      if (!g.matches || !g.matches[mi]) return;
+      if (side==='A') g.matches[mi].sideA = g.matches[mi].sideA.slice();
+      else g.matches[mi].sideB = g.matches[mi].sideB.slice();
+      var target = side==='A' ? g.matches[mi].sideA : g.matches[mi].sideB;
+      target[si] = parseInt(el.value,10);
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    });
+  });
+  // Nassau Matches: Stakes (front/back/total)
+  Array.prototype.forEach.call(root.querySelectorAll('[data-nm-stake]'), function(el){
+    el.addEventListener('input', function(){
+      var parts = el.getAttribute('data-nm-stake').split('|');
+      var id=parseInt(parts[0],10), mi=parseInt(parts[1],10), key=parts[2];
+      var g = findGameById(id, scope);
+      if (g.matches && g.matches[mi]) { g.matches[mi][key] = el.value; }
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
     });
   });
   wireModsfTableInputs(root);
@@ -8670,7 +8889,7 @@ function renderReview(){
         dayGames.forEach(function(g){
           html += '<div class="hcp-row"><span>'+g.type+' (Event-Wide)</span><span class="strokes">'+(summarizeStakes(g)||'no stakes set')+'</span></div>';
           if (g.type==='Quota' && g.stakes.buyin){
-            var po = quotaPayouts(parseFloat(g.stakes.buyin)||0, g.participants.length, g.stakes.payoutStructure);
+            var po = quotaPayouts(parseFloat(g.stakes.buyin)||0, g.participants.length, g.stakes.payoutPlaces, g.stakes.payoutSplit);
             html += '<div class="payout-box">'+quotaPayoutHtml(po, g.participants.length)+'</div>';
           }
         });
@@ -8855,6 +9074,20 @@ function buildEngineGame(g){
   // Scotch: pass teamAssign so getTeams() reads user-configured teams (Captain's Draft).
   if (g.type === 'Scotch' && g.teamAssign) {
     game.teamAssign = g.teamAssign;
+  }
+
+  // Nassau Matches: pass matches array with stringified player IDs
+  if (g.type === 'Nassau Matches') {
+    game.matches = (g.matches || []).map(function(m) {
+      return {
+        fmt:   m.fmt || '1v1',
+        sideA: (m.sideA || []).filter(function(x){ return x != null && x >= 0; }).map(String),
+        sideB: (m.sideB || []).filter(function(x){ return x != null && x >= 0; }).map(String),
+        front: parseFloat(m.front) || 0,
+        back:  parseFloat(m.back)  || 0,
+        total: parseFloat(m.total) || 0
+      };
+    });
   }
 
   // Quota: pass the resolved points table so money and display always use the same math.
@@ -11154,6 +11387,14 @@ function matchPlayLeaderboardHtml(idxs, ctx, sc, title){
 // `scope`/`total` (override-aware, precomputed by the caller) drive the
 // clickable Reconciled ledger card at the bottom — clicking it opens a
 // combined (front+back+total) hole-by-hole breakdown for this Nassau game.
+function nassauMatchesResultHtml(g, engineGame, ctx, context, scope, total){
+  var matches = engineGame.matches || [];
+  var label = 'Nassau Matches' + (context ? ' ('+context+')' : '');
+  if (!matches.length) return '<div class="card"><div class="section-title">'+label+'</div><div class="empty-state" style="padding:14px;">No matches configured.</div></div>';
+  var hasScores = Object.values(ctx.scores||{}).some(function(r){ return Object.values(r||{}).some(function(v){return v!=null;}); });
+  return ledgerCardHtml(total || {}, label + (hasScores ? ' — in progress' : ' — no scores yet'), { gameId: g.id, scopeKey: scopeToKey(scope) });
+}
+
 function nassauCardHtml(g, engineGame, ctx, context, scope, total){
   var bd = SidieGolfEngine.nassauBreakdown(engineGame, ctx);
   var nameA = bd.sideA.map(function(idx){ return (state.players[parseInt(idx)]||{}).name||('Player '+(parseInt(idx)+1)); }).join(' & ');
@@ -11581,6 +11822,7 @@ function buildEventLeaderboardAndLedgerHtml(){
       allEntries.push({ game: engineGame, ctx: dayCtx, deltas: dayTotal });
       var context = 'Day '+(dIdx+1)+', event-wide';
       if (g.type === 'Nassau') html += nassauCardHtml(g, engineGame, dayCtx, context, dayScope, dayTotal);
+      else if (g.type === 'Nassau Matches') html += nassauMatchesResultHtml(g, engineGame, dayCtx, context, dayScope, dayTotal);
       else if (g.type === 'Quota'){
         var qTblD = g.stakes.quotaPoints === 'Modified Stableford' ? state.modifiedStablefordTable : null;
         try {
