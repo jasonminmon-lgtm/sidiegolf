@@ -6078,15 +6078,11 @@ function renderEventSchedule(){
       var d = state.days.filter(function(x){return x.id===parseInt(el.getAttribute('data-day-date'),10);})[0];
       if (d) {
         d.date = el.value;
-        var btn = el.parentElement && el.parentElement.querySelector('.pill-btn');
-        if (btn) {
-          if (el.value) {
-            btn.textContent = new Date(el.value+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-            btn.classList.add('active');
-          } else {
-            btn.textContent = 'Select date…';
-            btn.classList.remove('active');
-          }
+        // Update this input's own pill styling (active = dark navy when date selected)
+        if (el.value) {
+          el.style.background = '#16284a'; el.style.color = '#fff'; el.style.borderColor = '#16284a';
+        } else {
+          el.style.background = '#f0f2f0'; el.style.color = 'var(--ink,#1a2030)'; el.style.borderColor = '#d0d5d0';
         }
         if (typeof fbSyncToFirestore==='function') fbSyncToFirestore();
       }
