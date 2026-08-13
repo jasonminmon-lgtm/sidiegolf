@@ -4383,6 +4383,113 @@ function maybeShowResumeBanner(){
   } catch(e){}
 }
 
+// ── "Continue where you left off" — Firestore-backed cross-device resume ──────
+// Called when a signed-in user has no ROUND_CODE_KEY in localStorage.
+// Checks users/{uid}.inProgressRounds for any pre-lock (lobby) rounds and shows
+// a "Continue where you left off" card on the home screen for the most recent one.
+function fbCheckInProgressRounds() {
+  if (!fbUser || fbUser.isAnonymous || !fbDb) {
+    document.getElementById('fb-round-overlay').style.display = 'flex';
+    return;
+  }
+  fbDb.collection('users').doc(fbUser.uid).get().then(function(snap) {
+    var codes = (snap.exists && Array.isArray(snap.data().inProgressRounds))
+      ? snap.data().inProgressRounds : [];
+    if (!codes.length) {
+      document.getElementById('fb-round-overlay').style.display = 'flex';
+      return;
+    }
+    // Fetch round docs for the most recent 5 codes (oldest last → newest at end)
+    var recent = codes.slice(-5);
+    var fetches = recent.map(function(c) { return fbDb.collection('rounds').doc(c).get(); });
+    Promise.all(fetches).then(function(roundSnaps) {
+      var lobby = roundSnaps.filter(function(s) {
+        return s.exists && s.data().roundStatus === 'lobby';
+      });
+      // Clean up codes that no longer correspond to a live lobby round
+      roundSnaps.forEach(function(s, i) {
+        if (!s.exists || s.data().roundStatus !== 'lobby') {
+          fbDb.collection('users').doc(fbUser.uid).update({
+            inProgressRounds: firebase.firestore.FieldValue.arrayRemove(recent[i])
+          }).catch(function(){});
+        }
+      });
+      if (!lobby.length) {
+        document.getElementById('fb-round-overlay').style.display = 'flex';
+        return;
+      }
+      renderInProgressCards(lobby.reverse()); // most recent first
+    }).catch(function() {
+      document.getElementById('fb-round-overlay').style.display = 'flex';
+    });
+  }).catch(function() {
+    document.getElementById('fb-round-overlay').style.display = 'flex';
+  });
+}
+
+function renderInProgressCards(lobbySnaps) {
+  var snap = lobbySnaps[0]; // most recent in-progress round
+  var code = snap.id;
+  var data = snap.data();
+  var s = data.state || {};
+  // Restore embedded course data so the card can show the course name
+  if (s._courseData && s.course != null) {
+    while (MOCK_COURSES.length <= s.course) MOCK_COURSES.push(null);
+    MOCK_COURSES[s.course] = s._courseData;
+  }
+  var courseData = (s.course != null && MOCK_COURSES[s.course]) ? MOCK_COURSES[s.course] : null;
+  var courseName = courseData ? courseData.name : null;
+  var roundDate  = s.date || '';
+  var roundType  = s.roundType || '';
+  var rtLabel    = ({stroke:'Stroke Play', match:'Match Play', event:'Golf Event'}[roundType]) || roundType || 'Round in Progress';
+  var createdAt  = '';
+  if (data.createdAt && data.createdAt.toDate) {
+    try { createdAt = data.createdAt.toDate().toLocaleDateString(); } catch(e){}
+  }
+  // Preload remote state into memory (does NOT navigate — Resume button handles that)
+  var keys = Object.keys(s);
+  for (var ki = 0; ki < keys.length; ki++) {
+    if (keys[ki] !== '_courseData') state[keys[ki]] = s[keys[ki]];
+  }
+  // Activate the round: sets fbRoundCode, shows round bar, starts Firestore listener
+  window.fbRoundStatus = 'lobby';
+  fbActivateRound(code);
+  // Land on step 1 (home screen) so user sees the "Continue" card + round type options
+  goToStep(1);
+  // Insert card above roundTypeOptions once the DOM has rendered step 1
+  setTimeout(function() {
+    var existing = $('inProgressCard');
+    if (existing) existing.remove();
+    var headLine = courseName || rtLabel;
+    var subLine  = '';
+    if (courseName) subLine = rtLabel;
+    if (roundDate)  subLine += (subLine ? ' · ' : '') + roundDate;
+    else if (createdAt) subLine += (subLine ? ' · Started ' : 'Started ') + createdAt;
+    var card = document.createElement('div');
+    card.id = 'inProgressCard';
+    card.style.cssText = 'background:#eef4ee;border:1.5px solid #4f7942;border-radius:12px;padding:14px 16px;margin-bottom:16px;';
+    card.innerHTML =
+      '<div style="font-size:10.5px;font-weight:700;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin-bottom:3px;">Continue where you left off</div>'+
+      '<div style="font-weight:700;font-size:15px;color:#1c2522;margin-bottom:2px;">'+escapeHtml(headLine)+'</div>'+
+      (subLine ? '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">'+escapeHtml(subLine)+'</div>' : '<div style="margin-bottom:10px;"></div>')+
+      '<div style="display:flex;gap:8px;">'+
+      '<button id="ipResumeBtn" style="flex:1;background:#16284a;color:#fff;border:none;border-radius:8px;padding:10px;font-weight:700;font-size:14px;cursor:pointer;">Resume</button>'+
+      '<button id="ipDismissBtn" style="background:none;border:1.5px solid #d0d5d0;border-radius:8px;padding:10px 14px;font-weight:600;font-size:13px;cursor:pointer;color:var(--muted);">Dismiss</button>'+
+      '</div>';
+    var target = $('roundTypeOptions');
+    if (target) target.parentNode.insertBefore(card, target);
+    $('ipResumeBtn').addEventListener('click', function() {
+      card.remove();
+      var savedStep = (state.step && state.step > 1) ? state.step : 2;
+      goToStep(savedStep);
+    });
+    $('ipDismissBtn').addEventListener('click', function() {
+      // Keep round active in the bar — user is at step 1 and can continue or rebuild
+      card.remove();
+    });
+  }, 50);
+}
+
 // ================= STEP 1: ROUND TYPE =================
 function renderRoundTypes(){
   var html = '';
@@ -12464,10 +12571,17 @@ window.doSignOut = function(discard) {
   fbRoundCode = null; window.fbRoundCode = null;
   localStorage.removeItem(ROUND_CODE_KEY);
   if (discard && code && wasHost) {
+    var _discardUid = fbUser ? fbUser.uid : null;
     // Delete round from Firestore — fire and forget
     fbDb.collection('rounds').doc(code).delete().catch(function(e) {
       console.warn('[SidieGolf] Round delete error:', e);
     });
+    // Remove from user's inProgressRounds so it won't appear on next sign-in
+    if (_discardUid) {
+      fbDb.collection('users').doc(_discardUid).update({
+        inProgressRounds: firebase.firestore.FieldValue.arrayRemove(code)
+      }).catch(function(){});
+    }
   }
   resetState();
   fbAuth.signOut();
@@ -12511,6 +12625,10 @@ window.fbCreateRound = function() {
   }).then(function() {
     btn.disabled = false; btn.textContent = 'Start New Round';
     fbActivateRound(code);
+    // Track in user's inProgressRounds for cross-device "Continue where you left off"
+    fbDb.collection('users').doc(fbUser.uid).set({
+      inProgressRounds: firebase.firestore.FieldValue.arrayUnion(code)
+    }, { merge: true }).catch(function(){});
     goToStep(1); // ensure DOM shows step 1, not whatever step was visible before
   }).catch(function(err) {
     btn.disabled = false; btn.textContent = 'Start New Round';
@@ -12553,13 +12671,21 @@ window.fbLockRound = function() {
   }
   goToStep(6); // Multi-day: now routes to Event Hub/scorecard when active
   // Write lock + full state to Firestore in the background so joiners get redirected
-  fbDb.collection('rounds').doc(fbRoundCode).update({
+  var _lockCode = fbRoundCode;
+  var _lockUid  = fbUser ? fbUser.uid : null;
+  fbDb.collection('rounds').doc(_lockCode).update({
     roundStatus: 'active',
-    lastModifiedBy: fbUser.uid,
+    lastModifiedBy: _lockUid,
     state: fbSerializeState()
   }).catch(function(err) {
     console.warn('fbLockRound Firestore error:', err);
   });
+  // Remove from user's inProgressRounds now that the round is locked/active
+  if (_lockUid && _lockCode) {
+    fbDb.collection('users').doc(_lockUid).update({
+      inProgressRounds: firebase.firestore.FieldValue.arrayRemove(_lockCode)
+    }).catch(function(){});
+  }
 };
 
 // ── Remove a joined player from the lobby ────────────────────────────────────
@@ -14349,8 +14475,8 @@ fbAuth.onAuthStateChanged(function(user) {
           document.getElementById('fb-round-overlay').style.display = 'flex';
         });
       } else {
-        // No saved round — show round picker
-        document.getElementById('fb-round-overlay').style.display = 'flex';
+        // No saved code — check Firestore for any pre-lock rounds this user started
+        fbCheckInProgressRounds();
       }
     }
   }
