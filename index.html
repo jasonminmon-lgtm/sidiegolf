@@ -576,6 +576,8 @@
   .day-pill.active{background:var(--green);color:#fff;border-color:var(--green);}
   .pill-btn{-webkit-appearance:none;appearance:none;padding:6px 14px;border-radius:999px;border:1.5px solid #d0d5d0;background:#f0f2f0;font-size:13px;cursor:pointer;font-weight:600;color:var(--ink,#1a2030);-webkit-tap-highlight-color:transparent;}
   .pill-btn.active{background:#16284a;color:#fff;border-color:#16284a;}
+  .day-date-input{position:relative;overflow:hidden;}
+  .day-date-input::-webkit-calendar-picker-indicator{position:absolute;top:0;left:0;right:0;bottom:0;width:auto;height:auto;opacity:0;cursor:pointer;}
   .day-block{margin-bottom:16px;}
   .day-block-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
   .day-block-head .dtitle{font-weight:700;font-size:14.5px;}
@@ -5786,7 +5788,7 @@ function renderEventSchedule(){
       // Round Date
       var _dDate = d.date || '';
       html += '<label class="field-label">Round Date</label>';
-      html += '<input type="date" data-day-date="'+d.id+'" value="'+_dDate+'" style="display:block;padding:6px 14px;border-radius:999px;border:1.5px solid '+(_dDate?'#16284a':'#d0d5d0')+';background:'+(_dDate?'#16284a':'#f0f2f0')+';color:'+(_dDate?'#fff':'var(--ink,#1a2030)')+';font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;">';
+      html += '<input type="date" data-day-date="'+d.id+'" value="'+_dDate+'" class="day-date-input" style="display:block;padding:6px 14px;border-radius:999px;border:1.5px solid '+(_dDate?'#16284a':'#d0d5d0')+';background:'+(_dDate?'#16284a':'#f0f2f0')+';color:'+(_dDate?'#fff':'var(--ink,#1a2030)')+';font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;">';
       // Tee box — same for all or per player
       var _sameTee = d.sameTee !== false;
       html += '<label class="field-label">Tee Box</label>';
