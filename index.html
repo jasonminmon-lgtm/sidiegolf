@@ -714,6 +714,11 @@
   .day-hub-btn.setup{background:var(--green-dark,#1a5c36);color:#fff;}
   .day-hub-btn.continue{background:var(--green,#2e7d32);color:#fff;}
   .day-hub-btn.results{background:transparent;border:1.5px solid var(--green,#2e7d32);color:var(--green-dark,#1a5c36);}
+  /* ── Event Hub FAB + Side Games button (below scorecard) ──── */
+  .sg-event-hub-fab{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,#16284a 0%,#1a3a6e 100%);color:#fff;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:.2px;box-shadow:0 4px 18px rgba(22,40,74,.28);-webkit-tap-highlight-color:transparent;}
+  .sg-event-hub-fab:active{opacity:.86;}
+  .sg-side-games-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;border-radius:12px;border:1.5px solid var(--green-dark,#1a5c36);background:transparent;color:var(--green-dark,#1a5c36);font-size:14px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+  .sg-side-games-btn:active{opacity:.8;}
   /* ── Day Setup Overlay ─────────────────────────────────────── */
   .day-setup-overlay{position:fixed;inset:0;background:#fff;z-index:2000;overflow-y:auto;display:flex;flex-direction:column;}
   .day-setup-overlay .dso-header{background:var(--green-dark,#1a5c36);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;position:sticky;top:0;z-index:10;}
@@ -7259,11 +7264,19 @@ function renderEventHub(){
     html += '</div>';
   });
 
-  // Full leaderboard + event actions
-  html += '<div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">';
+  // Ryder Cup: embed live standings directly on Event Hub
   var anyScoring = state.days.some(function(d){return (d.status==='active'||d.status==='completed')&&d.courseIdx!=null;});
+  if (isRyderCup() && anyScoring) {
+    try { html += buildRyderCupScoreboardHtml(); } catch(e){}
+  }
+
+  // Leaderboard / event actions
+  html += '<div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">';
   if (anyScoring) {
-    html += '<button onclick="goToStep(7)" style="width:100%;padding:13px;border-radius:8px;border:1.5px solid var(--green-dark,#1a5c36);background:transparent;color:var(--green-dark,#1a5c36);font-size:14px;font-weight:700;cursor:pointer;">'+sgIcon('chart',16)+' View Full Leaderboard</button>';
+    var _sideGamesLabel = isRyderCup()
+      ? sgIcon('ledger',16)+' Side Games &amp; Money'
+      : sgIcon('chart',16)+' View Full Leaderboard';
+    html += '<button onclick="goToStep(7)" style="width:100%;padding:13px;border-radius:8px;border:1.5px solid var(--green-dark,#1a5c36);background:transparent;color:var(--green-dark,#1a5c36);font-size:14px;font-weight:700;cursor:pointer;">'+_sideGamesLabel+'</button>';
   }
   var allDone = state.days.every(function(d){return d.status==='completed';});
   if (allDone && isCurrentUserHost()) {
@@ -8118,10 +8131,9 @@ function renderEventScorecard(){
   if (!day.scorecards) day.scorecards = {};
 
   var html = '';
-  // Hub nav + Mark Day Complete (host only)
-  if (fbRoundCode && isCurrentUserHost()) {
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">';
-    html += '<button onclick="window._showEventHub=true;renderEventScorecard();" style="background:none;border:none;color:var(--green-dark,#1a5c36);font-size:13px;font-weight:700;cursor:pointer;padding:0;">← Event Hub</button>';
+  // Mark Day Complete / Day Results (host only, right-aligned — no Event Hub link here)
+  if (fbRoundCode && isCurrentUserHost() && (day.status === 'active' || day.status === 'completed')) {
+    html += '<div style="display:flex;justify-content:flex-end;margin-bottom:12px;">';
     if (day.status === 'active') {
       html += '<button onclick="markDayComplete('+day.id+')" style="background:#e8f5e9;border:1.5px solid var(--green,#2e7d32);color:var(--green-dark,#1a5c36);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">✓ Mark Day Complete</button>';
     } else if (day.status === 'completed') {
@@ -8193,6 +8205,19 @@ function renderEventScorecard(){
   html += '<div class="note-box">'+course.name+' — '+tee.name+' tees, Par '+tee.par+'.</div>';
   html += buildScoreGridHtml(idxs2, parByHole, day.scorecards[gn2], 'sc-'+day.id+'-'+gn2, strokes2, wolfGames2, _evEffPct, _evNassauCount);
   html += buildEventTablesHtml(groupGames, idxs2, day.scorecards[gn2], 'sc-'+day.id+'-'+gn2);
+
+  // Big Event Hub FAB + Side Games button below scorecard
+  html += '<div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;padding-bottom:4px;">';
+  html += '<button class="sg-event-hub-fab" onclick="window._showEventHub=true;renderEventScorecard();">'
+        + sgIcon('trophy', 22) + ' Event Hub'
+        + '</button>';
+  var _hasSideGames = state.days.some(function(d){ return (d.dayGames||[]).length || Object.keys(d.groupGames||{}).some(function(k){ return (d.groupGames[k]||[]).length; }); });
+  if (_hasSideGames) {
+    html += '<button class="sg-side-games-btn" onclick="goToStep(7)">'
+          + sgIcon('ledger', 16) + ' Side Games &amp; Money'
+          + '</button>';
+  }
+  html += '</div>';
 
   $('content-6').innerHTML = html;
   wireScorecardDayPills();
@@ -12291,7 +12316,13 @@ function toggleRcScoreboard(){
 
 // ---------------- event branch ----------------
 function buildEventLeaderboardAndLedgerHtml(){
-  var html = isRyderCup() ? buildRyderCupScoreboardHtml() : '';
+  // For networked RC events the scoreboard lives on the Event Hub — skip it here.
+  // For non-networked RC events (no fbRoundCode), include it so step 7 still shows standings.
+  var html = (isRyderCup() && !fbRoundCode) ? buildRyderCupScoreboardHtml() : '';
+  // Section header for Side Games when it's a networked RC event
+  if (isRyderCup() && fbRoundCode) {
+    html += '<div class="section-title" style="margin-bottom:12px;">'+sgIcon('ledger',16)+' Side Games &amp; Money</div>';
+  }
   var allEntries = [];
 
   state.days.forEach(function(d, dIdx){
