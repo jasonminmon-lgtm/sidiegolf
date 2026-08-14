@@ -345,6 +345,40 @@
   .np2-press-flag{font-size:9px;font-weight:700;color:var(--green-dark,#1a5c36);line-height:1.3;text-align:center;}
   .np2-add-press-btn{margin-top:10px;padding:9px 16px;background:transparent;border:1.5px solid var(--green-dark,#1a5c36);color:var(--green-dark,#1a5c36);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;width:100%;text-align:center;display:block;}
   .np2-strokes{font-size:12px;color:var(--green-dark,#1a5c36);font-weight:600;padding:6px 10px;background:#f0f8f0;border-radius:6px;margin-bottom:10px;}
+  /* Nassau Matches leaderboard bubble cards + hole-by-hole overlay */
+  .nm-match-card{background:#16284a;color:#fff;border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;transition:opacity .12s;}
+  .nm-match-card:active{opacity:.82;}
+  .nm-match-title{font-size:14px;font-weight:700;margin-bottom:6px;line-height:1.3;}
+  .nm-match-strokes{font-size:11.5px;color:rgba(255,255,255,.65);margin-bottom:8px;}
+  .nm-match-segs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
+  .nm-seg-pill{padding:4px 10px;border-radius:20px;font-size:11.5px;font-weight:700;}
+  .nm-seg-a{background:#2d7d2d;color:#fff;}
+  .nm-seg-b{background:#b33;color:#fff;}
+  .nm-seg-as{background:rgba(255,255,255,.18);color:#fff;}
+  .nm-seg-none{background:rgba(255,255,255,.1);color:rgba(255,255,255,.5);font-weight:400;}
+  .nm-tap-hint{font-size:11px;color:rgba(255,255,255,.38);text-align:right;}
+  .nm-hbh-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10500;display:none;align-items:flex-end;justify-content:center;}
+  .nm-hbh-overlay.open{display:flex;}
+  .nm-hbh-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;box-sizing:border-box;}
+  .nm-hbh-hdr{padding:18px 20px 12px;border-bottom:1px solid #eee;flex-shrink:0;}
+  .nm-hbh-title{font-size:17px;font-weight:800;color:#16284a;margin-bottom:2px;}
+  .nm-hbh-sub{font-size:12px;color:var(--muted,#666);}
+  .nm-hbh-body{overflow-y:auto;padding:14px 20px 20px;flex:1;}
+  .nm-hbh-seg-hd{font-size:11px;font-weight:700;color:var(--muted,#888);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 5px;}
+  .nm-hbh-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .nm-hbh-tbl th{font-size:10.5px;font-weight:700;color:var(--muted,#888);padding:4px 4px;text-align:center;border-bottom:1.5px solid #eee;}
+  .nm-hbh-tbl th:first-child{text-align:left;}
+  .nm-hbh-tbl td{padding:5px 4px;text-align:center;border-bottom:1px solid #f5f5f5;}
+  .nm-hbh-tbl td:first-child{font-weight:600;color:#444;text-align:left;}
+  .nm-hbh-wa{background:#edf8ed;}
+  .nm-hbh-wb{background:#faeaea;}
+  .nm-hbh-seg-status{text-align:center;font-size:13px;font-weight:700;padding:8px 0 2px;}
+  .nm-stroke-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#c00;vertical-align:middle;margin-left:3px;margin-bottom:1px;}
+  .nm-hbh-money{margin-top:14px;border-top:1.5px solid #eee;padding-top:12px;}
+  .nm-hbh-money-title{font-size:11px;font-weight:700;color:var(--muted,#888);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+  .nm-hbh-money-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;}
+  .nm-hbh-close-row{padding:12px 20px;border-top:1px solid #eee;text-align:center;flex-shrink:0;}
+  .nm-hbh-close-btn{background:none;border:none;color:#999;font-size:13px;cursor:pointer;padding:6px 20px;}
   /* ── QR Code overlay ─────────────────────────────────────────────────── */
   .sg-qr-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10400;display:none;align-items:flex-end;justify-content:center;}
   .sg-qr-overlay.open{display:flex;}
@@ -2282,6 +2316,10 @@
       var front = parseFloat(m.front) || 0;
       var back  = parseFloat(m.back)  || 0;
       var total = parseFloat(m.total) || 0;
+      // Per Man: each stated stake is per player — multiply by team size so payAcross yields that per player
+      var perMan = m.stakesAre == null || m.stakesAre === 'Per Man';
+      var teamSize = Math.max(sideA.length, sideB.length, 1);
+      var fm = perMan ? teamSize : 1;
       function sideNet(playerIds, holes) {
         if (fmt === '2v2') {
           var tot = 0;
@@ -2309,9 +2347,21 @@
         losers.forEach(function(id){ deltas[id] -= ls; });
       }
       var frontH = range(1,9), backH = range(10,18), allH = range(1,18);
-      if (front) { var aF=sideNet(sideA,frontH), bF=sideNet(sideB,frontH); if(aF<bF) award(front,sideA,sideB); else if(bF<aF) award(front,sideB,sideA); }
-      if (back)  { var aB=sideNet(sideA,backH),  bB=sideNet(sideB,backH);  if(aB<bB) award(back, sideA,sideB); else if(bB<aB) award(back, sideB,sideA); }
-      if (total) { var aT=sideNet(sideA,allH),   bT=sideNet(sideB,allH);   if(aT<bT) award(total,sideA,sideB); else if(bT<aT) award(total,sideB,sideA); }
+      var effectiveBack = back * fm;
+      var frontTied = false;
+      if (front * fm) {
+        var aF=sideNet(sideA,frontH), bF=sideNet(sideB,frontH);
+        if(aF<bF) award(front*fm,sideA,sideB); else if(bF<aF) award(front*fm,sideB,sideA); else frontTied=true;
+      }
+      if (m.carryTies === 'On' && frontTied) effectiveBack += front * fm;
+      if (effectiveBack) {
+        var aB=sideNet(sideA,backH), bB=sideNet(sideB,backH);
+        if(aB<bB) award(effectiveBack,sideA,sideB); else if(bB<aB) award(effectiveBack,sideB,sideA);
+      }
+      if (total * fm) {
+        var aT=sideNet(sideA,allH), bT=sideNet(sideB,allH);
+        if(aT<bT) award(total*fm,sideA,sideB); else if(bT<aT) award(total*fm,sideB,sideA);
+      }
     });
     return deltas;
   };
@@ -2823,6 +2873,18 @@
       <button class="np-accept" id="npAcceptBtn" disabled onclick="nassauPressAccept()">Accept Press</button>
     </div>
     <div class="np-cancel-row"><button class="np-cancel" onclick="nassauPressClose()">Cancel</button></div>
+  </div>
+</div>
+
+<!-- ===== Nassau Matches Hole-by-Hole Overlay ===== -->
+<div id="nmHbhOverlay" class="nm-hbh-overlay" onclick="if(event.target===this)closeNmHbhOverlay()">
+  <div class="nm-hbh-sheet">
+    <div class="nm-hbh-hdr">
+      <div class="nm-hbh-title" id="nmHbhTitle">Match Details</div>
+      <div class="nm-hbh-sub" id="nmHbhSub"></div>
+    </div>
+    <div class="nm-hbh-body" id="nmHbhBody"></div>
+    <div class="nm-hbh-close-row"><button class="nm-hbh-close-btn" onclick="closeNmHbhOverlay()">Close</button></div>
   </div>
 </div>
 
@@ -6561,11 +6623,35 @@ function buildGameCardHtml(g, scope){
     var _nmMatches = g.matches || [];
     html += '<label class="field-label">Matchups</label>';
     if (!_nmMatches.length) html += '<div style="font-size:13px;color:var(--muted);margin-bottom:12px;">No matches yet. Tap "+ Add Match" to set one up.</div>';
+    // Compute CH/strokes for setup display
+    var _nmScopeDay = scope ? state.days.filter(function(x){return x.id===scope.dayId;})[0] : null;
+    var _nmScopeCourse = _nmScopeDay && _nmScopeDay.courseIdx!=null ? MOCK_COURSES[_nmScopeDay.courseIdx] : null;
+    var _nmScopeTee = _nmScopeCourse && _nmScopeDay.teeName
+      ? _nmScopeCourse.tees.filter(function(t){return t.name===_nmScopeDay.teeName;})[0]
+      : (_nmScopeCourse && _nmScopeCourse.tees && _nmScopeCourse.tees[0] || null);
+    var _nmScopePlayerTees = (_nmScopeDay && _nmScopeDay.playerTees) || {};
+    var _nmHcp = g.stakes && g.stakes.handicapPct != null ? parseInt(g.stakes.handicapPct,10) : 100;
     _nmMatches.forEach(function(m, mi){
       var fmt = m.fmt||'1v1';
       var sideA = m.sideA||[], sideB = m.sideB||[];
       var maxPerSide = (fmt==='2v2') ? 2 : 1;
       var unassigned = g.participants.filter(function(pidx){ return sideA.indexOf(pidx)===-1 && sideB.indexOf(pidx)===-1; });
+      // Build stroke context for this specific match
+      var _nmMatchSM = {};
+      var _nmMatchIdxs = sideA.concat(sideB).filter(function(x){return x!=null&&x>=0;});
+      if (_nmScopeCourse && _nmScopeTee && _nmMatchIdxs.length >= 2) {
+        try {
+          var _nmMCtx = buildCtx(_nmMatchIdxs, _nmScopeCourse, _nmScopeTee, {scores:{},events:{}}, _nmHcp, _nmScopePlayerTees);
+          _nmMatchSM = _nmMCtx.strokesMap || {};
+        } catch(e) { _nmMatchSM = {}; }
+      }
+      function _nmChipInfo(pidx) {
+        var s = _nmMatchSM[String(pidx)];
+        if (!s || s.courseHandicap==null) return '';
+        var sr = s.strokesReceived || 0;
+        return '<small style="display:block;font-size:10px;color:var(--muted);font-weight:400;line-height:1.5;">CH '+s.courseHandicap+(sr>0?' · +'+sr+' str':' · scratch')+'</small>';
+      }
+
       html += '<div style="background:var(--card2,rgba(255,255,255,.07));border-radius:14px;padding:14px;margin-bottom:12px;">';
       // Header row
       html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">';
@@ -6582,7 +6668,7 @@ function buildGameCardHtml(g, scope){
       if (sideA.length) {
         sideA.forEach(function(pidx){
           var nm = (state.players[pidx]||{}).name||('Player '+(pidx+1));
-          html += '<div class="team-chip" data-nm-chip="'+g.id+'|'+mi+'|'+pidx+'">'+escapeHtml(nm)+' <span class="tc-arrow">→B</span></div>';
+          html += '<div class="team-chip" data-nm-chip="'+g.id+'|'+mi+'|'+pidx+'">'+escapeHtml(nm)+_nmChipInfo(pidx)+' <span class="tc-arrow">→B</span></div>';
         });
       } else {
         html += '<div style="font-size:11.5px;color:var(--muted);padding:4px;">Empty</div>';
@@ -6593,13 +6679,37 @@ function buildGameCardHtml(g, scope){
       if (sideB.length) {
         sideB.forEach(function(pidx){
           var nm = (state.players[pidx]||{}).name||('Player '+(pidx+1));
-          html += '<div class="team-chip" data-nm-chip="'+g.id+'|'+mi+'|'+pidx+'">'+escapeHtml(nm)+' <span class="tc-arrow">→off</span></div>';
+          html += '<div class="team-chip" data-nm-chip="'+g.id+'|'+mi+'|'+pidx+'">'+escapeHtml(nm)+_nmChipInfo(pidx)+' <span class="tc-arrow">→off</span></div>';
         });
       } else {
         html += '<div style="font-size:11.5px;color:var(--muted);padding:4px;">Empty</div>';
       }
       html += '</div>';
       html += '</div>';
+      // Prose stroke summary
+      if (_nmMatchIdxs.length >= 2 && Object.keys(_nmMatchSM).length) {
+        if (fmt==='1v1' && sideA.length===1 && sideB.length===1) {
+          var _smA = _nmMatchSM[String(sideA[0])]||{}, _smB = _nmMatchSM[String(sideB[0])]||{};
+          var _srA = _smA.strokesReceived||0, _srB = _smB.strokesReceived||0;
+          var _nnA = (state.players[sideA[0]]||{}).name||('Player '+(sideA[0]+1));
+          var _nnB = (state.players[sideB[0]]||{}).name||('Player '+(sideB[0]+1));
+          var _diff = _srB - _srA;
+          if (_diff > 0) {
+            html += '<div class="np2-strokes" style="margin:8px 0 0;">'+sgIcon('flag',13)+' '+escapeHtml(_nnB)+' receives '+_diff+' stroke'+(_diff===1?'':'s')+' from '+escapeHtml(_nnA)+'</div>';
+          } else if (_diff < 0) {
+            html += '<div class="np2-strokes" style="margin:8px 0 0;">'+sgIcon('flag',13)+' '+escapeHtml(_nnA)+' receives '+(-_diff)+' stroke'+((-_diff)===1?'':'s')+' from '+escapeHtml(_nnB)+'</div>';
+          } else if (_smA.courseHandicap != null) {
+            html += '<div class="np2-strokes" style="margin:8px 0 0;">'+sgIcon('flag',13)+' Scratch match — no strokes given</div>';
+          }
+        } else if (fmt==='2v2') {
+          var _srLines = sideA.concat(sideB).map(function(pidx){
+            var s = _nmMatchSM[String(pidx)]; if (!s||s.courseHandicap==null) return null;
+            var nm2 = (state.players[pidx]||{}).name||('Player '+(pidx+1));
+            return escapeHtml(nm2)+' (CH '+s.courseHandicap+(s.strokesReceived>0?', +'+s.strokesReceived+' str':'')+')';
+          }).filter(Boolean);
+          if (_srLines.length) html += '<div class="np2-strokes" style="margin:8px 0 0;">'+sgIcon('flag',13)+' '+_srLines.join(' · ')+'</div>';
+        }
+      }
       // Unassigned players (tap to add to Side A)
       if (unassigned.length) {
         html += '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">';
@@ -6614,6 +6724,12 @@ function buildGameCardHtml(g, scope){
       html += '<div style="flex:1;"><label class="field-label" style="margin-bottom:4px;">Front 9 $</label><input type="number" min="0" step="1" value="'+(m.front||'')+'" data-nm-stake="'+g.id+'|'+mi+'|front" style="width:100%;"></div>';
       html += '<div style="flex:1;"><label class="field-label" style="margin-bottom:4px;">Back 9 $</label><input type="number" min="0" step="1" value="'+(m.back||'')+'" data-nm-stake="'+g.id+'|'+mi+'|back" style="width:100%;"></div>';
       html += '<div style="flex:1;"><label class="field-label" style="margin-bottom:4px;">Total 18 $</label><input type="number" min="0" step="1" value="'+(m.total||'')+'" data-nm-stake="'+g.id+'|'+mi+'|total" style="width:100%;"></div>';
+      html += '</div>';
+      // Carry ties + Stakes Are dropdowns
+      var _ct = m.carryTies || 'Off', _sa = m.stakesAre || 'Per Man';
+      html += '<div style="display:flex;gap:8px;margin-top:10px;">';
+      html += '<div style="flex:1;"><label class="field-label" style="margin-bottom:4px;">Carry Front 9 Tie to Back 9</label><select data-nm-carry="'+g.id+'|'+mi+'"><option'+((_ct==='Off')?' selected':'')+'>Off</option><option'+((_ct==='On')?' selected':'')+'>On</option></select></div>';
+      html += '<div style="flex:1;"><label class="field-label" style="margin-bottom:4px;">Stakes Are</label><select data-nm-stakes-are="'+g.id+'|'+mi+'"><option'+((_sa==='Per Man')?' selected':'')+'>Per Man</option><option'+((_sa==='Total Pot')?' selected':'')+'>Total Pot</option></select></div>';
       html += '</div>';
       html += '</div>';
     });
@@ -6970,6 +7086,26 @@ function wireGameCardEvents(scope){
       var id=parseInt(parts[0],10), mi=parseInt(parts[1],10), key=parts[2];
       var g = findGameById(id, scope);
       if (g.matches && g.matches[mi]) { g.matches[mi][key] = el.value; }
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    });
+  });
+  // Nassau Matches: Carry ties dropdown
+  Array.prototype.forEach.call(root.querySelectorAll('[data-nm-carry]'), function(el){
+    el.addEventListener('change', function(){
+      var parts = el.getAttribute('data-nm-carry').split('|');
+      var id=parseInt(parts[0],10), mi=parseInt(parts[1],10);
+      var g = findGameById(id, scope);
+      if (g.matches && g.matches[mi]) { g.matches[mi].carryTies = el.value; }
+      if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+    });
+  });
+  // Nassau Matches: Stakes Are dropdown
+  Array.prototype.forEach.call(root.querySelectorAll('[data-nm-stakes-are]'), function(el){
+    el.addEventListener('change', function(){
+      var parts = el.getAttribute('data-nm-stakes-are').split('|');
+      var id=parseInt(parts[0],10), mi=parseInt(parts[1],10);
+      var g = findGameById(id, scope);
+      if (g.matches && g.matches[mi]) { g.matches[mi].stakesAre = el.value; }
       if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
     });
   });
@@ -9284,12 +9420,14 @@ function buildEngineGame(g){
   if (g.type === 'Nassau Matches') {
     game.matches = (g.matches || []).map(function(m) {
       return {
-        fmt:   m.fmt || '1v1',
-        sideA: (m.sideA || []).filter(function(x){ return x != null && x >= 0; }).map(String),
-        sideB: (m.sideB || []).filter(function(x){ return x != null && x >= 0; }).map(String),
-        front: parseFloat(m.front) || 0,
-        back:  parseFloat(m.back)  || 0,
-        total: parseFloat(m.total) || 0
+        fmt:      m.fmt || '1v1',
+        sideA:    (m.sideA || []).filter(function(x){ return x != null && x >= 0; }).map(String),
+        sideB:    (m.sideB || []).filter(function(x){ return x != null && x >= 0; }).map(String),
+        front:    parseFloat(m.front) || 0,
+        back:     parseFloat(m.back)  || 0,
+        total:    parseFloat(m.total) || 0,
+        carryTies: m.carryTies || 'Off',
+        stakesAre: m.stakesAre || 'Per Man'
       };
     });
   }
@@ -11584,6 +11722,115 @@ function matchPlayLeaderboardHtml(idxs, ctx, sc, title){
   return html;
 }
 
+// ===== Nassau Matches hole-by-hole overlay =====
+window._nmMatchStore = {};
+function showNmHbhOverlay(key) {
+  var data = window._nmMatchStore && window._nmMatchStore[key];
+  if (!data) return;
+  var m = data.match, ctx = data.ctx, fmt = data.fmt;
+  var nameA = data.nameA, nameB = data.nameB;
+  document.getElementById('nmHbhTitle').textContent = data.label;
+  document.getElementById('nmHbhSub').textContent = data.strokesLine || (nameA + ' vs ' + nameB);
+
+  function getNet(side, h) {
+    if (fmt === '2v2') return SidieGolfEngine.bestBallNet(ctx, side, h);
+    return SidieGolfEngine.netFor(ctx, side[0], h);
+  }
+  // Stroke holes per player (relative to day low — what holes they get a stroke on)
+  var strokesA = {}, strokesB = {};
+  if (fmt === '1v1') {
+    var smA = ctx.strokesMap && ctx.strokesMap[m.sideA[0]];
+    var smB = ctx.strokesMap && ctx.strokesMap[m.sideB[0]];
+    if (smA && smA.strokeHoles) smA.strokeHoles.forEach(function(h){ strokesA[h]=true; });
+    if (smB && smB.strokeHoles) smB.strokeHoles.forEach(function(h){ strokesB[h]=true; });
+  }
+
+  function buildSegHtml(holes, stake, segName, effectiveStake) {
+    var aUp = 0, played = 0;
+    var rows = '';
+    holes.forEach(function(h) {
+      var nA = getNet(m.sideA, h), nB = getNet(m.sideB, h);
+      var rowCls = '';
+      var statusTxt = '—';
+      if (nA !== null && nB !== null) {
+        played++;
+        if (nA < nB) { aUp++; rowCls = ' class="nm-hbh-wa"'; }
+        else if (nB < nA) { aUp--; rowCls = ' class="nm-hbh-wb"'; }
+        statusTxt = aUp > 0 ? nameA+' '+aUp+'UP' : aUp < 0 ? nameB+' '+(-aUp)+'UP' : 'AS';
+      }
+      var dotA = (fmt==='1v1' && strokesA[h]) ? '<span class="nm-stroke-dot"></span>' : '';
+      var dotB = (fmt==='1v1' && strokesB[h]) ? '<span class="nm-stroke-dot"></span>' : '';
+      var cellA = nA !== null ? nA+dotA : '–';
+      var cellB = nB !== null ? nB+dotB : '–';
+      rows += '<tr'+rowCls+'><td>'+h+'</td><td>'+cellA+'</td><td>'+cellB+'</td><td style="font-size:11px;white-space:nowrap;color:#555;">'+escapeHtml(statusTxt)+'</td></tr>';
+    });
+    if (!played) return '<div class="nm-hbh-seg-hd">'+escapeHtml(segName)+(stake?' ($'+stake+')':'')+'</div><div style="font-size:12px;color:var(--muted);padding:6px 0 10px;">No scores yet.</div>';
+    var diff = aUp;
+    var winnerName = diff > 0 ? nameA : diff < 0 ? nameB : '';
+    var statusTxt2 = diff !== 0 ? escapeHtml(winnerName)+' wins by '+(Math.abs(diff))+' stroke'+(Math.abs(diff)>1?'s':'') : 'All Square';
+    var statusCol = diff > 0 ? '#2d7d2d' : diff < 0 ? '#b33' : '#555';
+    var complete = played === holes.length;
+    if (!complete) statusTxt2 += ' (thru '+played+')';
+    var html = '<div class="nm-hbh-seg-hd">'+escapeHtml(segName)+(stake?' ($'+stake+')':'')+'</div>';
+    html += '<table class="nm-hbh-tbl"><thead><tr><th>Hole</th><th>'+escapeHtml(nameA)+'</th><th>'+escapeHtml(nameB)+'</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    html += '<div class="nm-hbh-seg-status" style="color:'+statusCol+'">'+statusTxt2+'</div>';
+    return html;
+  }
+
+  // Compute effective back (carry ties)
+  var front = m.front || 0, back = m.back || 0, total = m.total || 0;
+  var perMan = m.stakesAre == null || m.stakesAre === 'Per Man';
+  var teamSize = Math.max((m.sideA||[]).length, (m.sideB||[]).length, 1);
+  var fm = perMan ? teamSize : 1;
+  var frontH = [1,2,3,4,5,6,7,8,9], backH = [10,11,12,13,14,15,16,17,18];
+  var effectiveBack = back;
+  if (m.carryTies === 'On' && front) {
+    var aFt=0,bFt=0,pFt=0;
+    frontH.forEach(function(h){ var nA=getNet(m.sideA,h),nB=getNet(m.sideB,h); if(nA!==null&&nB!==null){pFt++;if(nA<nB)aFt++;else if(nB<nA)bFt++;} });
+    if (pFt===9 && aFt===bFt) effectiveBack = back + front;
+  }
+
+  var body = '';
+  if (front || back || total) {
+    if (front) body += buildSegHtml(frontH, front, 'Front 9', front*fm);
+    if (back || effectiveBack > back) body += buildSegHtml(backH, effectiveBack > back ? effectiveBack : back, effectiveBack > back ? 'Back 9 (+ F9 carry)' : 'Back 9', effectiveBack*fm);
+    else if (!back && m.carryTies) { /* skip if back=0 and no carry triggered */ }
+    if (total) body += buildSegHtml([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18], total, 'Total 18', total*fm);
+  } else {
+    body += '<div style="color:var(--muted);font-size:13px;padding:8px 0;">No stakes set for this match.</div>';
+  }
+
+  // Money results section
+  body += '<div class="nm-hbh-money"><div class="nm-hbh-money-title">'+sgIcon('ledger',13)+' Money Results</div>';
+  function segMoney(side, holes, stake, label2) {
+    if (!stake) return '';
+    var aNet=0, bNet=0, pCnt=0;
+    holes.forEach(function(h){ var nA=getNet(m.sideA,h),nB=getNet(m.sideB,h); if(nA!==null&&nB!==null){pCnt++;aNet+=nA;bNet+=nB;} });
+    if (!pCnt) return '<div class="nm-hbh-money-row"><span>'+escapeHtml(label2)+'</span><span style="color:var(--muted);">In progress</span></div>';
+    var eff = stake * fm;
+    var winnerTxt, color;
+    if (aNet < bNet) { winnerTxt = escapeHtml(nameA)+' +$'+eff.toFixed(2); color='#2d7d2d'; }
+    else if (bNet < aNet) { winnerTxt = escapeHtml(nameB)+' +$'+eff.toFixed(2); color='#b33'; }
+    else { winnerTxt = 'Push'; color='#555'; }
+    return '<div class="nm-hbh-money-row"><span>'+escapeHtml(label2)+' ($'+eff.toFixed(2)+')</span><span style="color:'+color+';font-weight:700;">'+winnerTxt+'</span></div>';
+  }
+  body += segMoney(null, frontH, front, 'Front 9');
+  body += segMoney(null, backH, effectiveBack||back, effectiveBack > back ? 'Back 9 (+ carry)' : 'Back 9');
+  body += segMoney(null, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18], total, 'Total 18');
+  body += '</div>';
+
+  document.getElementById('nmHbhBody').innerHTML = body;
+  var ov = document.getElementById('nmHbhOverlay');
+  ov.style.display = 'flex';
+  requestAnimationFrame(function(){ ov.classList.add('open'); });
+}
+function closeNmHbhOverlay() {
+  var ov = document.getElementById('nmHbhOverlay');
+  if (!ov) return;
+  ov.classList.remove('open');
+  setTimeout(function(){ ov.style.display = 'none'; }, 200);
+}
+
 // Individual card for one Nassau game: front/back/total shown and settled
 // separately (each only pays out once its own holes are complete — see
 // SidieGolfEngine.nassauBreakdown), plus a reconciled total for this match.
@@ -11594,9 +11841,83 @@ function matchPlayLeaderboardHtml(idxs, ctx, sc, title){
 function nassauMatchesResultHtml(g, engineGame, ctx, context, scope, total){
   var matches = engineGame.matches || [];
   var label = 'Nassau Matches' + (context ? ' ('+context+')' : '');
-  if (!matches.length) return '<div class="card"><div class="section-title">'+label+'</div><div class="empty-state" style="padding:14px;">No matches configured.</div></div>';
-  var hasScores = Object.values(ctx.scores||{}).some(function(r){ return Object.values(r||{}).some(function(v){return v!=null;}); });
-  return ledgerCardHtml(total || {}, label + (hasScores ? ' — in progress' : ' — no scores yet'), { gameId: g.id, scopeKey: scopeToKey(scope) });
+  if (!matches.length) return '<div class="card"><div class="section-title">'+escapeHtml(label)+'</div><div class="empty-state" style="padding:14px;">No matches configured.</div></div>';
+
+  if (!window._nmMatchStore) window._nmMatchStore = {};
+  var html = '<div style="margin-bottom:4px;"><div class="section-title" style="margin-bottom:8px;">'+escapeHtml(label)+'</div>';
+
+  matches.forEach(function(m, mi) {
+    var sideA = m.sideA || [], sideB = m.sideB || [];
+    if (!sideA.length || !sideB.length) return;
+    var fmt = m.fmt || '1v1';
+    var nameA = sideA.map(function(id){ return (state.players[parseInt(id)]||{}).name||('P'+(parseInt(id)+1)); }).join(' & ');
+    var nameB = sideB.map(function(id){ return (state.players[parseInt(id)]||{}).name||('P'+(parseInt(id)+1)); }).join(' & ');
+    var matchLabel = 'Match '+(mi+1)+': '+nameA+' vs '+nameB;
+
+    // Build strokes summary line
+    var strokesLine = '';
+    var sm = ctx.strokesMap || {};
+    if (fmt === '1v1' && sideA.length === 1 && sideB.length === 1) {
+      var srA = (sm[sideA[0]] && sm[sideA[0]].strokesReceived != null) ? sm[sideA[0]].strokesReceived : null;
+      var srB = (sm[sideB[0]] && sm[sideB[0]].strokesReceived != null) ? sm[sideB[0]].strokesReceived : null;
+      if (srA !== null && srB !== null) {
+        var diff = srB - srA;
+        if (diff > 0) strokesLine = nameB+' receives '+diff+' stroke'+(diff===1?'':'s')+' from '+nameA;
+        else if (diff < 0) strokesLine = nameA+' receives '+(-diff)+' stroke'+((-diff)===1?'':'s')+' from '+nameB;
+        else strokesLine = 'Scratch match';
+      }
+    } else if (fmt === '2v2') {
+      var parts2 = sideA.concat(sideB).map(function(id){
+        var s = sm[id]; if (!s || s.courseHandicap==null) return null;
+        var nm2 = (state.players[parseInt(id)]||{}).name||('P'+(parseInt(id)+1));
+        return nm2+' CH '+s.courseHandicap+(s.strokesReceived>0?' (+'+s.strokesReceived+')':'');
+      }).filter(Boolean);
+      strokesLine = parts2.join(' · ');
+    }
+
+    // Store for overlay
+    var storeKey = g.id+'|'+mi;
+    window._nmMatchStore[storeKey] = { match: m, ctx: ctx, fmt: fmt, nameA: nameA, nameB: nameB, label: matchLabel, strokesLine: strokesLine };
+
+    // Compute segment status for pills
+    function segStatus(holes) {
+      var aUp = 0, played = 0;
+      holes.forEach(function(h) {
+        var nA, nB;
+        if (fmt === '2v2') { nA = SidieGolfEngine.bestBallNet(ctx, sideA, h); nB = SidieGolfEngine.bestBallNet(ctx, sideB, h); }
+        else { nA = SidieGolfEngine.netFor(ctx, sideA[0], h); nB = SidieGolfEngine.netFor(ctx, sideB[0], h); }
+        if (nA !== null && nB !== null) { played++; if(nA<nB) aUp++; else if(nB<nA) aUp--; }
+      });
+      return { aUp: aUp, played: played, complete: played===holes.length };
+    }
+    function segPill(segName, stake, holes) {
+      if (!stake) return '';
+      var s = segStatus(holes);
+      var cls, txt;
+      if (!s.played) { cls='nm-seg-none'; txt=segName+': no scores'; }
+      else if (s.aUp>0) { cls='nm-seg-a'; txt=segName+': '+nameA+' '+s.aUp+'UP'+(s.complete?'':' thru '+s.played); }
+      else if (s.aUp<0) { cls='nm-seg-b'; txt=segName+': '+nameB+' '+(-s.aUp)+'UP'+(s.complete?'':' thru '+s.played); }
+      else { cls='nm-seg-as'; txt=segName+': AS'+(s.played&&!s.complete?' thru '+s.played:''); }
+      return '<span class="nm-seg-pill '+cls+'">'+escapeHtml(txt)+'</span>';
+    }
+
+    html += '<div class="nm-match-card" onclick="showNmHbhOverlay(\''+storeKey+'\')">';
+    html += '<div class="nm-match-title">'+escapeHtml(matchLabel)+'</div>';
+    if (strokesLine) html += '<div class="nm-match-strokes">'+sgIcon('flag',12)+' '+escapeHtml(strokesLine)+'</div>';
+    html += '<div class="nm-match-segs">';
+    html += segPill('F9', m.front, [1,2,3,4,5,6,7,8,9]);
+    html += segPill('B9', m.back, [10,11,12,13,14,15,16,17,18]);
+    html += segPill('Total', m.total, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]);
+    if (!m.front && !m.back && !m.total) html += '<span class="nm-seg-pill nm-seg-none">No stakes set</span>';
+    html += '</div>';
+    html += '<div class="nm-tap-hint">Tap for hole-by-hole →</div>';
+    html += '</div>';
+  });
+
+  // Settlement card (shows who owes what overall, opens money override modal)
+  html += ledgerCardHtml(total || {}, label+' — Settlement', { gameId: g.id, scopeKey: scopeToKey(scope) });
+  html += '</div>';
+  return html;
 }
 
 function nassauCardHtml(g, engineGame, ctx, context, scope, total){
