@@ -661,13 +661,13 @@
   /* Player count warning */
   .player-count-warn{background:#fff8e1;border:1px solid #f0c040;color:#7a5a00;border-radius:8px;padding:7px 10px;font-size:12px;margin-top:8px;}
   /* Ryder Cup scoreboard */
-  .rc-scoreboard{background:linear-gradient(135deg,var(--green) 0%,var(--green-dark) 100%);color:#fff;border-radius:var(--radius);padding:18px 16px 16px;margin-bottom:14px;}
+  .rc-scoreboard{background:#fff;color:var(--ink);border-radius:var(--radius);padding:18px 16px 16px;margin-bottom:14px;box-shadow:0 2px 14px rgba(0,0,0,.10);overflow:hidden;}
   .rc-sb-title{font-size:11px;letter-spacing:.6px;text-transform:uppercase;opacity:.7;margin-bottom:10px;}
   .rc-sb-teams{display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .rc-sb-team{flex:1;text-align:center;}
-  .rc-sb-team-name{font-size:13px;font-weight:700;opacity:.85;margin-bottom:4px;}
+  .rc-sb-team-name{font-size:13px;font-weight:700;margin-bottom:4px;}
   .rc-sb-pts{font-size:36px;font-weight:800;line-height:1;}
-  .rc-sb-pts.leading{color:#8fe3b0;}
+  .rc-sb-pts.leading{}
   .rc-sb-divider{font-size:22px;opacity:.4;font-weight:300;}
   .rc-sb-status{text-align:center;font-size:11.5px;opacity:.7;margin-top:8px;}
   .rc-match-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0f1f0;font-size:13px;}
@@ -746,17 +746,23 @@
   .rc-mt-btn{padding:5px 11px;border-radius:8px;border:1.5px solid #e0e5e0;background:#f8faf8;font-size:12px;font-weight:600;cursor:pointer;}
   .rc-mt-btn.active{background:var(--green-dark);border-color:var(--green-dark);color:#fff;}
   /* Ryder Cup live match banner on scorecard */
-  .rc-match-banner{background:linear-gradient(90deg,#1e3a1e 0%,#16284a 100%);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;font-size:13px;}
+  .rc-match-banner{background:linear-gradient(90deg,#16284a 0%,#8b1a1a 100%);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;font-size:13px;}
   .rc-match-banner .rc-mb-label{opacity:.7;font-size:11px;text-transform:uppercase;letter-spacing:.4px;}
   .rc-match-banner .rc-mb-status{font-weight:700;font-size:14px;}
   .rc-match-banner .rc-mb-pts{background:rgba(255,255,255,.15);border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;}
   /* Ryder Cup team name inputs */
-  .rc-team-name-row{display:flex;gap:10px;margin-bottom:14px;}
+  .rc-team-name-row{display:flex;gap:10px;margin-bottom:10px;}
   .rc-team-name-row > div{flex:1;}
   .rc-team-name-row label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;}
-  .rc-team-name-row input{width:100%;padding:8px 10px;border:2px solid;border-radius:8px;font-size:14px;font-weight:700;}
-  .rc-team-name-a{border-color:#4f7942 !important;background:#f4f8f3;}
-  .rc-team-name-b{border-color:#4a78b5 !important;background:#f3f6fb;}
+  .rc-team-name-row input{width:100%;padding:8px 10px;border:2px solid;border-radius:8px;font-size:14px;font-weight:700;background:#fafafa;}
+  /* Ryder Cup color swatches */
+  .rc-color-row{display:flex;gap:10px;margin-bottom:14px;}
+  .rc-color-row > div{flex:1;}
+  .rc-color-row label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;opacity:.7;}
+  .rc-color-swatches{display:flex;gap:5px;flex-wrap:wrap;}
+  .rc-color-swatch{width:24px;height:24px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:transform .12s,border-color .12s;flex-shrink:0;-webkit-tap-highlight-color:transparent;}
+  .rc-color-swatch.selected{border-color:#fff;box-shadow:0 0 0 2.5px #333;}
+  .rc-color-swatch:active{transform:scale(.85);}
   /* ===== Firebase auth / round modals ===== */
   .fb-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}
   .fb-modal{background:#fff;border-radius:20px;padding:30px 24px;width:100%;max-width:360px;box-shadow:0 16px 60px rgba(0,0,0,.3);}
@@ -767,6 +773,9 @@
   .fb-tab.active{background:var(--green);color:#fff;}
   .fb-input{width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:16px;margin-bottom:10px;font-family:inherit;color:var(--ink);}
   .fb-input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(22,40,74,.08);}
+  .fb-pw-wrap{position:relative;width:100%;}
+  .fb-pw-wrap .fb-input{padding-right:44px;}
+  .fb-pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-65%);background:none;border:none;padding:4px;cursor:pointer;color:var(--muted,#888);font-size:18px;line-height:1;}
   .fb-btn{width:100%;padding:15px;background:var(--green);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:4px;font-family:inherit;}
   .fb-btn:disabled{opacity:.45;cursor:default;}
   .fb-err{color:#c03030;font-size:12.5px;margin-top:8px;min-height:16px;text-align:center;}
@@ -913,6 +922,50 @@
   .banker-multi-btn{flex:1;min-width:55px;padding:8px 4px;border:2px solid #c8d8c8;border-radius:10px;background:#fff;font-size:14px;font-weight:700;cursor:pointer;text-align:center;transition:border-color .15s,background .15s;}
   .banker-multi-btn.selected{border-color:var(--green);background:#d8f0da;color:var(--green-dark);}
   .banker-save-btn{width:100%;padding:13px;background:var(--green);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:12px;}
+  /* ── Event Name Input ─────────────────────────────────────────────────── */
+  .sg-event-name-card{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:14px;box-shadow:0 1px 6px rgba(0,0,0,.07);}
+  .sg-event-name-inp{width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;border:1.5px solid #c8d8c8;font-size:15px;font-weight:600;color:var(--ink);background:#f8faf8;outline:none;}
+  .sg-event-name-inp:focus{border-color:#16284a;background:#fff;}
+  /* ── TV Hub Button ────────────────────────────────────────────────────── */
+  .sg-tv-hub-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;border-radius:12px;border:2px solid #c9a84c;background:linear-gradient(135deg,#16284a 0%,#1a3a6e 100%);color:#f5c842;font-size:14px;font-weight:800;cursor:pointer;letter-spacing:.3px;-webkit-tap-highlight-color:transparent;}
+  .sg-tv-hub-btn:active{opacity:.85;}
+  /* ── TV Page Root ─────────────────────────────────────────────────────── */
+  #sg-tv-root{display:none;position:fixed;inset:0;background:#0a0f1e;color:#f0f4ff;font-family:inherit;overflow-y:auto;z-index:99999;}
+  #sg-tv-root.active{display:block;}
+  .sg-tv-page{max-width:900px;margin:0 auto;padding:24px 16px 48px;}
+  .sg-tv-hdr{text-align:center;padding:28px 16px 20px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:24px;}
+  .sg-tv-event-name{font-size:clamp(22px,5vw,42px);font-weight:900;color:#f5c842;letter-spacing:.5px;text-transform:uppercase;line-height:1.1;margin-bottom:6px;}
+  .sg-tv-event-sub{font-size:14px;color:rgba(255,255,255,.55);letter-spacing:.8px;text-transform:uppercase;}
+  .sg-tv-team-banner{display:flex;align-items:stretch;border-radius:14px;overflow:hidden;margin-bottom:24px;}
+  .sg-tv-team-a{flex:1;background:linear-gradient(135deg,#1a3a6e,#16284a);padding:18px 16px;text-align:center;}
+  .sg-tv-team-b{flex:1;background:linear-gradient(135deg,#6e1a1a,#3a1010);padding:18px 16px;text-align:center;}
+  .sg-tv-team-vs{width:48px;display:flex;align-items:center;justify-content:center;background:#0a0f1e;font-size:13px;font-weight:800;color:rgba(255,255,255,.4);letter-spacing:1px;}
+  .sg-tv-team-name{font-size:clamp(16px,3.5vw,28px);font-weight:900;color:#f5c842;letter-spacing:.4px;}
+  .sg-tv-team-pts{font-size:clamp(32px,7vw,60px);font-weight:900;color:#fff;line-height:1;}
+  .sg-tv-team-lbl{font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.8px;margin-top:2px;}
+  .sg-tv-day{background:rgba(255,255,255,.05);border-radius:14px;margin-bottom:20px;overflow:hidden;}
+  .sg-tv-day-hdr{background:rgba(255,255,255,.08);padding:12px 16px;display:flex;align-items:center;gap:10px;}
+  .sg-tv-day-num{font-size:12px;font-weight:800;color:#f5c842;text-transform:uppercase;letter-spacing:1px;}
+  .sg-tv-day-course{font-size:14px;font-weight:700;color:#fff;flex:1;}
+  .sg-tv-day-status{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:700;letter-spacing:.5px;}
+  .sg-tv-day-status.active{background:rgba(46,125,50,.35);color:#81c784;}
+  .sg-tv-day-status.completed{background:rgba(197,168,72,.2);color:#f5c842;}
+  .sg-tv-day-status.pending{background:rgba(255,255,255,.1);color:rgba(255,255,255,.4);}
+  .sg-tv-match{border-top:1px solid rgba(255,255,255,.07);padding:14px 16px;}
+  .sg-tv-match-teams{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .sg-tv-match-side{flex:1;font-size:14px;font-weight:700;color:#f0f4ff;line-height:1.3;}
+  .sg-tv-match-side.right{text-align:right;}
+  .sg-tv-match-chip{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:800;letter-spacing:.4px;white-space:nowrap;}
+  .sg-tv-match-chip.win-a{background:rgba(26,58,110,.7);color:#f5c842;border:1px solid #f5c842;}
+  .sg-tv-match-chip.win-b{background:rgba(110,26,26,.7);color:#f5c842;border:1px solid #f5c842;}
+  .sg-tv-match-chip.tie{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3);}
+  .sg-tv-match-chip.pending{background:rgba(255,255,255,.06);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.15);}
+  .sg-tv-summary{font-size:12px;color:rgba(255,255,255,.5);line-height:1.5;margin-top:6px;font-style:italic;min-height:16px;}
+  .sg-tv-rotate-hint{display:none;position:fixed;inset:0;background:#0a0f1e;z-index:100000;flex-direction:column;align-items:center;justify-content:center;color:#f5c842;font-size:18px;font-weight:700;gap:12px;}
+  .sg-tv-rotate-hint svg{animation:sg-rotate-anim 2s ease-in-out infinite;}
+  @keyframes sg-rotate-anim{0%,100%{transform:rotate(0deg);}50%{transform:rotate(-90deg);}}
+  @media (orientation:portrait){#sg-tv-root.active .sg-tv-rotate-hint{display:flex;}}
+  @media (orientation:portrait){#sg-tv-root.active .sg-tv-page{display:none;}}
 </style>
 <!-- Firebase compat SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -1692,11 +1745,12 @@
       Object.keys(seg.deltas).forEach(function (id) { combinedDeltas[id] = (combinedDeltas[id] || 0) + seg.deltas[id]; });
     });
 
-    // Manual presses — each accepted press is a new side match from startHole to hole 18
+    // Manual presses — each accepted press is a new side match from startHole to segment end
     var manualPressResults = [];
     (game.manualPresses || []).forEach(function(mp) {
       if (!mp.accepted) return;
-      var pressHoles = range(mp.startHole, 18);
+      var pressEnd = mp.segType === 'front9' ? 9 : 18;
+      var pressHoles = range(mp.startHole, pressEnd);
       var pressRes = SidieGolfEngine.computeMatchPlayResult(ctx, sideA, sideB, pressHoles);
       var pd = zero(game.participants);
       // In per-man mode mp.stake is the per-player amount; scale by fm so payAcross yields that amount per player
@@ -2607,7 +2661,10 @@
     </div>
     <div id="fb-in-panel">
       <input class="fb-input" id="fb-in-email" type="email" placeholder="Email" autocomplete="email">
-      <input class="fb-input" id="fb-in-pw" type="password" placeholder="Password" autocomplete="current-password">
+      <div class="fb-pw-wrap">
+        <input class="fb-input" id="fb-in-pw" type="password" placeholder="Password" autocomplete="current-password">
+        <button class="fb-pw-toggle" type="button" onclick="fbTogglePw('fb-in-pw',this)" tabindex="-1">👁</button>
+      </div>
       <button class="fb-btn" id="fb-in-btn" onclick="fbSignIn()">Sign In</button>
       <div class="fb-err" id="fb-in-err"></div>
     </div>
@@ -2615,7 +2672,10 @@
       <input class="fb-input" id="fb-up-name" type="text" placeholder="Full name (e.g. Jason Inmon)" autocomplete="name">
       <input class="fb-input" id="fb-up-ghin" type="text" inputmode="numeric" placeholder="GHIN # (optional)" autocomplete="off">
       <input class="fb-input" id="fb-up-email" type="email" placeholder="Email" autocomplete="email">
-      <input class="fb-input" id="fb-up-pw" type="password" placeholder="Password (6+ chars)" autocomplete="new-password">
+      <div class="fb-pw-wrap">
+        <input class="fb-input" id="fb-up-pw" type="password" placeholder="Password (6+ chars)" autocomplete="new-password">
+        <button class="fb-pw-toggle" type="button" onclick="fbTogglePw('fb-up-pw',this)" tabindex="-1">👁</button>
+      </div>
       <button class="fb-btn" id="fb-up-btn" onclick="fbSignUp()">Create Account</button>
       <div class="fb-err" id="fb-up-err"></div>
     </div>
@@ -3972,9 +4032,11 @@ var state = {
   selectedGroupForScorecard: null,
   scorecard: { scores:{}, events:{} }, // single-round branch only
   rcTeamNames: { A: 'USA', B: 'Europe' },  // Ryder Cup: editable team names
+  rcTeamColors: { A: '#1a3a6e', B: '#8b1a1a' }, // Ryder Cup: team colors
   rcTeamAssign: {},                         // Ryder Cup: { playerIdx: 'A'|'B' }
   hostUid: null,                            // Firebase UID of round creator (host)
-  venmoHandles: {}                          // { playerName: '@handle' } — saved directly to Firestore
+  venmoHandles: {},                          // { playerName: '@handle' } — saved directly to Firestore
+  eventName: ''                              // display name for the event (e.g. "2026 Sand Valley Cup")
 };
 var nextSideGameId = 1;
 var nextDayId = 1;
@@ -3984,6 +4046,21 @@ function isRyderCup(){ return isEvent() && state.scoringMethod === 'Ryder Cup Fo
 function isMultiDay(){ return isEvent() && state.multiDay === true; } // false/null = single-day event
 function rcTeamFor(idx){ return (state.rcTeamAssign && state.rcTeamAssign[idx]) || 'A'; }
 function rcTeamName(side){ return (state.rcTeamNames && state.rcTeamNames[side]) || (side === 'A' ? 'USA' : 'Europe'); }
+function rcTeamColor(side){ return (state.rcTeamColors && state.rcTeamColors[side]) || (side === 'A' ? '#1a3a6e' : '#8b1a1a'); }
+var RC_COLOR_PALETTE = [
+  '#1a3a6e', // Navy
+  '#8b1a1a', // Crimson
+  '#1a5c36', // Forest Green
+  '#1a1a1a', // Black
+  '#5a1a6e', // Purple
+  '#6e1a3a', // Maroon
+  '#c25a00', // Burnt Orange
+  '#b8860b', // Gold
+  '#006994', // Ocean Blue
+  '#3a3a3a', // Charcoal
+  '#004d40', // Teal
+  '#880e4f', // Raspberry
+];
 // Returns [[aIdx, bIdx], ...] — uses stored pairing if valid, else defaults to position order
 function getSinglesPairings(d, gn, teamAIdxs, teamBIdxs){
   var stored = d.singlesPairings && d.singlesPairings[gn];
@@ -4713,16 +4790,35 @@ function renderCourseStep(){
 // ================= RYDER CUP TEAM SETUP =================
 function renderRyderCupTeamSetup(containerId){
   if (!state.rcTeamNames) state.rcTeamNames = { A: 'USA', B: 'Europe' };
+  if (!state.rcTeamColors) state.rcTeamColors = { A: '#1a3a6e', B: '#8b1a1a' };
   if (!state.rcTeamAssign) state.rcTeamAssign = {};
 
   var nameA = state.rcTeamNames.A || 'USA';
   var nameB = state.rcTeamNames.B || 'Europe';
+  var colA = rcTeamColor('A');
+  var colB = rcTeamColor('B');
 
   var html = '<div class="card" id="rcTeamSetupCard" style="margin-top:12px;">';
   html += '<div class="section-title">'+sgIcon('trophy',16)+' Ryder Cup Teams</div>';
+
+  // Team name inputs
   html += '<div class="rc-team-name-row">';
-  html += '<div><label style="color:#4f7942;">Team A Name</label><input class="rc-team-name-a" id="rcNameA" type="text" value="'+escapeHtml(nameA)+'" placeholder="USA"></div>';
-  html += '<div><label style="color:#4a78b5;">Team B Name</label><input class="rc-team-name-b" id="rcNameB" type="text" value="'+escapeHtml(nameB)+'" placeholder="Europe"></div>';
+  html += '<div><label style="color:'+colA+';">Team A Name</label><input style="border-color:'+colA+';color:'+colA+';" id="rcNameA" type="text" value="'+escapeHtml(nameA)+'" placeholder="USA"></div>';
+  html += '<div><label style="color:'+colB+';">Team B Name</label><input style="border-color:'+colB+';color:'+colB+';" id="rcNameB" type="text" value="'+escapeHtml(nameB)+'" placeholder="Europe"></div>';
+  html += '</div>';
+
+  // Color swatches
+  html += '<div class="rc-color-row">';
+  html += '<div><label style="color:'+colA+';">Team A Color</label><div class="rc-color-swatches">';
+  RC_COLOR_PALETTE.forEach(function(hex) {
+    html += '<button class="rc-color-swatch'+(hex===colA?' selected':'')+'" data-rc-color="A|'+hex+'" style="background:'+hex+';" title="'+hex+'"></button>';
+  });
+  html += '</div></div>';
+  html += '<div><label style="color:'+colB+';">Team B Color</label><div class="rc-color-swatches">';
+  RC_COLOR_PALETTE.forEach(function(hex) {
+    html += '<button class="rc-color-swatch'+(hex===colB?' selected':'')+'" data-rc-color="B|'+hex+'" style="background:'+hex+';" title="'+hex+'"></button>';
+  });
+  html += '</div></div>';
   html += '</div>';
 
   html += '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Tap a player\'s name to switch their team. Assignment carries across all days.</div>';
@@ -4738,8 +4834,8 @@ function renderRyderCupTeamSetup(containerId){
       html += '<div class="rc-player-row">';
       html += '<div class="rc-player-name">'+escapeHtml(p.name)+'</div>';
       html += '<div class="rc-team-toggle">';
-      html += '<button class="rc-team-btn'+(team==='A'?' active-a':'')+'" data-rc-assign="'+idx+'|A">'+tnA+'</button>';
-      html += '<button class="rc-team-btn'+(team==='B'?' active-b':'')+'" data-rc-assign="'+idx+'|B">'+tnB+'</button>';
+      html += '<button class="rc-team-btn'+(team==='A'?' active-a':'')+'" data-rc-assign="'+idx+'|A" style="'+(team==='A'?'background:'+colA+';border-color:'+colA+';color:#fff;':'')+'">'+tnA+'</button>';
+      html += '<button class="rc-team-btn'+(team==='B'?' active-b':'')+'" data-rc-assign="'+idx+'|B" style="'+(team==='B'?'background:'+colB+';border-color:'+colB+';color:#fff;':'')+'">'+tnB+'</button>';
       html += '</div></div>';
     });
   }
@@ -4748,8 +4844,8 @@ function renderRyderCupTeamSetup(containerId){
   var countA = validPlayers.filter(function(p){ return rcTeamFor(state.players.indexOf(p)) === 'A'; }).length;
   var countB = validPlayers.filter(function(p){ return rcTeamFor(state.players.indexOf(p)) === 'B'; }).length;
   html += '<div style="display:flex;gap:10px;margin-top:10px;">';
-  html += '<div style="flex:1;background:#f4f8f3;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;color:#4f7942;">'+escapeHtml(nameA)+': '+countA+' player'+(countA!==1?'s':'')+'</div>';
-  html += '<div style="flex:1;background:#f3f6fb;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;color:#4a78b5;">'+escapeHtml(nameB)+': '+countB+' player'+(countB!==1?'s':'')+'</div>';
+  html += '<div style="flex:1;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;background:'+colA+'22;color:'+colA+';">'+escapeHtml(nameA)+': '+countA+' player'+(countA!==1?'s':'')+'</div>';
+  html += '<div style="flex:1;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;background:'+colB+'22;color:'+colB+';">'+escapeHtml(nameB)+': '+countB+' player'+(countB!==1?'s':'')+'</div>';
   html += '</div>';
   html += '</div>';
 
@@ -4763,6 +4859,17 @@ function renderRyderCupTeamSetup(containerId){
   var inA = document.getElementById('rcNameA'), inB = document.getElementById('rcNameB');
   if (inA) inA.addEventListener('change', function(){ state.rcTeamNames.A = inA.value; renderRyderCupTeamSetup(containerId); });
   if (inB) inB.addEventListener('change', function(){ state.rcTeamNames.B = inB.value; renderRyderCupTeamSetup(containerId); });
+
+  // Wire color swatch buttons
+  Array.prototype.forEach.call(document.querySelectorAll('[data-rc-color]'), function(el){
+    el.addEventListener('click', function(){
+      var parts = el.getAttribute('data-rc-color').split('|');
+      var side = parts[0], hex = parts[1];
+      if (!state.rcTeamColors) state.rcTeamColors = {};
+      state.rcTeamColors[side] = hex;
+      renderRyderCupTeamSetup(containerId);
+    });
+  });
 
   // Wire team assignment buttons
   Array.prototype.forEach.call(document.querySelectorAll('[data-rc-assign]'), function(el){
@@ -4792,7 +4899,8 @@ function buildRcMatchBannerHtml(day, gn, course, tee, idxs, sc) {
   var ctx;
   try { ctx = buildCtx(idxs, course, tee, sc, rcHcpPct); } catch(e) { return ''; }
   var nameA = rcTeamName('A'), nameB = rcTeamName('B');
-  var html = '<div class="rc-match-banner" id="rc-banner-'+day.id+'-'+gn+'">';
+  var _banColA = rcTeamColor('A'), _banColB = rcTeamColor('B');
+  var html = '<div class="rc-match-banner" id="rc-banner-'+day.id+'-'+gn+'" style="background:linear-gradient(90deg,'+_banColA+' 0%,'+_banColB+' 100%);">';
   html += '<span class="rc-mb-label">'+escapeHtml(matchType)+'</span>';
   var totalA = 0, totalB = 0;
   if (matchType === 'Singles') {
@@ -5946,6 +6054,11 @@ function renderEventSchedule(){
   var _esContainer = (isMultiDay() && state.step === 4) ? 'content-4' : 'content-5';
   if (state.days.length === 0) addDay(); // always start with at least one day
   var html = '';
+  // Event Name input
+  html += '<div class="sg-event-name-card">';
+  html += '<label class="field-label" style="font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:block;">Event Name <span style="font-weight:400;opacity:.6;">(optional)</span></label>';
+  html += '<input type="text" class="sg-event-name-inp" id="sgEventNameInp" placeholder="e.g. 2026 Sand Valley Cup" maxlength="60" value="'+escapeHtml(state.eventName||'')+'" oninput="state.eventName=this.value;">';
+  html += '</div>';
   state.days.forEach(function(d, dIdx){
     var course = d.courseIdx!=null ? MOCK_COURSES[d.courseIdx] : null;
     html += '<div class="day-block" data-dayblock="'+d.id+'">';
@@ -6051,7 +6164,8 @@ function renderEventSchedule(){
             var teamBadge = '';
             if (isRyderCup()){
               var tSide = rcTeamFor(i);
-              teamBadge = ' <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;background:'+(tSide==='A'?'#e8f0e8;color:#2d5a2d':'#e8eef8;color:#1a4480')+';">'+escapeHtml(rcTeamName(tSide))+'</span>';
+              var _tbCol = rcTeamColor(tSide);
+              teamBadge = ' <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;background:'+_tbCol+'22;color:'+_tbCol+';border:1px solid '+_tbCol+'55;">'+escapeHtml(rcTeamName(tSide))+'</span>';
             }
             html += '<div class="hcp-row"><span>'+escapeHtml(state.players[i].name)+teamBadge+(s.ch!=null?' (CH '+s.ch+')':'')+'</span><span class="strokes">'+stext+'</span></div>';
           });
@@ -7232,6 +7346,9 @@ function renderEventHub(){
   var html = '<div class="event-hub">';
   html += '<div class="event-hub-header">';
   html += '<div class="event-hub-title">'+(isRyderCup() ? sgIcon('trophy',20)+' Ryder Cup Event' : sgIcon('flag',20)+' Golf Event')+'</div>';
+  if (state.eventName) {
+    html += '<div style="font-size:17px;font-weight:900;color:#16284a;letter-spacing:.3px;margin-top:2px;margin-bottom:2px;">'+escapeHtml(state.eventName)+'</div>';
+  }
   html += '<div class="event-hub-sub">'+state.days.length+'-Day Event  •  '+numPlayers+' Players</div>';
   if (code && isCurrentUserHost()) {
     html += '<div class="event-hub-code" style="cursor:pointer;" onclick="showQrOverlay(\''+escapeHtml(code)+'\')" title="Show QR code"><span class="event-hub-code-label">Join Code</span><span class="event-hub-code-val">'+escapeHtml(code)+'</span><span style="font-size:14px;margin-left:6px;opacity:.8;">📱</span></div>';
@@ -7281,6 +7398,9 @@ function renderEventHub(){
   var allDone = state.days.every(function(d){return d.status==='completed';});
   if (allDone && isCurrentUserHost()) {
     html += '<button onclick="showResultsSummary(null)" style="width:100%;padding:13px;border-radius:8px;border:none;background:#e8f5e9;color:var(--green-dark,#1a5c36);font-size:14px;font-weight:700;cursor:pointer;">'+sgIcon('trophy',16)+' Event Results — Share with Group</button>';
+  }
+  if (fbRoundCode && isCurrentUserHost()) {
+    html += '<button class="sg-tv-hub-btn" onclick="openEventSummary()">📺 Event Summary</button>';
   }
   html += '</div>';
   html += '</div>';
@@ -12111,6 +12231,7 @@ function buildSingleLeaderboardAndLedgerHtml(){
 // ================= RYDER CUP SCOREBOARD (review screen) =================
 function buildRyderCupScoreboardHtml(){
   var nameA = rcTeamName('A'), nameB = rcTeamName('B');
+  var colA = rcTeamColor('A'), colB = rcTeamColor('B');
   var matchSummaries = [];
 
   state.days.forEach(function(d, dIdx){
@@ -12238,12 +12359,15 @@ function buildRyderCupScoreboardHtml(){
 
   // Scoreboard card — tappable to expand match details
   var html = '<div class="rc-scoreboard" onclick="toggleRcScoreboard()" style="cursor:pointer;user-select:none;">';
+  html += '<div style="height:5px;background:linear-gradient(90deg,'+colA+','+colB+');margin:-18px -16px 14px -16px;border-radius:var(--radius) var(--radius) 0 0;"></div>';
   html += '<div class="rc-sb-teams">';
-  html += '<div class="rc-sb-team"><div class="rc-sb-name">'+escapeHtml(nameA)+'</div>';
-  html += '<div class="rc-sb-pts'+(sb.teamAPoints>sb.teamBPoints?' leading':'')+'">'+sb.teamAPoints+'</div></div>';
+  html += '<div class="rc-sb-team" style="border-bottom:3px solid '+colA+';">';
+  html += '<div class="rc-sb-name" style="color:'+colA+';">'+escapeHtml(nameA)+'</div>';
+  html += '<div class="rc-sb-pts'+(sb.teamAPoints>sb.teamBPoints?' leading':'')+'" style="'+(sb.teamAPoints>sb.teamBPoints?'color:'+colA+';':'')+'">'+sb.teamAPoints+'</div></div>';
   html += '<div style="font-size:22px;opacity:.35;align-self:center;">—</div>';
-  html += '<div class="rc-sb-team"><div class="rc-sb-name">'+escapeHtml(nameB)+'</div>';
-  html += '<div class="rc-sb-pts'+(sb.teamBPoints>sb.teamAPoints?' leading':'')+'">'+sb.teamBPoints+'</div></div>';
+  html += '<div class="rc-sb-team" style="border-bottom:3px solid '+colB+';">';
+  html += '<div class="rc-sb-name" style="color:'+colB+';">'+escapeHtml(nameB)+'</div>';
+  html += '<div class="rc-sb-pts'+(sb.teamBPoints>sb.teamAPoints?' leading':'')+'" style="'+(sb.teamBPoints>sb.teamAPoints?'color:'+colB+';':'')+'">'+sb.teamBPoints+'</div></div>';
   html += '</div>';
   html += '<div style="text-align:center;font-size:11px;opacity:.65;margin-top:4px;">';
   html += sb.played+' match'+(sb.played!==1?'es':'')+' started';
@@ -12816,6 +12940,15 @@ window.fbSignUp = function() {
       btn.disabled = false; btn.textContent = 'Create Account';
       errEl.textContent = fbFriendlyError(err);
     });
+};
+
+// ── Password visibility toggle ───────────────────────────────────────────────
+window.fbTogglePw = function(inputId, btn) {
+  var inp = document.getElementById(inputId);
+  if (!inp) return;
+  var show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
 };
 
 // ── Sign In ───────────────────────────────────────────────────────────────────
@@ -13607,9 +13740,11 @@ function resetState() {
   state.selectedGroupForScorecard = null;
   state.scorecard = { scores:{}, events:{} };
   state.rcTeamNames = { A: 'USA', B: 'Europe' };
+  state.rcTeamColors = { A: '#1a3a6e', B: '#8b1a1a' };
   state.rcTeamAssign = {};
   state.hostUid = null;
   state.venmoHandles = {};
+  state.eventName = '';
   nextSideGameId = 1;
   nextDayId = 1;
 }
@@ -14586,6 +14721,19 @@ window.fbPendingJoinCode = window.fbPendingJoinCode || (function() {
   } catch(e) { return null; }
 })();
 
+// ── ?tv= URL parameter — detect for TV Summary mode ──────────────────────────
+window.fbPendingTvCode = (function() {
+  try {
+    var p = new URLSearchParams(window.location.search);
+    var c = (p.get('tv') || '').trim().toUpperCase();
+    if (c.length === 6) {
+      history.replaceState(null, '', window.location.pathname);
+      return c;
+    }
+    return null;
+  } catch(e) { return null; }
+})();
+
 // ── Join-choice overlay (Watch Live vs Keep Score) ────────────────────────────
 // Shown when an unauthenticated user arrives via a ?join= deep link.
 window._sgJcCode = null;
@@ -14709,6 +14857,12 @@ function sgSendWelcomeEmail(user) {
 
 // ── Auth state observer ────────────────────────────────────────────────────────
 fbAuth.onAuthStateChanged(function(user) {
+  // TV Summary mode — bypass normal auth flow entirely
+  if (window.fbPendingTvCode) {
+    initTvView(window.fbPendingTvCode);
+    window.fbPendingTvCode = null;
+    return;
+  }
   fbUser = user;
   window.fbUser = user; // expose globally so renderPlayerRows() can see it
   if (!user) {
@@ -16000,6 +16154,445 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   initCaddieVoice();
 });
+</script>
+
+<!-- ── TV Summary Root ─────────────────────────────────────────────────────── -->
+<div id="sg-tv-root"></div>
+
+<script>
+// ============================================================================
+//  EVENT TV SUMMARY
+// ============================================================================
+
+// Open TV summary in a new tab
+function openEventSummary() {
+  var code = fbRoundCode;
+  if (!code) { alert('Event must be active to open TV Summary.'); return; }
+  try {
+    var tvState = JSON.parse(JSON.stringify(state));
+    // Embed course data so TV tab can compute match results without MOCK_COURSES
+    (tvState.days || []).forEach(function(day, i) {
+      if (day.courseIdx != null && MOCK_COURSES[day.courseIdx]) {
+        tvState.days[i]._courseData = MOCK_COURSES[day.courseIdx];
+      }
+    });
+    if (tvState.course != null && MOCK_COURSES[tvState.course]) {
+      tvState._courseData = MOCK_COURSES[tvState.course];
+    }
+    localStorage.setItem('sg_tv_state_' + code, JSON.stringify(tvState));
+  } catch(e) {}
+  window.open(window.location.origin + '/?tv=' + code, '_blank');
+}
+window.openEventSummary = openEventSummary;
+
+// Initialize TV view — hides normal app, shows broadcast layout
+function initTvView(code) {
+  var phone = document.querySelector('.phone');
+  if (phone) phone.style.display = 'none';
+  var caddieFab = document.getElementById('caddieFab');
+  if (caddieFab) caddieFab.style.display = 'none';
+  var caddieBar = document.getElementById('caddie-bar');
+  if (caddieBar) caddieBar.style.display = 'none';
+  var tvRoot = document.getElementById('sg-tv-root');
+  if (!tvRoot) return;
+  tvRoot.classList.add('active');
+
+  // Immediate render from localStorage cache
+  var cached = null;
+  try { cached = JSON.parse(localStorage.getItem('sg_tv_state_' + code) || 'null'); } catch(e) {}
+  if (cached) {
+    if (cached._courseData && cached.course != null) {
+      while (MOCK_COURSES.length <= cached.course) MOCK_COURSES.push(null);
+      MOCK_COURSES[cached.course] = cached._courseData;
+    }
+    tvRoot.innerHTML = buildTvHtml(cached);
+    setTimeout(function(){ fetchAllCaddieSummaries(cached); }, 600);
+  } else {
+    tvRoot.innerHTML = '<div class="sg-tv-page"><div class="sg-tv-hdr"><div class="sg-tv-event-name">Loading...</div></div></div>';
+  }
+
+  // Caddie summary cache — persists across HTML rebuilds
+  window._sgTvSummaryCache = window._sgTvSummaryCache || {};
+
+  function tvRestoreSummaryCache() {
+    Object.keys(window._sgTvSummaryCache).forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && window._sgTvSummaryCache[id]) el.textContent = window._sgTvSummaryCache[id];
+    });
+  }
+
+  // Live Firestore updates
+  if (typeof fbDb !== 'undefined') {
+    var _tvFirstSnap = true;
+    fbDb.collection('rounds').doc(code).onSnapshot(function(snap) {
+      if (!snap.exists) return;
+      var d = snap.data();
+      var s = d.state || d;
+      if (!s) return;
+      (s.days || []).forEach(function(day) {
+        if (day._courseData && day.courseIdx != null) {
+          while (MOCK_COURSES.length <= day.courseIdx) MOCK_COURSES.push(null);
+          MOCK_COURSES[day.courseIdx] = day._courseData;
+        }
+      });
+      if (s._courseData && s.course != null) {
+        while (MOCK_COURSES.length <= s.course) MOCK_COURSES.push(null);
+        MOCK_COURSES[s.course] = s._courseData;
+      }
+      tvRoot.innerHTML = buildTvHtml(s);
+      tvRestoreSummaryCache();
+      // Only fetch new Caddie summaries on first snap or after a delay to avoid spam
+      if (_tvFirstSnap) {
+        _tvFirstSnap = false;
+        setTimeout(function(){ fetchAllCaddieSummaries(s); }, 800);
+      } else {
+        setTimeout(function(){ fetchAllCaddieSummaries(s); }, 3000);
+      }
+    }, function(err) { console.warn('[TV] Firestore error', err); });
+  }
+}
+window.initTvView = initTvView;
+
+// Build full broadcast-layout HTML from state snapshot
+function buildTvHtml(s) {
+  var eventName = s.eventName || 'Golf Event';
+  var numPlayers = (s.players || []).filter(function(p){ return p && p.name && p.name.trim(); }).length;
+  var numDays = (s.days || []).length;
+
+  // Detect RC
+  var teamAssign = s.rcTeamAssign || {};
+  var hasTeams = Object.keys(teamAssign).length > 0;
+
+  var html = '';
+  // Exit / close button (fixed, always visible)
+  html += '<button onclick="window.location.href=\'/\';" style="position:fixed;top:14px;right:16px;z-index:10001;background:rgba(0,0,0,.55);color:#fff;border:1.5px solid rgba(255,255,255,.35);border-radius:50%;width:38px;height:38px;font-size:20px;font-weight:300;cursor:pointer;line-height:36px;text-align:center;padding:0;">×</button>';
+  // Portrait rotate hint
+  html += '<div class="sg-tv-rotate-hint">';
+  html += '<svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<rect x="9" y="4" width="34" height="44" rx="6" stroke="#f5c842" stroke-width="3"/>'
+        + '<circle cx="26" cy="42" r="3" fill="#f5c842"/>'
+        + '</svg>';
+  html += '<span>Rotate for TV view</span>';
+  html += '</div>';
+
+  html += '<div class="sg-tv-page">';
+
+  // Header
+  html += '<div class="sg-tv-hdr">';
+  html += '<div class="sg-tv-event-name">' + escapeHtml(eventName) + '</div>';
+  html += '<div class="sg-tv-event-sub">' + numDays + '-Day Event &nbsp;•&nbsp; ' + numPlayers + ' Players</div>';
+  html += '</div>';
+
+  // RC Team Standings Banner
+  if (hasTeams) {
+    var teamNames = s.rcTeamNames || { A: 'USA', B: 'Europe' };
+    var teamColors = s.rcTeamColors || { A: '#1a3a6e', B: '#8b1a1a' };
+    var pts = buildTvRcPoints(s);
+    var tvColA = teamColors.A || '#1a3a6e';
+    var tvColB = teamColors.B || '#8b1a1a';
+    html += '<div class="sg-tv-team-banner">';
+    html += '<div class="sg-tv-team-a" style="background:linear-gradient(135deg,' + tvColA + 'ee,' + tvColA + ');">';
+    html += '<div class="sg-tv-team-name">' + escapeHtml(teamNames.A || 'USA') + '</div>';
+    html += '<div class="sg-tv-team-pts">' + formatPts(pts.A) + '</div>';
+    html += '<div class="sg-tv-team-lbl">Points</div>';
+    html += '</div>';
+    html += '<div class="sg-tv-team-vs">VS</div>';
+    html += '<div class="sg-tv-team-b" style="background:linear-gradient(135deg,' + tvColB + 'ee,' + tvColB + ');">';
+    html += '<div class="sg-tv-team-name">' + escapeHtml(teamNames.B || 'Europe') + '</div>';
+    html += '<div class="sg-tv-team-pts">' + formatPts(pts.B) + '</div>';
+    html += '<div class="sg-tv-team-lbl">Points</div>';
+    html += '</div>';
+    html += '</div>';
+  }
+
+  // Day sections
+  (s.days || []).forEach(function(d, dIdx) {
+    html += buildTvDaySectionHtml(d, dIdx, s);
+  });
+
+  html += '</div>'; // .sg-tv-page
+  return html;
+}
+
+function formatPts(v) {
+  if (v === Math.floor(v)) return String(v);
+  return v.toFixed(1);
+}
+
+// Calculate RC team points across all completed/active days
+function buildTvRcPoints(s) {
+  var pts = { A: 0, B: 0 };
+  try {
+    var teamAssign = s.rcTeamAssign || {};
+    (s.days || []).forEach(function(d) {
+      if ((d.status !== 'active' && d.status !== 'completed') || d.courseIdx == null) return;
+      var course = MOCK_COURSES[d.courseIdx];
+      if (!course) return;
+      var numGroups = d.numGroups || 1;
+      var assigns = d.assignments || {};
+      for (var gn = 1; gn <= numGroups; gn++) {
+        var gPlayers = [];
+        (s.players || []).forEach(function(p, pi) {
+          if (assigns[pi] === gn || assigns[String(pi)] === gn) gPlayers.push(pi);
+        });
+        var gmType = (d.groupMatchType || {})[gn] || d.dayFormat || 'match';
+        var pairings = (d.singlesPairings || {})[gn] || [];
+        var pv = d.pointValue || 1;
+
+        if (gmType === 'Singles' && pairings.length) {
+          pairings.forEach(function(pair) {
+            try {
+              var aIdx = pair[0], bIdx = pair[1];
+              var aTeam = teamAssign[aIdx] || teamAssign[String(aIdx)];
+              var bTeam = teamAssign[bIdx] || teamAssign[String(bIdx)];
+              if (!aTeam || !bTeam) return;
+              var result = buildTvMatchResult(s, d, gn, [aIdx], [bIdx]);
+              if (result.winner === 'A') pts[aTeam] += pv;
+              else if (result.winner === 'B') pts[bTeam] += pv;
+              else if (result.winner === 'tie') { pts[aTeam] += pv / 2; pts[bTeam] += pv / 2; }
+            } catch(e) {}
+          });
+        } else {
+          var sideA = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'A'; });
+          var sideB = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'B'; });
+          if (sideA.length && sideB.length) {
+            try {
+              var result = buildTvMatchResult(s, d, gn, sideA, sideB);
+              if (result.winner === 'A') pts['A'] += pv;
+              else if (result.winner === 'B') pts['B'] += pv;
+              else if (result.winner === 'tie') { pts['A'] += pv / 2; pts['B'] += pv / 2; }
+            } catch(e) {}
+          }
+        }
+      }
+    });
+  } catch(e) {}
+  return pts;
+}
+
+// Calculate match result (A=sideA wins, B=sideB wins, tie, pending)
+function buildTvMatchResult(s, d, gn, sideA, sideB) {
+  var result = { winner: 'pending', score: '' };
+  try {
+    var sc = (d.scorecards || {})[gn] || { scores: {}, events: {} };
+    var course = MOCK_COURSES[d.courseIdx];
+    if (!course) return result;
+    var holes = course.holes || [];
+    var numHoles = holes.length;
+    if (!numHoles) return result;
+
+    var aWins = 0, bWins = 0, played = 0;
+    for (var h = 0; h < numHoles; h++) {
+      var hName = String(h + 1);
+      var aScores = sideA.map(function(pi){ return ((sc.scores || {})[pi] || {})[hName] || 0; }).filter(function(x){ return x > 0; });
+      var bScores = sideB.map(function(pi){ return ((sc.scores || {})[pi] || {})[hName] || 0; }).filter(function(x){ return x > 0; });
+      if (!aScores.length || !bScores.length) continue;
+      var aNet = Math.min.apply(null, aScores);
+      var bNet = Math.min.apply(null, bScores);
+      played++;
+      if (aNet < bNet) aWins++;
+      else if (bNet < aNet) bWins++;
+    }
+    if (played === 0) return result;
+
+    var diff = aWins - bWins;
+    var remaining = numHoles - played;
+
+    if (diff > 0 && diff > remaining) {
+      result.winner = 'A'; result.score = diff + '&' + remaining;
+    } else if (diff < 0 && (-diff) > remaining) {
+      result.winner = 'B'; result.score = (-diff) + '&' + remaining;
+    } else if (remaining === 0) {
+      if (diff > 0) { result.winner = 'A'; result.score = diff + ' UP'; }
+      else if (diff < 0) { result.winner = 'B'; result.score = (-diff) + ' UP'; }
+      else { result.winner = 'tie'; result.score = 'AS'; }
+    } else {
+      result.winner = 'pending';
+      result.score = diff > 0 ? diff + ' UP' : diff < 0 ? (-diff) + ' DN' : 'AS';
+    }
+  } catch(e) {}
+  return result;
+}
+
+// Build a day section card
+function buildTvDaySectionHtml(d, dIdx, s) {
+  var status = d.status || 'pending';
+  var course = (d.courseIdx != null) ? MOCK_COURSES[d.courseIdx] : null;
+  var courseName = course ? course.name : 'TBD';
+  var dateStr = d.date ? ' — ' + d.date : '';
+
+  var html = '<div class="sg-tv-day">';
+  html += '<div class="sg-tv-day-hdr">';
+  html += '<span class="sg-tv-day-num">Day ' + (dIdx + 1) + '</span>';
+  html += '<span class="sg-tv-day-course">' + escapeHtml(courseName) + escapeHtml(dateStr) + '</span>';
+  html += '<span class="sg-tv-day-status ' + status + '">' + status.charAt(0).toUpperCase() + status.slice(1) + '</span>';
+  html += '</div>';
+
+  if (status === 'pending') {
+    html += '<div style="padding:16px;color:rgba(255,255,255,.35);font-size:13px;text-align:center;">Not yet started</div>';
+    html += '</div>';
+    return html;
+  }
+
+  var numGroups = d.numGroups || 1;
+  var assigns = d.assignments || {};
+  var teamAssign = s.rcTeamAssign || {};
+
+  for (var gn = 1; gn <= numGroups; gn++) {
+    var gPlayers = [];
+    (s.players || []).forEach(function(p, pi) {
+      if (assigns[pi] === gn || assigns[String(pi)] === gn) gPlayers.push(pi);
+    });
+    if (!gPlayers.length) continue;
+
+    var gmType = (d.groupMatchType || {})[gn] || d.dayFormat || 'match';
+    var pairings = (d.singlesPairings || {})[gn] || [];
+
+    if (gmType === 'Singles' && pairings.length) {
+      pairings.forEach(function(pair, pIdx) {
+        if (!pair || pair.length < 2) return;
+        html += buildTvMatchHtml(s, d, gn, [pair[0]], [pair[1]], gmType, 'Match ' + (pIdx + 1));
+      });
+    } else {
+      var sideA = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'A'; });
+      var sideB = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'B'; });
+      if (sideA.length && sideB.length) {
+        html += buildTvMatchHtml(s, d, gn, sideA, sideB, gmType, 'Group ' + gn + ' — ' + gmType);
+      } else if (gPlayers.length >= 2) {
+        var half = Math.ceil(gPlayers.length / 2);
+        html += buildTvMatchHtml(s, d, gn, gPlayers.slice(0, half), gPlayers.slice(half), gmType, 'Group ' + gn);
+      }
+    }
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// Build a single match card
+function buildTvMatchHtml(s, d, gn, sideA, sideB, matchType, label) {
+  var matchId = 'tv-m-' + d.id + '-' + gn + '-' + sideA.join('_') + 'v' + sideB.join('_');
+  var nameA = sideA.map(function(pi){ return (s.players[pi] || {}).name || ''; }).filter(Boolean).join(' / ');
+  var nameB = sideB.map(function(pi){ return (s.players[pi] || {}).name || ''; }).filter(Boolean).join(' / ');
+  var result = buildTvMatchResult(s, d, gn, sideA, sideB);
+
+  var chipClass = result.winner === 'A' ? 'win-a'
+    : result.winner === 'B' ? 'win-b'
+    : result.winner === 'tie' ? 'tie' : 'pending';
+  var chipText = result.winner === 'pending' ? (result.score || 'Thru ' + countPlayedHoles(s, d, gn, sideA) + 'H')
+    : result.score || (result.winner === 'tie' ? 'Tied' : result.winner);
+
+  var html = '<div class="sg-tv-match" id="' + matchId + '">';
+  html += '<div class="sg-tv-match-teams">';
+  html += '<div class="sg-tv-match-side">' + (result.winner === 'A' ? '🏆 ' : '') + escapeHtml(nameA) + '</div>';
+  html += '<div class="sg-tv-match-chip ' + chipClass + '">' + escapeHtml(chipText) + '</div>';
+  html += '<div class="sg-tv-match-side right">' + (result.winner === 'B' ? '🏆 ' : '') + escapeHtml(nameB) + '</div>';
+  html += '</div>';
+  html += '<div class="sg-tv-summary" id="' + matchId + '-summary"></div>';
+  html += '</div>';
+  return html;
+}
+
+// Count how many holes have been played for a group
+function countPlayedHoles(s, d, gn, playerIdxs) {
+  try {
+    var sc = (d.scorecards || {})[gn] || { scores: {} };
+    var course = MOCK_COURSES[d.courseIdx];
+    if (!course) return 0;
+    var count = 0;
+    for (var h = 0; h < course.holes.length; h++) {
+      var any = playerIdxs.some(function(pi){ return ((sc.scores || {})[pi] || {})[String(h+1)] > 0; });
+      if (any) count++;
+    }
+    return count;
+  } catch(e) { return 0; }
+}
+
+// Auto-generate Caddie AI summaries for all matches in the state
+function fetchAllCaddieSummaries(s) {
+  try {
+    (s.days || []).forEach(function(d) {
+      if (d.status !== 'completed' && d.status !== 'active') return;
+      var numGroups = d.numGroups || 1;
+      var assigns = d.assignments || {};
+      var teamAssign = s.rcTeamAssign || {};
+      for (var gn = 1; gn <= numGroups; gn++) {
+        var gPlayers = [];
+        (s.players || []).forEach(function(p, pi) {
+          if (assigns[pi] === gn || assigns[String(pi)] === gn) gPlayers.push(pi);
+        });
+        if (!gPlayers.length) continue;
+        var gmType = (d.groupMatchType || {})[gn] || d.dayFormat || 'match';
+        var pairings = (d.singlesPairings || {})[gn] || [];
+        if (gmType === 'Singles' && pairings.length) {
+          pairings.forEach(function(pair) {
+            if (pair && pair.length >= 2) fetchCaddieSummaryForMatch(s, d, gn, [pair[0]], [pair[1]]);
+          });
+        } else {
+          var sideA = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'A'; });
+          var sideB = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'B'; });
+          if (sideA.length && sideB.length) fetchCaddieSummaryForMatch(s, d, gn, sideA, sideB);
+        }
+      }
+    });
+  } catch(e) { console.warn('[TV] fetchAllCaddieSummaries error', e); }
+}
+
+// Fetch a single Caddie AI match summary and inject it
+function fetchCaddieSummaryForMatch(s, d, gn, sideA, sideB) {
+  var matchId = 'tv-m-' + d.id + '-' + gn + '-' + sideA.join('_') + 'v' + sideB.join('_');
+  var el = document.getElementById(matchId + '-summary');
+  if (!el) return;
+  var nameA = sideA.map(function(pi){ return (s.players[pi] || {}).name || ''; }).filter(Boolean).join(' / ');
+  var nameB = sideB.map(function(pi){ return (s.players[pi] || {}).name || ''; }).filter(Boolean).join(' / ');
+  var result = buildTvMatchResult(s, d, gn, sideA, sideB);
+  var course = (d.courseIdx != null) ? MOCK_COURSES[d.courseIdx] : null;
+  var courseName = course ? course.name : 'the course';
+  var resultText = result.winner === 'pending'
+    ? 'In Progress — ' + (result.score || 'early holes')
+    : result.winner === 'tie' ? 'Tied — ' + result.score
+    : (result.winner === 'A' ? nameA : nameB) + ' won ' + result.score;
+
+  var prompt = 'Write a 2-sentence broadcast-style golf match summary. Keep it exciting, concise, under 40 words, no emojis. '
+    + 'Event: ' + (s.eventName || 'Golf Event') + '. '
+    + 'Venue: ' + courseName + '. '
+    + 'Matchup: ' + nameA + ' vs ' + nameB + '. '
+    + 'Result: ' + resultText + '.';
+
+  // Use cached summary if result hasn't changed
+  var cacheKey = matchId + '|' + resultText;
+  if (window._sgTvSummaryCache && window._sgTvSummaryCache[cacheKey]) {
+    el.textContent = window._sgTvSummaryCache[cacheKey];
+    // Store under element id too so tvRestoreSummaryCache can find it
+    if (window._sgTvSummaryCache) window._sgTvSummaryCache[matchId + '-summary'] = window._sgTvSummaryCache[cacheKey];
+    return;
+  }
+
+  el.textContent = 'Generating summary...';
+  fetch('/api/caddie', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], maxTokens: 120 })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var text = '';
+    if (data && data.content && data.content[0] && data.content[0].text) {
+      text = data.content[0].text;
+    } else if (data && data.reply) {
+      text = data.reply;
+    } else if (typeof data === 'string') {
+      text = data;
+    }
+    if (el) el.textContent = text || '';
+    // Cache by result key and element id
+    if (window._sgTvSummaryCache && text) {
+      window._sgTvSummaryCache[cacheKey] = text;
+      window._sgTvSummaryCache[matchId + '-summary'] = text;
+    }
+  })
+  .catch(function() { if (el) el.textContent = ''; });
+}
 </script>
 </body>
 </html>
