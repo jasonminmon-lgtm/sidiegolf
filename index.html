@@ -961,6 +961,15 @@
   .sg-tv-match-chip.tie{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3);}
   .sg-tv-match-chip.pending{background:rgba(255,255,255,.06);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.15);}
   .sg-tv-summary{font-size:12px;color:rgba(255,255,255,.5);line-height:1.5;margin-top:6px;font-style:italic;min-height:16px;}
+  /* TV Individual Leaderboard */
+  .sg-tv-lb-wrap{padding:4px 0;}
+  .sg-tv-lb-row{display:flex;align-items:center;padding:10px 16px;border-top:1px solid rgba(255,255,255,.07);}
+  .sg-tv-lb-row:first-child{border-top:none;}
+  .sg-tv-lb-pos{width:28px;font-size:13px;font-weight:800;color:rgba(255,255,255,.4);flex-shrink:0;}
+  .sg-tv-lb-pos.top{color:#f5c842;}
+  .sg-tv-lb-name{flex:1;font-size:clamp(14px,2.5vw,22px);font-weight:700;color:#f0f4ff;}
+  .sg-tv-lb-pts{font-size:clamp(18px,3.5vw,30px);font-weight:900;color:#fff;min-width:54px;text-align:right;margin-right:10px;}
+  .sg-tv-lb-thru{font-size:11px;color:rgba(255,255,255,.45);min-width:44px;text-align:right;letter-spacing:.4px;}
   .sg-tv-rotate-hint{display:none;position:fixed;inset:0;background:#0a0f1e;z-index:100000;flex-direction:column;align-items:center;justify-content:center;color:#f5c842;font-size:18px;font-weight:700;gap:12px;}
   .sg-tv-rotate-hint svg{animation:sg-rotate-anim 2s ease-in-out infinite;}
   @keyframes sg-rotate-anim{0%,100%{transform:rotate(0deg);}50%{transform:rotate(-90deg);}}
@@ -4581,6 +4590,27 @@ function renderInProgressCards(lobbySnaps) {
     while (MOCK_COURSES.length <= s.course) MOCK_COURSES.push(null);
     MOCK_COURSES[s.course] = s._courseData;
   }
+  // Restore per-day course data for multi-day events + fix singlesPairings format.
+  // Without this, MOCK_COURSES[d.courseIdx] is null after sign-in and renderEventSchedule
+  // sees no course, so the Day Format / Match Format sections never appear on resume.
+  if (s.days && Array.isArray(s.days)) {
+    s.days.forEach(function(d) {
+      if (d && d._courseData && d.courseIdx != null) {
+        while (MOCK_COURSES.length <= d.courseIdx) MOCK_COURSES.push(null);
+        MOCK_COURSES[d.courseIdx] = d._courseData;
+      }
+      // Firestore serializes [a,b] arrays as {a,b} objects — convert back
+      if (d && d.singlesPairings) {
+        var _sp = {};
+        Object.keys(d.singlesPairings).forEach(function(gn) {
+          _sp[gn] = (d.singlesPairings[gn] || []).map(function(pair) {
+            return Array.isArray(pair) ? pair : [pair.a, pair.b];
+          });
+        });
+        d.singlesPairings = _sp;
+      }
+    });
+  }
   var courseData = (s.course != null && MOCK_COURSES[s.course]) ? MOCK_COURSES[s.course] : null;
   var courseName = courseData ? courseData.name : null;
   var roundDate  = s.date || '';
@@ -4595,6 +4625,9 @@ function renderInProgressCards(lobbySnaps) {
   for (var ki = 0; ki < keys.length; ki++) {
     if (keys[ki] !== '_courseData') state[keys[ki]] = s[keys[ki]];
   }
+  // Capture the saved step BEFORE goToStep(1) overwrites state.step — the Resume
+  // button must jump back to wherever the user actually was, not step 1.
+  var _resumeStep = (s.step && s.step > 1) ? s.step : 2;
   // Activate the round: sets fbRoundCode, shows round bar, starts Firestore listener
   window.fbRoundStatus = 'lobby';
   fbActivateRound(code);
@@ -4624,8 +4657,7 @@ function renderInProgressCards(lobbySnaps) {
     if (target) target.parentNode.insertBefore(card, target);
     $('ipResumeBtn').addEventListener('click', function() {
       card.remove();
-      var savedStep = (state.step && state.step > 1) ? state.step : 2;
-      goToStep(savedStep);
+      goToStep(_resumeStep); // use captured step — state.step is now 1 (overwritten by goToStep(1) above)
     });
     $('ipDismissBtn').addEventListener('click', function() {
       // Keep round active in the bar — user is at step 1 and can continue or rebuild
@@ -6230,7 +6262,13 @@ function renderEventSchedule(){
   state.days.forEach(function(d){
     wireCourseSearch('day-'+d.id, function(newIdx){
       d.courseIdx = newIdx;
-      d.teeName = null;
+      var _nc = MOCK_COURSES[newIdx];
+      // Auto-select the first available tee so the Day Format / Match Format section
+      // appears immediately after picking a course — no extra tee-picker tap required.
+      // This also prevents an iOS select quirk where the picker opens already showing a
+      // real tee value but never fires a change event, leaving d.teeName null and the
+      // entire match-format section invisible for Days 2–6.
+      d.teeName = (_nc && _nc.tees && _nc.tees.length) ? _nc.tees[0].name : null;
       renderEventSchedule();
       updateNextButton();
     });
@@ -13048,21 +13086,38 @@ window.doSignOut = function(discard) {
   closeSignoutModal();
   var code = fbRoundCode;
   var wasHost = isCurrentUserHost();
+  // Capture uid and serialized state NOW — before fbStopListening / resetState wipe them.
+  var _uid = fbUser ? fbUser.uid : null;
+  // Only serialize for Save path (not discard) to avoid wasted work
+  var _finalState = (!discard && code && wasHost && _uid) ? fbSerializeState() : null;
   fbStopListening();
   fbRoundCode = null; window.fbRoundCode = null;
   localStorage.removeItem(ROUND_CODE_KEY);
-  if (discard && code && wasHost) {
-    var _discardUid = fbUser ? fbUser.uid : null;
+  if (discard && code && wasHost && _uid) {
     // Delete round from Firestore — fire and forget
     fbDb.collection('rounds').doc(code).delete().catch(function(e) {
       console.warn('[SidieGolf] Round delete error:', e);
     });
     // Remove from user's inProgressRounds so it won't appear on next sign-in
-    if (_discardUid) {
-      fbDb.collection('users').doc(_discardUid).update({
-        inProgressRounds: firebase.firestore.FieldValue.arrayRemove(code)
-      }).catch(function(){});
-    }
+    fbDb.collection('users').doc(_uid).update({
+      inProgressRounds: firebase.firestore.FieldValue.arrayRemove(code)
+    }).catch(function(){});
+  } else if (!discard && code && wasHost && _uid && _finalState) {
+    // Save & Sign Out: push final state to Firestore and guarantee the round is
+    // tracked in inProgressRounds (re-adding is idempotent via arrayUnion).
+    // This fires even if the periodic fbSyncToFirestore already wrote it — belt & suspenders.
+    fbDb.collection('rounds').doc(code).update({
+      lastModifiedBy: _uid,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      state: _finalState
+    }).catch(function(err) {
+      console.warn('[SidieGolf] State sync on sign-out error:', err);
+    });
+    fbDb.collection('users').doc(_uid).set({
+      inProgressRounds: firebase.firestore.FieldValue.arrayUnion(code)
+    }, { merge: true }).catch(function(err) {
+      console.warn('[SidieGolf] inProgressRounds save error on sign-out:', err);
+    });
   }
   resetState();
   fbAuth.signOut();
@@ -16220,6 +16275,7 @@ function initTvView(code) {
       while (MOCK_COURSES.length <= cached.course) MOCK_COURSES.push(null);
       MOCK_COURSES[cached.course] = cached._courseData;
     }
+    if (isIndividualTvFormat(cached.scoringMethod)) cached._tvLeaderboard = buildTvLeaderboard(cached);
     tvRoot.innerHTML = buildTvHtml(cached);
     setTimeout(function(){ fetchAllCaddieSummaries(cached); }, 600);
   } else {
@@ -16256,6 +16312,7 @@ function initTvView(code) {
       }
       // Bug 2 fix: merge scorekeeper scores (stored separately from state blob)
       if (d.scorecards) tvApplyScorekeeperScores(s, d.scorecards);
+      if (isIndividualTvFormat(s.scoringMethod)) s._tvLeaderboard = buildTvLeaderboard(s);
       tvRoot.innerHTML = buildTvHtml(s);
       tvRestoreSummaryCache();
       // Only fetch new Caddie summaries on first snap or after a delay to avoid spam
@@ -16297,11 +16354,13 @@ function buildTvHtml(s) {
   // Header
   html += '<div class="sg-tv-hdr">';
   html += '<div class="sg-tv-event-name">' + escapeHtml(eventName) + '</div>';
-  html += '<div class="sg-tv-event-sub">' + numDays + '-Day Event &nbsp;•&nbsp; ' + numPlayers + ' Players</div>';
+  var _scoringLabel = s.scoringMethod || '';
+  html += '<div class="sg-tv-event-sub">' + numDays + '-Day Event &nbsp;•&nbsp; ' + numPlayers + ' Players' + (_scoringLabel ? ' &nbsp;•&nbsp; ' + escapeHtml(_scoringLabel) : '') + '</div>';
   html += '</div>';
 
-  // RC Team Standings Banner
-  if (hasTeams) {
+  // RC Team Standings Banner — only for Ryder Cup / Match Play team formats
+  var _isTeamFormat = s.scoringMethod === 'Ryder Cup Format' || s.scoringMethod === 'Match Play';
+  if (hasTeams && _isTeamFormat) {
     var teamNames = s.rcTeamNames || { A: 'USA', B: 'Europe' };
     var teamColors = s.rcTeamColors || { A: '#1a3a6e', B: '#8b1a1a' };
     var pts = buildTvRcPoints(s);
@@ -16491,38 +16550,49 @@ function buildTvDaySectionHtml(d, dIdx, s) {
     return html;
   }
 
-  var numGroups = d.numGroups || 1;
-  var assigns = d.assignments || {};
-  var teamAssign = s.rcTeamAssign || {};
+  if (!isIndividualTvFormat(s.scoringMethod)) {
+    // Match Play / Ryder Cup: show head-to-head match cards
+    var numGroups = d.numGroups || 1;
+    var assigns = d.assignments || {};
+    var teamAssign = s.rcTeamAssign || {};
 
-  for (var gn = 1; gn <= numGroups; gn++) {
-    var gPlayers = [];
-    (s.players || []).forEach(function(p, pi) {
-      if (assigns[pi] === gn || assigns[String(pi)] === gn) gPlayers.push(pi);
-    });
-    if (!gPlayers.length) continue;
-
-    var gmType = (d.groupMatchType || {})[gn] || d.dayFormat || 'match';
-    var pairings = (d.singlesPairings || {})[gn] || [];
-
-    if (gmType === 'Singles' && pairings.length) {
-      pairings.forEach(function(pair, pIdx) {
-        // Firestore serialises pairs as {a,b} objects (nested arrays not allowed);
-        // local state keeps them as [a,b] arrays — handle both.
-        var pA = Array.isArray(pair) ? pair[0] : (pair && pair.a);
-        var pB = Array.isArray(pair) ? pair[1] : (pair && pair.b);
-        if (pA == null || pB == null) return;
-        html += buildTvMatchHtml(s, d, gn, [pA], [pB], gmType, 'Match ' + (pIdx + 1));
+    for (var gn = 1; gn <= numGroups; gn++) {
+      var gPlayers = [];
+      (s.players || []).forEach(function(p, pi) {
+        if (assigns[pi] === gn || assigns[String(pi)] === gn) gPlayers.push(pi);
       });
-    } else {
-      var sideA = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'A'; });
-      var sideB = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'B'; });
-      if (sideA.length && sideB.length) {
-        html += buildTvMatchHtml(s, d, gn, sideA, sideB, gmType, 'Group ' + gn + ' — ' + gmType);
-      } else if (gPlayers.length >= 2) {
-        var half = Math.ceil(gPlayers.length / 2);
-        html += buildTvMatchHtml(s, d, gn, gPlayers.slice(0, half), gPlayers.slice(half), gmType, 'Group ' + gn);
+      if (!gPlayers.length) continue;
+
+      var gmType = (d.groupMatchType || {})[gn] || d.dayFormat || 'match';
+      var pairings = (d.singlesPairings || {})[gn] || [];
+
+      if (gmType === 'Singles' && pairings.length) {
+        pairings.forEach(function(pair, pIdx) {
+          // Firestore serialises pairs as {a,b} objects (nested arrays not allowed);
+          // local state keeps them as [a,b] arrays — handle both.
+          var pA = Array.isArray(pair) ? pair[0] : (pair && pair.a);
+          var pB = Array.isArray(pair) ? pair[1] : (pair && pair.b);
+          if (pA == null || pB == null) return;
+          html += buildTvMatchHtml(s, d, gn, [pA], [pB], gmType, 'Match ' + (pIdx + 1));
+        });
+      } else {
+        var sideA = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'A'; });
+        var sideB = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'B'; });
+        if (sideA.length && sideB.length) {
+          html += buildTvMatchHtml(s, d, gn, sideA, sideB, gmType, 'Group ' + gn + ' — ' + gmType);
+        } else if (gPlayers.length >= 2) {
+          var half = Math.ceil(gPlayers.length / 2);
+          html += buildTvMatchHtml(s, d, gn, gPlayers.slice(0, half), gPlayers.slice(half), gmType, 'Group ' + gn);
+        }
       }
+    }
+  } else {
+    // Individual format (Stableford, Stroke Play, etc.): render pre-computed leaderboard
+    var _lb = s._tvLeaderboard && s._tvLeaderboard[dIdx];
+    if (_lb && _lb.length) {
+      html += buildTvIndividualLeaderboardHtml(_lb, s, d, dIdx);
+    } else {
+      html += '<div style="padding:20px 16px;color:rgba(255,255,255,.35);font-size:13px;text-align:center;">Waiting for scores...</div>';
     }
   }
 
@@ -16554,6 +16624,124 @@ function buildTvMatchHtml(s, d, gn, sideA, sideB, matchType, label) {
   return html;
 }
 
+// Returns true for individual scoring formats (Stableford, Stroke Play, etc.)
+// — false only for Match Play / Ryder Cup team formats
+function isIndividualTvFormat(sm) {
+  return sm !== 'Match Play' && sm !== 'Ryder Cup Format';
+}
+
+// Compute leaderboard rows using the same engine the main app uses.
+// Run BEFORE buildTvHtml so the TV view itself does zero scoring math.
+function buildTvLeaderboard(s) {
+  var result = {};
+  var sm = s.scoringMethod || '';
+  (s.days || []).forEach(function(d, dIdx) {
+    try {
+      if (d.status === 'pending') return;
+      var course = d.courseIdx != null ? MOCK_COURSES[d.courseIdx] : null;
+      var tee = course && d.teeName ? course.tees.filter(function(t){ return t.name === d.teeName; })[0] : null;
+      if (!tee && course && course.tees && course.tees.length) tee = course.tees[0];
+      if (!course || !tee) return;
+      var dayIdxs = Object.keys(d.assignments || {})
+        .filter(function(k){ return (d.assignments[k] || 0) > 0; })
+        .map(function(k){ return parseInt(k, 10); });
+      if (!dayIdxs.length) return;
+      var dayScores = {};
+      for (var gn = 1; gn <= (d.numGroups || 1); gn++) {
+        var sc = ((d.scorecards || {})[gn] || {}).scores || {};
+        Object.keys(sc).forEach(function(k) { dayScores[k] = sc[k]; });
+      }
+      var dayCtx = buildCtx(dayIdxs, course, tee, { scores: dayScores, events: {} }, undefined, d.playerTees);
+      var lb;
+      if (sm === 'Modified Stableford') {
+        lb = SidieGolfEngine.computeModifiedStablefordLeaderboard(dayCtx, s.modifiedStablefordTable || null);
+      } else if (sm === 'Stableford') {
+        lb = SidieGolfEngine.computeStablefordLeaderboard(dayCtx);
+      } else {
+        lb = SidieGolfEngine.computeStrokePlayLeaderboard(dayCtx);
+        if (sm === 'Stroke Play (Gross)') lb.sort(function(a,b){ return a.grossVsPar - b.grossVsPar; });
+      }
+      result[dIdx] = lb.filter(function(r){ return r.thru > 0; });
+    } catch(e) { console.warn('[TV] buildTvLeaderboard day', dIdx, e); }
+  });
+  return result;
+}
+
+// Render individual leaderboard rows for TV — purely displays pre-computed lb rows
+function buildTvIndividualLeaderboardHtml(lb, s, d, dIdx) {
+  var sm = s.scoringMethod || '';
+  var isStableford = sm === 'Modified Stableford' || sm === 'Stableford';
+  var summaryId = 'tv-lb-' + (d.id != null ? d.id : dIdx) + '-summary';
+
+  var html = '<div class="sg-tv-lb-wrap">';
+  var pos = 0, prevScore = null;
+  lb.forEach(function(row, i) {
+    var score = isStableford ? row.points : (row.netVsPar != null ? row.netVsPar : (row.grossVsPar != null ? row.grossVsPar : 0));
+    if (score !== prevScore) pos = i + 1;
+    prevScore = score;
+    var isTop = pos === 1;
+    var thruStr = row.thru >= 18 ? 'Final' : 'Thru ' + row.thru;
+    var scoreStr = isStableford
+      ? String(row.points || 0) + ' <span style="font-size:11px;font-weight:400;color:rgba(255,255,255,.45);">pts</span>'
+      : (score === 0 ? 'E' : (score > 0 ? '+' + score : String(score)));
+    html += '<div class="sg-tv-lb-row">';
+    html += '<div class="sg-tv-lb-pos' + (isTop ? ' top' : '') + '">' + pos + '</div>';
+    html += '<div class="sg-tv-lb-name">' + escapeHtml(row.name || '') + '</div>';
+    html += '<div class="sg-tv-lb-pts">' + scoreStr + '</div>';
+    html += '<div class="sg-tv-lb-thru">' + escapeHtml(thruStr) + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '<div class="sg-tv-summary" id="' + summaryId + '"></div>';
+  return html;
+}
+
+// Caddie AI narrative for an individual leaderboard
+function fetchCaddieSummaryForLeaderboard(s, d, dIdx, lb) {
+  var summaryId = 'tv-lb-' + (d.id != null ? d.id : dIdx) + '-summary';
+  var el = document.getElementById(summaryId);
+  if (!el || !lb || !lb.length) return;
+  var sm = s.scoringMethod || 'Individual';
+  var isStableford = sm === 'Modified Stableford' || sm === 'Stableford';
+  var course = d.courseIdx != null ? MOCK_COURSES[d.courseIdx] : null;
+  var courseName = course ? course.name : 'the course';
+  var lbText = lb.slice(0, 4).map(function(row, i) {
+    var score = isStableford
+      ? (row.points + ' pts')
+      : (row.netVsPar != null ? (row.netVsPar === 0 ? 'E' : (row.netVsPar > 0 ? '+'+row.netVsPar : String(row.netVsPar))) : '');
+    var thru = row.thru >= 18 ? 'finished' : 'thru ' + row.thru;
+    return (i+1) + '. ' + row.name + ': ' + score + ' (' + thru + ')';
+  }).join('; ');
+  var cacheKey = summaryId + '|' + lbText;
+  if (window._sgTvSummaryCache && window._sgTvSummaryCache[cacheKey]) {
+    el.textContent = window._sgTvSummaryCache[cacheKey];
+    window._sgTvSummaryCache[summaryId] = window._sgTvSummaryCache[cacheKey];
+    return;
+  }
+  var prompt = 'Write a 2-sentence broadcast-style golf summary. Keep it exciting and concise, under 40 words, no emojis. '
+    + 'Event: ' + (s.eventName || 'Golf Event') + '. Format: ' + sm + '. Venue: ' + courseName + '. '
+    + 'Current standings: ' + lbText + '.';
+  el.textContent = 'Generating summary...';
+  fetch('/api/caddie', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], maxTokens: 120 })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var text = '';
+    if (data && data.content && data.content[0] && data.content[0].text) text = data.content[0].text;
+    else if (data && data.reply) text = data.reply;
+    else if (typeof data === 'string') text = data;
+    if (el) el.textContent = text || '';
+    if (window._sgTvSummaryCache && text) {
+      window._sgTvSummaryCache[cacheKey] = text;
+      window._sgTvSummaryCache[summaryId] = text;
+    }
+  })
+  .catch(function() { if (el) el.textContent = ''; });
+}
+
 // Count how many holes have been played for a group
 function countPlayedHoles(s, d, gn, playerIdxs) {
   try {
@@ -16569,32 +16757,38 @@ function countPlayedHoles(s, d, gn, playerIdxs) {
   } catch(e) { return 0; }
 }
 
-// Auto-generate Caddie AI summaries for all matches in the state
+// Auto-generate Caddie AI summaries — routes to individual or match-play handler
 function fetchAllCaddieSummaries(s) {
   try {
-    (s.days || []).forEach(function(d) {
+    var _isIndividual = isIndividualTvFormat(s.scoringMethod || '');
+    (s.days || []).forEach(function(d, dIdx) {
       if (d.status !== 'completed' && d.status !== 'active') return;
-      var numGroups = d.numGroups || 1;
-      var assigns = d.assignments || {};
-      var teamAssign = s.rcTeamAssign || {};
-      for (var gn = 1; gn <= numGroups; gn++) {
-        var gPlayers = [];
-        (s.players || []).forEach(function(p, pi) {
-          if (assigns[pi] === gn || assigns[String(pi)] === gn) gPlayers.push(pi);
-        });
-        if (!gPlayers.length) continue;
-        var gmType = (d.groupMatchType || {})[gn] || d.dayFormat || 'match';
-        var pairings = (d.singlesPairings || {})[gn] || [];
-        if (gmType === 'Singles' && pairings.length) {
-          pairings.forEach(function(pair) {
-            var pA = Array.isArray(pair) ? pair[0] : (pair && pair.a);
-            var pB = Array.isArray(pair) ? pair[1] : (pair && pair.b);
-            if (pA != null && pB != null) fetchCaddieSummaryForMatch(s, d, gn, [pA], [pB]);
+      if (_isIndividual) {
+        var _lb = s._tvLeaderboard && s._tvLeaderboard[dIdx];
+        if (_lb && _lb.length) fetchCaddieSummaryForLeaderboard(s, d, dIdx, _lb);
+      } else {
+        var numGroups = d.numGroups || 1;
+        var assigns = d.assignments || {};
+        var teamAssign = s.rcTeamAssign || {};
+        for (var gn = 1; gn <= numGroups; gn++) {
+          var gPlayers = [];
+          (s.players || []).forEach(function(p, pi) {
+            if (assigns[pi] === gn || assigns[String(pi)] === gn) gPlayers.push(pi);
           });
-        } else {
-          var sideA = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'A'; });
-          var sideB = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'B'; });
-          if (sideA.length && sideB.length) fetchCaddieSummaryForMatch(s, d, gn, sideA, sideB);
+          if (!gPlayers.length) continue;
+          var gmType = (d.groupMatchType || {})[gn] || d.dayFormat || 'match';
+          var pairings = (d.singlesPairings || {})[gn] || [];
+          if (gmType === 'Singles' && pairings.length) {
+            pairings.forEach(function(pair) {
+              var pA = Array.isArray(pair) ? pair[0] : (pair && pair.a);
+              var pB = Array.isArray(pair) ? pair[1] : (pair && pair.b);
+              if (pA != null && pB != null) fetchCaddieSummaryForMatch(s, d, gn, [pA], [pB]);
+            });
+          } else {
+            var sideA = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'A'; });
+            var sideB = gPlayers.filter(function(pi){ return (teamAssign[pi] || teamAssign[String(pi)]) === 'B'; });
+            if (sideA.length && sideB.length) fetchCaddieSummaryForMatch(s, d, gn, sideA, sideB);
+          }
         }
       }
     });
