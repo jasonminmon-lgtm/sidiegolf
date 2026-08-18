@@ -975,6 +975,11 @@
   @keyframes sg-rotate-anim{0%,100%{transform:rotate(0deg);}50%{transform:rotate(-90deg);}}
   @media (orientation:portrait){#sg-tv-root.active .sg-tv-rotate-hint{display:flex;}}
   @media (orientation:portrait){#sg-tv-root.active .sg-tv-page{display:none;}}
+  /* ── TV sticky header + day story + mirror button ─────────────────── */
+  .sg-tv-fixed-top{position:sticky;top:0;z-index:100;background:#0a0f1e;margin:0 -16px;padding:0 16px 12px;}
+  .sg-tv-mirror-btn{position:fixed;top:14px;left:16px;z-index:10001;background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:1.5px solid rgba(255,255,255,.22);border-radius:20px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.3px;-webkit-tap-highlight-color:transparent;}
+  .sg-tv-mirror-btn:active{background:rgba(255,255,255,.22);}
+  .sg-tv-day-story{padding:10px 16px 10px;font-size:clamp(11px,1.8vw,14px);color:rgba(255,255,255,.62);line-height:1.6;font-style:italic;border-bottom:1px solid rgba(255,255,255,.07);min-height:24px;}
 </style>
 <!-- Firebase compat SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -6091,6 +6096,21 @@ function renderEventSchedule(){
   html += '<label class="field-label" style="font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:block;">Event Name <span style="font-weight:400;opacity:.6;">(optional)</span></label>';
   html += '<input type="text" class="sg-event-name-inp" id="sgEventNameInp" placeholder="e.g. 2026 Sand Valley Cup" maxlength="60" value="'+escapeHtml(state.eventName||'')+'" oninput="state.eventName=this.value;">';
   html += '</div>';
+  // Cup-level points fields (Ryder Cup format only)
+  if (isRyderCup()) {
+    var _cTotal = state.cupTotalPoints != null ? state.cupTotalPoints : '';
+    var _cPtw   = state.cupPointsToWin  != null ? state.cupPointsToWin  : '';
+    html += '<div class="sg-event-name-card" style="margin-top:10px;">';
+    html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.5px;margin-bottom:8px;">Cup Points</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+    html += '<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Total available</label>';
+    html += '<input id="cupTotalInp" type="number" min="1" max="999" placeholder="e.g. 26" value="'+_cTotal+'" data-cup-total style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:10px;border:1.5px solid #d0d5d0;font-size:16px;font-weight:700;text-align:center;"></div>';
+    html += '<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Points to win</label>';
+    html += '<input id="cupPtwInp" type="number" min="0.5" max="999" step="0.5" placeholder="auto" value="'+_cPtw+'" data-cup-ptw style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:10px;border:1.5px solid #d0d5d0;font-size:16px;font-weight:700;text-align:center;"></div>';
+    html += '</div>';
+    html += '<div style="font-size:11.5px;color:var(--muted);margin-top:5px;">Points to win auto-fills as (Total ÷ 2) + 0.5. Adjust if needed.</div>';
+    html += '</div>';
+  }
   state.days.forEach(function(d, dIdx){
     var course = d.courseIdx!=null ? MOCK_COURSES[d.courseIdx] : null;
     html += '<div class="day-block" data-dayblock="'+d.id+'">';
@@ -6108,6 +6128,14 @@ function renderEventSchedule(){
       var _dDate = d.date || '';
       html += '<label class="field-label">Round Date</label>';
       html += '<input type="date" data-day-date="'+d.id+'" value="'+_dDate+'" class="day-date-input" style="display:block;padding:6px 14px;border-radius:999px;border:1.5px solid '+(_dDate?'#16284a':'#d0d5d0')+';background:'+(_dDate?'#16284a':'#f0f2f0')+';color:'+(_dDate?'#fff':'var(--ink,#1a2030)')+';font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;">';
+      // Session label (AM / PM — for same-day multi-round events)
+      var _sess = d.session || '';
+      html += '<label class="field-label">Session <span style="font-weight:400;opacity:.6;">(for same-day rounds)</span></label>';
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">';
+      [['','None'],['AM','AM'],['PM','PM'],['Morning','Morning'],['Afternoon','Afternoon']].forEach(function(opt){
+        html += '<button class="pill-btn'+(_sess===opt[0]?' active':'')+'" data-day-session="'+d.id+'|'+opt[0]+'">'+opt[1]+'</button>';
+      });
+      html += '</div>';
       // Tee box — same for all or per player
       var _sameTee = d.sameTee !== false;
       html += '<label class="field-label">Tee Box</label>';
@@ -6445,6 +6473,44 @@ function renderEventSchedule(){
       if (!d) return;
       d.birdiesBasis = basis;
       renderEventSchedule();
+    });
+  });
+  // Cup: total points available
+  var _cupTotalEl = document.getElementById('cupTotalInp');
+  if (_cupTotalEl) {
+    _cupTotalEl.addEventListener('input', function() {
+      var v = parseFloat(this.value);
+      state.cupTotalPoints = isNaN(v) ? null : v;
+      if (!isNaN(v) && v > 0 && !state._cupPtwManual) {
+        var autoPtw = Math.floor(v / 2) + 0.5;
+        state.cupPointsToWin = autoPtw;
+        var ptwEl = document.getElementById('cupPtwInp');
+        if (ptwEl) ptwEl.value = autoPtw;
+      }
+    });
+  }
+  // Cup: points to win (manual override)
+  var _cupPtwEl = document.getElementById('cupPtwInp');
+  if (_cupPtwEl) {
+    _cupPtwEl.addEventListener('input', function() {
+      var v = parseFloat(this.value);
+      state.cupPointsToWin = isNaN(v) ? null : v;
+      state._cupPtwManual = true; // user overrode auto-calc
+    });
+  }
+  // Day session buttons (AM / PM / Morning / Afternoon / None)
+  Array.prototype.forEach.call(document.querySelectorAll('[data-day-session]'), function(el) {
+    el.addEventListener('click', function() {
+      var attr = el.getAttribute('data-day-session');
+      var pipeIdx = attr.indexOf('|');
+      var dayId = parseInt(attr.slice(0, pipeIdx), 10);
+      var sess = attr.slice(pipeIdx + 1); // '' for None
+      var d = state.days.filter(function(x){ return x.id === dayId; })[0];
+      if (d) {
+        d.session = sess;
+        renderEventSchedule();
+        if (typeof fbSyncToFirestore === 'function') fbSyncToFirestore();
+      }
     });
   });
 }
@@ -16252,6 +16318,15 @@ function initTvView(code) {
   if (!tvRoot) return;
   tvRoot.classList.add('active');
 
+  // Touch anywhere on the TV page to pause auto-scroll for 10 seconds
+  tvRoot.addEventListener('touchstart', function() {
+    window._sgTvScrollPaused = true;
+    clearTimeout(window._sgTvScrollResumeTimer);
+    window._sgTvScrollResumeTimer = setTimeout(function() {
+      window._sgTvScrollPaused = false;
+    }, 10000);
+  }, { passive: true });
+
   // Bug 1 fix: suppress iOS password-autofill popup on TV view.
   // The auth overlay stays in the DOM but must never prompt for credentials.
   var authOverlay = document.getElementById('fb-auth-overlay');
@@ -16277,6 +16352,7 @@ function initTvView(code) {
     }
     if (isIndividualTvFormat(cached.scoringMethod)) cached._tvLeaderboard = buildTvLeaderboard(cached);
     tvRoot.innerHTML = buildTvHtml(cached);
+    window.sgTvStartScroll && window.sgTvStartScroll();
     setTimeout(function(){ fetchAllCaddieSummaries(cached); }, 600);
   } else {
     tvRoot.innerHTML = '<div class="sg-tv-page"><div class="sg-tv-hdr"><div class="sg-tv-event-name">Loading...</div></div></div>';
@@ -16315,6 +16391,7 @@ function initTvView(code) {
       if (isIndividualTvFormat(s.scoringMethod)) s._tvLeaderboard = buildTvLeaderboard(s);
       tvRoot.innerHTML = buildTvHtml(s);
       tvRestoreSummaryCache();
+      window.sgTvStartScroll && window.sgTvStartScroll();
       // Only fetch new Caddie summaries on first snap or after a delay to avoid spam
       if (_tvFirstSnap) {
         _tvFirstSnap = false;
@@ -16340,6 +16417,7 @@ function buildTvHtml(s) {
   var html = '';
   // Exit / close button (fixed, always visible)
   html += '<button onclick="window.location.href=\'/\';" style="position:fixed;top:14px;right:16px;z-index:10001;background:rgba(0,0,0,.55);color:#fff;border:1.5px solid rgba(255,255,255,.35);border-radius:50%;width:38px;height:38px;font-size:20px;font-weight:300;cursor:pointer;line-height:36px;text-align:center;padding:0;">×</button>';
+  html += '<button class="sg-tv-mirror-btn" onclick="sgTvMirrorScreen()">📺 Mirror</button>';
   // Portrait rotate hint
   html += '<div class="sg-tv-rotate-hint">';
   html += '<svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">'
@@ -16350,6 +16428,9 @@ function buildTvHtml(s) {
   html += '</div>';
 
   html += '<div class="sg-tv-page">';
+
+  // Sticky top: event title + team standings stay pinned while day sections auto-scroll
+  html += '<div class="sg-tv-fixed-top">';
 
   // Header
   html += '<div class="sg-tv-hdr">';
@@ -16378,10 +16459,38 @@ function buildTvHtml(s) {
     html += '<div class="sg-tv-team-pts">' + formatPts(pts.B) + '</div>';
     html += '<div class="sg-tv-team-lbl">Points</div>';
     html += '</div>';
-    html += '</div>';
+    html += '</div>'; // .sg-tv-team-banner
+
+    // Cup threshold line
+    var _ptw = s.cupPointsToWin || (s.cupTotalPoints ? Math.floor(s.cupTotalPoints / 2) + 0.5 : null);
+    if (_ptw || s.cupTotalPoints) {
+      html += '<div style="text-align:center;padding:6px 16px;background:rgba(0,0,0,.25);font-size:12px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.3px;">';
+      if (_ptw) html += 'First to ' + formatPts(_ptw);
+      if (_ptw && s.cupTotalPoints) html += ' &nbsp;·&nbsp; ';
+      if (s.cupTotalPoints) html += s.cupTotalPoints + ' pts available';
+      html += '</div>';
+    }
+
+    // Clinch banner
+    var _clinch = buildTvClinchStatus(s);
+    if (_clinch && _clinch !== 'tie') {
+      var _wName = _clinch === 'A' ? escapeHtml(teamNames.A || 'USA') : escapeHtml(teamNames.B || 'Europe');
+      var _wCol  = _clinch === 'A' ? tvColA : tvColB;
+      html += '<div style="text-align:center;padding:14px 16px;background:linear-gradient(135deg,' + _wCol + '55,' + _wCol + '22);border-top:2px solid ' + _wCol + ';">';
+      html += '<div style="font-size:clamp(15px,3vw,22px);font-weight:900;color:#f5c842;letter-spacing:.4px;">🏆 ' + _wName + ' wins the cup!</div>';
+      html += '<div class="sg-tv-day-story" id="sg-tv-event-summary"></div>';
+      html += '</div>';
+    } else if (_clinch === 'tie') {
+      html += '<div style="text-align:center;padding:14px 16px;background:rgba(255,255,255,.06);border-top:2px solid rgba(255,255,255,.2);">';
+      html += '<div style="font-size:clamp(15px,3vw,22px);font-weight:900;color:#fff;letter-spacing:.4px;">🤝 Cup tied — ' + formatPts(pts.A) + ' all</div>';
+      html += '<div class="sg-tv-day-story" id="sg-tv-event-summary"></div>';
+      html += '</div>';
+    }
   }
 
-  // Day sections
+  html += '</div>'; // .sg-tv-fixed-top
+
+  // Day sections (scrolled by auto-scroll loop)
   (s.days || []).forEach(function(d, dIdx) {
     html += buildTvDaySectionHtml(d, dIdx, s);
   });
@@ -16445,6 +16554,30 @@ function buildTvRcPoints(s) {
     });
   } catch(e) {}
   return pts;
+}
+
+// Determine if the cup has been decided (mid-tournament clinch or all days done)
+// Returns 'A', 'B', 'tie', or null (still in play)
+function buildTvClinchStatus(s) {
+  if (!s || !s.days) return null;
+  var _isTeam = s.scoringMethod === 'Ryder Cup Format' || s.scoringMethod === 'Match Play';
+  if (!_isTeam) return null;
+  var teamAssign = s.rcTeamAssign || {};
+  if (!Object.keys(teamAssign).length) return null;
+  var pts = buildTvRcPoints(s);
+  var ptw = s.cupPointsToWin || (s.cupTotalPoints ? Math.floor(s.cupTotalPoints / 2) + 0.5 : null);
+  if (ptw) {
+    if (pts.A >= ptw) return 'A';
+    if (pts.B >= ptw) return 'B';
+  }
+  // All days done → final result
+  var allDone = s.days.length > 0 && s.days.every(function(d){ return d.status === 'completed'; });
+  if (allDone) {
+    if (pts.A > pts.B) return 'A';
+    if (pts.B > pts.A) return 'B';
+    return 'tie';
+  }
+  return null;
 }
 
 // Helper: derive numHoles from a MOCK_COURSES entry (which stores per-hole
@@ -16536,13 +16669,19 @@ function buildTvDaySectionHtml(d, dIdx, s) {
   var course = (d.courseIdx != null) ? MOCK_COURSES[d.courseIdx] : null;
   var courseName = course ? course.name : 'TBD';
   var dateStr = d.date ? ' — ' + d.date : '';
+  if (d.session) dateStr += ' · ' + d.session;
 
   var html = '<div class="sg-tv-day">';
   html += '<div class="sg-tv-day-hdr">';
   html += '<span class="sg-tv-day-num">Day ' + (dIdx + 1) + '</span>';
   html += '<span class="sg-tv-day-course">' + escapeHtml(courseName) + escapeHtml(dateStr) + '</span>';
   html += '<span class="sg-tv-day-status ' + status + '">' + status.charAt(0).toUpperCase() + status.slice(1) + '</span>';
-  html += '</div>';
+  html += '</div>'; // .sg-tv-day-hdr
+
+  // Per-day Caddie narrative (active/completed days): match type, strokes, weather
+  if (status !== 'pending') {
+    html += '<div class="sg-tv-day-story" id="tv-day-story-' + d.id + '"></div>';
+  }
 
   if (status === 'pending') {
     html += '<div style="padding:16px;color:rgba(255,255,255,.35);font-size:13px;text-align:center;">Not yet started</div>';
@@ -16760,9 +16899,13 @@ function countPlayedHoles(s, d, gn, playerIdxs) {
 // Auto-generate Caddie AI summaries — routes to individual or match-play handler
 function fetchAllCaddieSummaries(s) {
   try {
+    // Tournament-level wrap (fires when cup is decided)
+    fetchCaddieEventSummary(s);
     var _isIndividual = isIndividualTvFormat(s.scoringMethod || '');
     (s.days || []).forEach(function(d, dIdx) {
       if (d.status !== 'completed' && d.status !== 'active') return;
+      // Day-level Caddie narrative: match type, handicap strokes, weather
+      fetchCaddieDayStory(s, d, dIdx);
       if (_isIndividual) {
         var _lb = s._tvLeaderboard && s._tvLeaderboard[dIdx];
         if (_lb && _lb.length) fetchCaddieSummaryForLeaderboard(s, d, dIdx, _lb);
@@ -16850,6 +16993,218 @@ function fetchCaddieSummaryForMatch(s, d, gn, sideA, sideB) {
   })
   .catch(function() { if (el) el.textContent = ''; });
 }
+
+// ── Caddie per-day narrative (match type, handicap strokes, weather) ──────────
+function fetchCaddieDayStory(s, d, dIdx) {
+  var storyId = 'tv-day-story-' + d.id;
+  var el = document.getElementById(storyId);
+  if (!el) return;
+
+  var course = d.courseIdx != null ? MOCK_COURSES[d.courseIdx] : null;
+  var courseName = course ? course.name : 'the course';
+  var numHoles = tvCourseNumHoles(course);
+  var dayFormatName = d.dayFormat === 'teamStroke' ? 'Team Stroke Play'
+    : d.dayFormat === 'Par3Birdies' ? 'Par 3 Contest'
+    : 'Match Play';
+
+  // Unique match types in use today
+  var matchTypes = [];
+  for (var gn = 1; gn <= (d.numGroups || 1); gn++) {
+    var mt = (d.groupMatchType || {})[gn] || dayFormatName;
+    if (matchTypes.indexOf(mt) < 0) matchTypes.push(mt);
+  }
+
+  // Handicap strokes per player
+  var assigns = d.assignments || {};
+  var tee = course && d.teeName
+    ? (course.tees || []).filter(function(t){ return t.name === d.teeName; })[0]
+    : null;
+  if (!tee && course && course.tees && course.tees.length) tee = course.tees[0];
+  var strokeParts = [];
+  for (var gn2 = 1; gn2 <= (d.numGroups || 1); gn2++) {
+    var hpct = (d.groupHcpPct || {})[gn2]; if (hpct == null) hpct = 100;
+    (s.players || []).forEach(function(p, pi) {
+      if ((assigns[pi] !== gn2 && assigns[String(pi)] !== gn2) || !p || !p.hi || !p.name) return;
+      var hi = parseFloat(p.hi) || 0; if (!hi) return;
+      var slope = tee ? (tee.slope || 113) : 113;
+      var rating = tee ? (tee.rating || 72) : 72;
+      var strokes = Math.round((hi * slope / 113 + (rating - 72)) * hpct / 100);
+      if (strokes > 0) strokeParts.push(p.name + ' (' + strokes + ' strokes)');
+    });
+  }
+
+  var pv = d.pointValue != null ? d.pointValue : 1;
+  var pvText = pv === 0 ? 'tiebreaker (no points)' : pv + ' point' + (pv !== 1 ? 's' : '') + ' per match';
+  var statusText = d.status === 'completed' ? 'round completed' : 'round in progress';
+
+  var cacheKey = storyId + '|' + courseName + '|' + matchTypes.join(',') + '|' + d.status + '|' + (d.session||'') + '|' + strokeParts.join(',');
+  if (window._sgTvSummaryCache && window._sgTvSummaryCache[cacheKey]) {
+    el.textContent = window._sgTvSummaryCache[cacheKey];
+    window._sgTvSummaryCache[storyId] = window._sgTvSummaryCache[cacheKey];
+    return;
+  }
+
+  el.textContent = '';
+
+  var _storyType = d.status === 'completed' ? 'recap' : 'preview';
+  var promptBase = 'Write a 2-3 sentence broadcast-style ' + _storyType + ' for a golf event day. '
+    + 'Be vivid and engaging, under 65 words, no emojis. '
+    + 'Event: "' + (s.eventName || 'Golf Event') + '" — Day ' + (dIdx + 1) + (d.session ? ' (' + d.session + ')' : '') + '. '
+    + 'Venue: ' + courseName + ' (' + numHoles + ' holes). '
+    + 'Format: ' + dayFormatName + '. '
+    + 'Match types on the card: ' + matchTypes.join(', ') + '. '
+    + 'Points at stake: ' + pvText + '. '
+    + (strokeParts.length ? 'Handicap strokes given: ' + strokeParts.join(', ') + '. ' : '')
+    + 'Status: ' + statusText + '. ';
+
+  function callCaddie(weatherLine) {
+    var prompt = promptBase + (weatherLine ? 'Weather: ' + weatherLine + '.' : '');
+    fetch('/api/caddie', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], maxTokens: 180 })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var text = '';
+      if (data && data.content && data.content[0] && data.content[0].text) text = data.content[0].text;
+      else if (data && data.reply) text = data.reply;
+      else if (typeof data === 'string') text = data;
+      if (el) el.textContent = text || '';
+      if (window._sgTvSummaryCache && text) {
+        window._sgTvSummaryCache[cacheKey] = text;
+        window._sgTvSummaryCache[storyId] = text;
+      }
+    })
+    .catch(function() { if (el) el.textContent = ''; });
+  }
+
+  // Best-effort weather from wttr.in (plain-text city/course query)
+  var wxQuery = courseName.replace(/[–—]/g, '-').split('-')[0].trim();
+  fetch('https://wttr.in/' + encodeURIComponent(wxQuery) + '?format=3')
+    .then(function(r) { return r.text(); })
+    .then(function(wx) { callCaddie(wx ? wx.trim().replace(/\s+/g, ' ').slice(0, 80) : ''); })
+    .catch(function() { callCaddie(''); });
+}
+
+// ── iOS AirPlay / screen mirror trigger ───────────────────────────────────────
+window.sgTvMirrorScreen = function() {
+  var vid = document.getElementById('sg-tv-airplay-vid');
+  if (!vid) {
+    vid = document.createElement('video');
+    vid.id = 'sg-tv-airplay-vid';
+    // Must be in DOM with non-zero size for webkitShowPlaybackTargetPicker to work
+    vid.style.cssText = 'position:fixed;width:1px;height:1px;opacity:.001;left:0;top:0;pointer-events:none;z-index:-1;';
+    vid.setAttribute('playsinline', '');
+    vid.setAttribute('webkit-playsinline', '');
+    vid.setAttribute('x-webkit-airplay', 'allow');
+    document.body.appendChild(vid);
+  }
+  if (typeof vid.webkitShowPlaybackTargetPicker === 'function') {
+    vid.play().catch(function(){});
+    vid.webkitShowPlaybackTargetPicker();
+  } else {
+    alert('To mirror to your TV:\n\n1. Open Control Center\n2. Tap Screen Mirroring\n3. Choose your Apple TV or AirPlay device');
+  }
+};
+
+// ── TV auto-scroll loop ───────────────────────────────────────────────────────
+// Scrolls #sg-tv-root slowly top→bottom, pauses, resets, repeats.
+// Tap anywhere on the TV page to pause 10 seconds so you can read.
+window.sgTvStartScroll = function() {
+  clearInterval(window._sgTvScrollTimer);
+  window._sgTvScrollPaused = false;
+  var TICK_MS = 40;        // tick every 40ms (~25fps)
+  var SPEED_PX = 1;        // 1px per tick = ~25px/sec — slow, readable
+  var PAUSE_TOP_MS = 3000; // wait at top before starting
+  var PAUSE_BTM_MS = 2500; // wait at bottom before looping
+
+  // Start paused so the header has time to render
+  window._sgTvScrollPaused = true;
+  clearTimeout(window._sgTvScrollResumeTimer);
+  window._sgTvScrollResumeTimer = setTimeout(function() {
+    window._sgTvScrollPaused = false;
+  }, PAUSE_TOP_MS);
+
+  window._sgTvScrollTimer = setInterval(function() {
+    if (window._sgTvScrollPaused) return;
+    var root = document.getElementById('sg-tv-root');
+    if (!root) { clearInterval(window._sgTvScrollTimer); return; }
+    root.scrollTop += SPEED_PX;
+    var maxScroll = root.scrollHeight - root.clientHeight;
+    if (maxScroll <= 0) return; // content fits — nothing to scroll
+    if (root.scrollTop >= maxScroll - 2) {
+      window._sgTvScrollPaused = true;
+      setTimeout(function() {
+        var r = document.getElementById('sg-tv-root');
+        if (r) r.scrollTop = 0;
+        clearTimeout(window._sgTvScrollResumeTimer);
+        window._sgTvScrollResumeTimer = setTimeout(function() {
+          window._sgTvScrollPaused = false;
+        }, PAUSE_TOP_MS);
+      }, PAUSE_BTM_MS);
+    }
+  }, TICK_MS);
+};
+
+window.sgTvStopScroll = function() {
+  clearInterval(window._sgTvScrollTimer);
+  window._sgTvScrollPaused = true;
+};
+
+// ── Caddie tournament wrap narrative (shown in clinch banner) ─────────────────
+function fetchCaddieEventSummary(s) {
+  var el = document.getElementById('sg-tv-event-summary');
+  if (!el) return;
+  var clinch = buildTvClinchStatus(s);
+  if (!clinch) return;
+  var teamNames = s.rcTeamNames || { A: 'USA', B: 'Europe' };
+  var pts = buildTvRcPoints(s);
+  var winnerName = clinch === 'A' ? (teamNames.A || 'USA')
+    : clinch === 'B' ? (teamNames.B || 'Europe')
+    : null;
+  var loserName  = clinch === 'A' ? (teamNames.B || 'Europe')
+    : clinch === 'B' ? (teamNames.A || 'USA')
+    : null;
+  var finalScore = formatPts(pts.A) + '–' + formatPts(pts.B);
+  var numDays = (s.days || []).length;
+  var ptw = s.cupPointsToWin || (s.cupTotalPoints ? Math.floor(s.cupTotalPoints / 2) + 0.5 : null);
+
+  var cacheKey = 'event-summary|' + clinch + '|' + finalScore;
+  if (window._sgTvSummaryCache && window._sgTvSummaryCache[cacheKey]) {
+    el.textContent = window._sgTvSummaryCache[cacheKey];
+    window._sgTvSummaryCache['sg-tv-event-summary'] = window._sgTvSummaryCache[cacheKey];
+    return;
+  }
+
+  var prompt = 'Write a 2-3 sentence broadcast-style final summary for a Ryder Cup-style golf event. '
+    + 'Memorable and punchy, under 60 words, no emojis. '
+    + 'Event: "' + (s.eventName || 'Golf Event') + '" (' + numDays + ' rounds). '
+    + (winnerName
+      ? winnerName + ' defeated ' + (loserName || 'their opponents') + ' ' + finalScore + '.'
+      : 'The cup ended in a tie at ' + finalScore + '.')
+    + (ptw ? ' The winning threshold was ' + ptw + ' points.' : '');
+
+  fetch('/api/caddie', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], maxTokens: 150 })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var text = '';
+    if (data && data.content && data.content[0] && data.content[0].text) text = data.content[0].text;
+    else if (data && data.reply) text = data.reply;
+    else if (typeof data === 'string') text = data;
+    if (el) el.textContent = text || '';
+    if (window._sgTvSummaryCache && text) {
+      window._sgTvSummaryCache[cacheKey] = text;
+      window._sgTvSummaryCache['sg-tv-event-summary'] = text;
+    }
+  })
+  .catch(function() {});
+}
+
 </script>
 </body>
 </html>
